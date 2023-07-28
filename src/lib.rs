@@ -307,8 +307,7 @@ mod test {
 
     #[test]
     fn create_and_init_game() {
-        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
-        game.init_game();
+        let game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
         let num_bombs = game
             .board
             .iter()
