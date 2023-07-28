@@ -202,21 +202,11 @@ fn bool_to_u8(b: bool) -> u8 {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct Player {
     played: bool,
     dead: bool,
     points: usize,
-}
-
-impl Default for Player {
-    fn default() -> Self {
-        Player {
-            played: false,
-            dead: false,
-            points: 0,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -232,6 +222,10 @@ impl PlayOutcome {
             PlayOutcome::Failure(_) => 1,
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -240,19 +234,10 @@ pub struct CellPoint {
     col: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct CellState {
     revealed: bool,
     player: Option<usize>,
-}
-
-impl Default for CellState {
-    fn default() -> Self {
-        CellState {
-            revealed: false,
-            player: None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
