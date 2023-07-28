@@ -46,11 +46,14 @@ impl Minesweeper {
     }
 
     pub fn play(&mut self, player: usize, cell_point: CellPoint) -> Result<PlayOutcome> {
+        if self.available.is_empty() {
+            bail!("Game is over")
+        }
         if self.players[player].dead {
             bail!("Tried to play as dead player")
         }
         let index = cell_point.row * self.cols + cell_point.col;
-        if index >= self.board.len() || cell_point.row > self.rows || cell_point.col > self.cols {
+        if cell_point.row > self.rows || cell_point.col > self.cols || index >= self.board.len() {
             bail!("Tried to play point outside of playzone")
         }
         let (_, cell_state) = &self.board[index];
@@ -66,24 +69,45 @@ impl Minesweeper {
             Cell::Bomb => {
                 self.reveal(player, index);
                 self.players[0].dead = true;
-                Ok(PlayOutcome::Failure(cell_point))
+                Ok(PlayOutcome::Failure(RevealedCell {
+                    cell_point,
+                    player,
+                    contents: self.board[index].0,
+                }))
             }
             Cell::Empty(x) if x == &0 => {
                 let revealed_points = self.reveal_neighbors(player, index)?;
                 let revealed_points = revealed_points
                     .into_iter()
-                    .map(|i| CellPoint {
-                        col: i % self.cols,
-                        row: i / self.cols,
+                    .map(|i| RevealedCell {
+                        cell_point: CellPoint {
+                            col: i % self.cols,
+                            row: i / self.cols,
+                        },
+                        player,
+                        contents: self.board[i].0,
                     })
                     .collect::<Vec<_>>();
                 self.players[player].points += revealed_points.len();
-                Ok(PlayOutcome::Success(revealed_points))
+                if self.available.is_empty() {
+                    Ok(PlayOutcome::Victory(revealed_points))
+                } else {
+                    Ok(PlayOutcome::Success(revealed_points))
+                }
             }
             Cell::Empty(_) => {
                 self.reveal(player, index);
                 self.players[player].points += 1;
-                Ok(PlayOutcome::Success(vec![cell_point]))
+                let revealed_point = vec![RevealedCell {
+                    cell_point,
+                    player,
+                    contents: self.board[index].0,
+                }];
+                if self.available.is_empty() {
+                    Ok(PlayOutcome::Victory(revealed_point))
+                } else {
+                    Ok(PlayOutcome::Success(revealed_point))
+                }
             }
         }
     }
@@ -108,12 +132,11 @@ impl Minesweeper {
             if item.1.revealed {
                 return Ok(acc);
             }
-            let revealed = self.reveal(player, *i);
             if let Cell::Empty(x) = item.0 {
                 if x == 0 {
                     let mut recur_acc = self.reveal_neighbors(player, *i)?;
                     acc.append(&mut recur_acc)
-                } else if revealed {
+                } else if self.reveal(player, *i) {
                     acc.push(*i)
                 }
             } else {
@@ -211,15 +234,17 @@ struct Player {
 
 #[derive(Clone, Debug)]
 pub enum PlayOutcome {
-    Success(Vec<CellPoint>),
-    Failure(CellPoint),
+    Success(Vec<RevealedCell>),
+    Failure(RevealedCell),
+    Victory(Vec<RevealedCell>),
 }
 
 impl PlayOutcome {
     pub fn len(&self) -> usize {
         match self {
-            PlayOutcome::Success(v) => v.len(),
-            PlayOutcome::Failure(_) => 1,
+            Self::Success(v) => v.len(),
+            Self::Victory(v) => v.len(),
+            Self::Failure(_) => 1,
         }
     }
 
@@ -229,9 +254,16 @@ impl PlayOutcome {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct RevealedCell {
+    pub cell_point: CellPoint,
+    pub player: usize,
+    pub contents: Cell,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct CellPoint {
-    row: usize,
-    col: usize,
+    pub row: usize,
+    pub col: usize,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -241,7 +273,7 @@ struct CellState {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum Cell {
+pub enum Cell {
     Empty(u8),
     Bomb,
 }
@@ -255,34 +287,41 @@ impl Default for Cell {
 impl Cell {
     fn increment(self) -> Self {
         match self {
-            Cell::Empty(x) => Cell::Empty(x + 1),
-            Cell::Bomb => Cell::Bomb,
+            Self::Empty(x) => Cell::Empty(x + 1),
+            Self::Bomb => Cell::Bomb,
         }
     }
 
     fn decrement(self) -> Self {
         match self {
-            Cell::Empty(x) => Cell::Empty(x - 1),
-            Cell::Bomb => Cell::Bomb,
+            Self::Empty(x) => Cell::Empty(x - 1),
+            Self::Bomb => Cell::Bomb,
         }
     }
 
     fn plant(self) -> Result<Self> {
         match self {
-            Cell::Empty(_) => Ok(Cell::Bomb),
-            Cell::Bomb => bail!("Plant on bomb not allowed"),
+            Self::Empty(_) => Ok(Cell::Bomb),
+            Self::Bomb => bail!("Plant on bomb not allowed"),
         }
     }
 
     fn unplant(self, num: u8) -> Result<Self> {
         match self {
-            Cell::Empty(_) => bail!("Unplant on empty not allowed"),
-            Cell::Bomb => Ok(Cell::Empty(num)),
+            Self::Empty(_) => bail!("Unplant on empty not allowed"),
+            Self::Bomb => Ok(Cell::Empty(num)),
         }
     }
 
-    fn is_bomb(&self) -> bool {
-        matches!(self, Cell::Bomb)
+    pub fn is_bomb(&self) -> bool {
+        matches!(self, Self::Bomb)
+    }
+
+    pub fn value(&self) -> Option<u8> {
+        match self {
+            Self::Empty(x) => Some(*x),
+            Self::Bomb => None,
+        }
     }
 }
 
@@ -423,8 +462,8 @@ mod test {
         game.plant(11);
         game.plant(19);
 
-        let res = game.play(0, CellPoint { col: 0, row: 0 });
-        assert_eq!(res.unwrap().len(), 4);
+        let res = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
+        assert_eq!(res.len(), 4);
 
         let num_bombs = game
             .board
@@ -489,7 +528,7 @@ mod test {
         game.plant(11);
         game.plant(19);
 
-        let _ = game.play(0, CellPoint { col: 0, row: 0 });
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
 
         let cell_point = CellPoint { row: 1, col: 2 };
         let res = game.play(0, cell_point.clone());
@@ -505,11 +544,10 @@ mod test {
         game.plant(11);
         game.plant(19);
 
-        let _ = game.play(0, CellPoint { col: 0, row: 0 });
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
 
         let cell_point = CellPoint { row: 0, col: 2 };
-        let res = game.play(0, cell_point.clone());
-        let res = res.unwrap();
+        let res = game.play(0, cell_point.clone()).unwrap();
         assert!(matches!(res.clone(), PlayOutcome::Success(_)));
         assert_eq!(res.len(), 1);
     }
@@ -523,7 +561,7 @@ mod test {
         game.plant(11);
         game.plant(19);
 
-        let _ = game.play(0, CellPoint { col: 0, row: 0 });
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
 
         let num_bombs = game
             .board
@@ -535,5 +573,65 @@ mod test {
         let cell_point = CellPoint { row: 0, col: 2 };
         let res = game.play(0, cell_point.clone());
         assert!(matches!(res.unwrap(), PlayOutcome::Success(_)));
+    }
+
+    #[test]
+    fn dead_errors() {
+        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+
+        game.plant(0);
+        game.plant(10);
+        game.plant(11);
+        game.plant(19);
+
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
+        let _ = game.play(0, CellPoint { row: 1, col: 2 }).unwrap();
+
+        let res = game.play(0, CellPoint { row: 3, col: 3 });
+        assert!(matches!(res, Err(..)));
+    }
+
+    #[test]
+    fn revealed_errors() {
+        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+
+        game.plant(0);
+        game.plant(10);
+        game.plant(11);
+        game.plant(19);
+
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
+
+        let res = game.play(0, CellPoint { row: 1, col: 1 });
+        assert!(matches!(res, Err(..)));
+    }
+
+    #[test]
+    fn oob_errors() {
+        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+
+        let res = game.play(0, CellPoint { col: 10, row: 0 });
+        assert!(matches!(res, Err(..)));
+
+        let res = game.play(0, CellPoint { col: 0, row: 10 });
+        assert!(matches!(res, Err(..)));
+    }
+
+    #[test]
+    fn victory_works() {
+        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+
+        game.plant(0);
+        game.plant(10);
+        game.plant(11);
+        game.plant(19);
+
+        let _ = game.play(0, CellPoint { col: 0, row: 0 }).unwrap();
+        let _ = game.play(0, CellPoint { row: 8, col: 8 }).unwrap();
+
+        let _ = game.play(0, CellPoint { row: 0, col: 2 }).unwrap();
+        let res = game.play(0, CellPoint { row: 2, col: 0 }).unwrap();
+        assert!(matches!(res, PlayOutcome::Victory(..)));
+        assert_eq!(game.players[0].points, 79);
     }
 }
