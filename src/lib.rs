@@ -1,3 +1,5 @@
+mod board;
+
 use core::fmt;
 use std::{
     collections::HashSet,
@@ -5,15 +7,14 @@ use std::{
 };
 
 use anyhow::{bail, Ok, Result};
+use board::Board;
 use rand::{seq::SliceRandom, thread_rng};
 
 pub struct Minesweeper {
-    rows: usize,
-    cols: usize,
     num_mines: usize,
     available: HashSet<usize>,
     players: Vec<Player>,
-    board: Vec<(Cell, CellState)>,
+    board: Board<(Cell, CellState)>,
 }
 
 impl Display for Minesweeper {
@@ -52,12 +53,14 @@ impl Minesweeper {
             bail!("Too many mines to create game");
         }
         let game = Minesweeper {
-            rows,
-            cols,
             num_mines,
             available: (0..total).collect(),
             players: vec![Player::default(); max_players],
-            board: vec![(Cell::default(), CellState::default()); total],
+            board: Board {
+                rows,
+                cols,
+                board: vec![(Cell::default(), CellState::default()); total],
+            },
         };
         Ok(game)
     }
@@ -246,38 +249,6 @@ impl Minesweeper {
             }
             Ok(acc)
         })
-    }
-
-    fn neighbors(&self, index: usize) -> Vec<usize> {
-        let mut neighbors = Vec::<usize>::new();
-
-        let col = index % self.cols;
-        let row = index / self.cols;
-        if col > 0 {
-            neighbors.push(index - 1);
-            if row > 0 {
-                neighbors.push(index - 1 - self.cols);
-            }
-            if row < self.cols - 1 {
-                neighbors.push(index - 1 + self.cols);
-            }
-        }
-        if col < self.cols - 1 {
-            neighbors.push(index + 1);
-            if row > 0 {
-                neighbors.push(index + 1 - self.cols);
-            }
-            if row < self.cols - 1 {
-                neighbors.push(index + 1 + self.cols);
-            }
-        }
-        if row > 0 {
-            neighbors.push(index - self.cols);
-        }
-        if row < self.rows - 1 {
-            neighbors.push(index + self.cols);
-        }
-        neighbors
     }
 
     fn plant(&mut self, index: usize) {
