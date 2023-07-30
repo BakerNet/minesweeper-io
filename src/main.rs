@@ -1,3 +1,4 @@
+use ansi_term::Style;
 use anyhow::Result;
 use std::{io, num::ParseIntError};
 
@@ -6,19 +7,26 @@ use minesweeper::{
     game::{Action, Minesweeper, PlayOutcome},
 };
 
+fn underline(input: &str) -> ansi_term::ANSIGenericString<str> {
+    Style::new().underline().paint(input)
+}
+
 fn main() {
-    let mut game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
+    let cols = 9;
+    let rows = 9;
+    let mines = 10;
+    let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
         let mut r_num = 0;
-        println!("X|012345678");
-        println!("___________");
+        let header = (0..cols).map(|x| format!("|{x}")).collect::<String>();
+        println!("{}", underline(&format!("X{}|", header)));
         for row in curr_board.iter() {
-            print!("{}|", r_num);
+            print!("{}", underline(&format!("{}", r_num)));
             for item in row.iter() {
-                print!("{:?}", item);
+                print!("{}", underline(&format!("|{:?}", item)));
             }
-            print!("\n");
+            print!("{}", underline("|\n"));
             r_num += 1;
         }
         println!("Input action & 2 numbers `{{c|d|f}} {{row}} {{col}}` as play:");
