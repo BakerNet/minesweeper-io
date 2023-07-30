@@ -36,16 +36,18 @@ where
     }
 }
 
-impl<T> Index<usize> for Board<T> {
+impl<T> Index<BoardPoint> for Board<T> {
     type Output = T;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, point: BoardPoint) -> &Self::Output {
+        let index = point.row * self.cols + point.col;
         &self.board[index]
     }
 }
 
-impl<T> IndexMut<usize> for Board<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+impl<T> IndexMut<BoardPoint> for Board<T> {
+    fn index_mut(&mut self, point: BoardPoint) -> &mut Self::Output {
+        let index = point.row * self.cols + point.col;
         &mut self.board[index]
     }
 }
@@ -70,6 +72,10 @@ impl<T> Board<T> {
         }
     }
 
+    pub fn index_from_point(&self, point: BoardPoint) -> usize {
+        point.row & self.cols + point.col
+    }
+
     pub fn rows(&self) -> usize {
         self.rows
     }
@@ -89,42 +95,58 @@ impl<T> Board<T> {
     pub fn iter(&self) -> Iter<'_, T> {
         self.board.iter()
     }
+
+    pub fn is_in_bounds(&self, point: BoardPoint) -> bool {
+        point.row < self.rows && point.col < self.cols
+    }
+
+    pub fn neighbors(&self, point: BoardPoint) -> Vec<BoardPoint> {
+        let mut neighbors = Vec::<BoardPoint>::new();
+
+        let row = point.row;
+        let col = point.col;
+        if col > 0 {
+            neighbors.push(BoardPoint { row, col: col - 1 });
+            if row > 0 {
+                neighbors.push(BoardPoint {
+                    row: row - 1,
+                    col: col - 1,
+                });
+            }
+            if row < self.cols - 1 {
+                neighbors.push(BoardPoint {
+                    row: row + 1,
+                    col: col - 1,
+                });
+            }
+        }
+        if col < self.cols - 1 {
+            neighbors.push(BoardPoint { row, col: col + 1 });
+            if row > 0 {
+                neighbors.push(BoardPoint {
+                    row: row - 1,
+                    col: col + 1,
+                });
+            }
+            if row < self.cols - 1 {
+                neighbors.push(BoardPoint {
+                    row: row + 1,
+                    col: col + 1,
+                });
+            }
+        }
+        if row > 0 {
+            neighbors.push(BoardPoint { row: row - 1, col });
+        }
+        if row < self.rows - 1 {
+            neighbors.push(BoardPoint { row: row + 1, col });
+        }
+        neighbors
+    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct BoardPoint {
     pub row: usize,
     pub col: usize,
-}
-
-pub fn neighbors(index: usize, rows: usize, cols: usize) -> Vec<usize> {
-    let mut neighbors = Vec::<usize>::new();
-
-    let row = index / cols;
-    let col = index % cols;
-    if col > 0 {
-        neighbors.push(index - 1);
-        if row > 0 {
-            neighbors.push(index - 1 - cols);
-        }
-        if row < cols - 1 {
-            neighbors.push(index - 1 + cols);
-        }
-    }
-    if col < cols - 1 {
-        neighbors.push(index + 1);
-        if row > 0 {
-            neighbors.push(index + 1 - cols);
-        }
-        if row < cols - 1 {
-            neighbors.push(index + 1 + cols);
-        }
-    }
-    if row > 0 {
-        neighbors.push(index - cols);
-    }
-    if row < rows - 1 {
-        neighbors.push(index + cols);
-    }
-    neighbors
 }
