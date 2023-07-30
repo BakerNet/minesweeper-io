@@ -1,12 +1,26 @@
 use anyhow::Result;
 use std::{io, num::ParseIntError};
 
-use minesweeper::{Action, CellPoint, Minesweeper, PlayOutcome};
+use minesweeper::{
+    board::BoardPoint,
+    game::{Action, Minesweeper, PlayOutcome},
+};
 
 fn main() {
     let mut game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
     while !game.is_over() {
-        println!("{}", &game);
+        let curr_board = &game.player_board(0);
+        let mut r_num = 0;
+        println!("X|012345678");
+        println!("___________");
+        for row in curr_board.iter() {
+            print!("{}|", r_num);
+            for item in row.iter() {
+                print!("{:?}", item);
+            }
+            print!("\n");
+            r_num += 1;
+        }
         println!("Input action & 2 numbers `{{c|d|f}} {{row}} {{col}}` as play:");
         let mut play = String::new();
 
@@ -32,7 +46,7 @@ fn main() {
         let res = game.play(
             0,
             Action::Click,
-            CellPoint {
+            BoardPoint {
                 row: *play.get(0).unwrap(),
                 col: *play.get(1).unwrap(),
             },
