@@ -74,14 +74,10 @@ impl Minesweeper {
             bail!("Tried to play already revealed cell")
         }
         if self.players[player].flags.contains(&cell_point) {
-            let i = self.players[player]
-                .flags
-                .iter()
-                .position(|&r| r == cell_point)
-                .unwrap();
-            self.players[player].flags.remove(i);
+            self.players[player].flags.remove(&cell_point);
+        } else {
+            self.players[player].flags.insert(cell_point);
         }
-        self.players[player].flags.push(cell_point);
         Ok(PlayOutcome::Success(Vec::new()))
     }
 
@@ -89,6 +85,9 @@ impl Minesweeper {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
             bail!("Tried to play already revealed cell")
+        }
+        if self.players[player].flags.contains(&cell_point) {
+            bail!("Tried to play flagged cell")
         }
         if !(self.players[player].played) {
             self.players[player].played = true;
@@ -144,6 +143,41 @@ impl Minesweeper {
         player: usize,
         cell_point: BoardPoint,
     ) -> Result<PlayOutcome> {
+        let (cell, cell_state) = &self.board[cell_point];
+        if !cell_state.revealed {
+            bail!("Tried to double-click cell that isn't revealed")
+        }
+        let neighbors = self.board.neighbors(cell_point);
+        let flagged_neighbors = neighbors
+            .iter()
+            .filter(|c| self.players[player].flags.contains(*c));
+        if let Cell::Empty(x) = cell {
+            if *x == 0 {
+                bail!("Tried to double-click zero space")
+            }
+            let flagged_count = flagged_neighbors.count();
+            if *x as usize != flagged_count {
+                bail!("Tried to double-click with wrong number of flagged neighbors.  Expected {x} got {flagged_count}")
+            }
+        } else {
+            bail!("Tried to double-click bomb")
+        }
+        let unflagged_neighbors = neighbors
+            .iter()
+            .copied()
+            .filter(|c| !self.board[*c].1.revealed && !self.players[player].flags.contains(c));
+        let has_bomb = unflagged_neighbors
+            .clone()
+            .find(|c| matches!(self.board[*c].0, Cell::Bomb));
+        if let Some(c) = has_bomb {
+            self.reveal(player, c);
+            self.players[player].dead = true;
+            return Ok(PlayOutcome::Failure(RevealedCell {
+                cell_point: c,
+                player,
+                contents: self.board[cell_point].0,
+            }));
+        }
         todo!()
     }
 
@@ -265,7 +299,7 @@ struct Player {
     played: bool,
     dead: bool,
     points: usize,
-    flags: Vec<BoardPoint>,
+    flags: HashSet<BoardPoint>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -322,15 +356,35 @@ mod test {
         game
     }
 
-    #[test]
-    fn create_and_init_game() {
-        let game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
+    fn num_bombs(game: &Minesweeper, number: usize) {
         let num_bombs = game
             .board
             .iter()
             .filter(|x| matches!(x.0, Cell::Bomb))
             .count();
-        assert_eq!(num_bombs, 10);
+        assert_eq!(num_bombs, number);
+    }
+
+    fn point_cell(game: &Minesweeper, point: BoardPoint, _cell: Cell) {
+        let board_cell = game.board[point].0;
+        assert!(matches!(board_cell, _cell));
+    }
+
+    fn point_cell_state(
+        game: &Minesweeper,
+        point: BoardPoint,
+        revealed: bool,
+        player: Option<usize>,
+    ) {
+        let board_cell_state = game.board[point].1;
+        assert_eq!(board_cell_state.revealed, revealed);
+        assert_eq!(board_cell_state.player, player);
+    }
+
+    #[test]
+    fn create_and_init_game() {
+        let game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
+        num_bombs(&game, 10);
     }
 
     #[test]
@@ -339,63 +393,33 @@ mod test {
 
         game.plant(POINT_0_0);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 1);
+        num_bombs(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 1);
-        let first = game.board[POINT_0_0].0;
-        assert!(matches!(first, Cell::Bomb));
-        let right = game.board[POINT_0_1].0;
-        assert!(matches!(right, Cell::Empty(1)));
-        let below = game.board[POINT_1_0].0;
-        assert!(matches!(below, Cell::Empty(1)));
-        let right_below = game.board[POINT_1_1].0;
-        assert!(matches!(right_below, Cell::Empty(1)));
-        let two_right = game.board[POINT_0_2].0;
-        assert!(matches!(two_right, Cell::Empty(0)));
+        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_1, Cell::Empty(1));
+        point_cell(&game, POINT_1_0, Cell::Empty(1));
+        point_cell(&game, POINT_1_1, Cell::Empty(1));
+        point_cell(&game, POINT_0_2, Cell::Empty(0));
 
         game.plant(POINT_1_1);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 2);
+        num_bombs(&game, 2);
         assert_eq!(game.available.len(), 9 * 9 - 2);
-        let first = game.board[POINT_0_0].0;
-        assert!(matches!(first, Cell::Bomb));
-        let right = game.board[POINT_0_1].0;
-        assert!(matches!(right, Cell::Empty(2)));
-        let below = game.board[POINT_1_0].0;
-        assert!(matches!(below, Cell::Empty(2)));
-        let right_below = game.board[POINT_1_1].0;
-        assert!(matches!(right_below, Cell::Bomb));
-        let two_right = game.board[POINT_0_2].0;
-        assert!(matches!(two_right, Cell::Empty(1)));
+        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_1, Cell::Empty(2));
+        point_cell(&game, POINT_1_0, Cell::Empty(2));
+        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell(&game, POINT_0_2, Cell::Empty(1));
 
         game.plant(POINT_1_2);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 3);
+        num_bombs(&game, 3);
         assert_eq!(game.available.len(), 9 * 9 - 3);
-        let first = game.board[POINT_0_0].0;
-        assert!(matches!(first, Cell::Bomb));
-        let right = game.board[POINT_0_1].0;
-        assert!(matches!(right, Cell::Empty(3)));
-        let below = game.board[POINT_1_0].0;
-        assert!(matches!(below, Cell::Empty(2)));
-        let right_below = game.board[POINT_1_1].0;
-        assert!(matches!(right_below, Cell::Bomb));
-        let two_right = game.board[POINT_0_2].0;
-        assert!(matches!(two_right, Cell::Empty(2)));
+        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_1, Cell::Empty(3));
+        point_cell(&game, POINT_1_0, Cell::Empty(2));
+        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell(&game, POINT_0_2, Cell::Empty(2));
     }
 
     #[test]
@@ -404,17 +428,10 @@ mod test {
 
         game.unplant(POINT_0_0, true);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 1);
+        num_bombs(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 3);
-        let clicked_bomb_loc = game.board[POINT_0_0].0;
-        assert!(matches!(clicked_bomb_loc, Cell::Empty(0)));
-        let second_bomb_loc = game.board[POINT_1_1].0;
-        assert!(matches!(second_bomb_loc, Cell::Empty(1)));
+        point_cell(&game, POINT_0_0, Cell::Empty(0));
+        point_cell(&game, POINT_1_1, Cell::Empty(1));
     }
 
     #[test]
@@ -423,19 +440,11 @@ mod test {
 
         game.unplant(POINT_0_2, true);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 1);
+        num_bombs(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 3);
-        let clicked_loc = game.board[POINT_0_2].0;
-        assert!(matches!(clicked_loc, Cell::Empty(0)));
-        let first_bomb_loc = game.board[POINT_0_0].0;
-        assert!(matches!(first_bomb_loc, Cell::Bomb));
-        let second_bomb_loc = game.board[POINT_1_1].0;
-        assert!(matches!(second_bomb_loc, Cell::Empty(1)));
+        point_cell(&game, POINT_0_2, Cell::Empty(0));
+        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_1_1, Cell::Empty(1));
     }
 
     #[test]
@@ -447,25 +456,14 @@ mod test {
             .unwrap();
         assert_eq!(res.len(), 4);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 2);
+        num_bombs(&game, 2);
         assert_eq!(game.available.len(), 9 * 9 - 6);
-        let clicked_bomb_loc = &game.board[POINT_0_0];
-        assert!(matches!(clicked_bomb_loc.0, Cell::Empty(0)));
-        assert!(clicked_bomb_loc.1.revealed);
-        assert_eq!(clicked_bomb_loc.1.player, Some(0));
-        let second_bomb_loc = &game.board[POINT_1_1];
-        assert_eq!(second_bomb_loc.0, Cell::Empty(2));
-        assert!(second_bomb_loc.1.revealed);
-        assert_eq!(second_bomb_loc.1.player, Some(0));
-        let third_bomb_loc = &game.board[POINT_1_2];
-        assert!(matches!(third_bomb_loc.0, Cell::Bomb));
-        assert!(!third_bomb_loc.1.revealed);
-        assert_eq!(third_bomb_loc.1.player, None);
+        point_cell(&game, POINT_0_0, Cell::Empty(0));
+        point_cell_state(&game, POINT_0_0, true, Some(0));
+        point_cell(&game, POINT_1_1, Cell::Empty(2));
+        point_cell_state(&game, POINT_1_1, true, Some(0));
+        point_cell(&game, POINT_1_2, Cell::Bomb);
+        point_cell_state(&game, POINT_1_2, false, None);
     }
 
     #[test]
@@ -475,25 +473,14 @@ mod test {
         let res = game.play(0, Action::Click, BoardPoint { col: 7, row: 7 });
         assert_eq!(res.unwrap().len(), 9 * 9 - 8);
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 4);
+        num_bombs(&game, 4);
         assert_eq!(game.available.len(), 4); // not bomb and not revealed
-        let clicked_loc = &game.board[BoardPoint { row: 8, col: 8 }];
-        assert!(matches!(clicked_loc.0, Cell::Empty(0)));
-        assert!(clicked_loc.1.revealed);
-        assert_eq!(clicked_loc.1.player, Some(0));
-        let second_bomb_loc = &game.board[POINT_1_1];
-        assert!(matches!(second_bomb_loc.0, Cell::Bomb));
-        assert!(!second_bomb_loc.1.revealed);
-        assert_eq!(second_bomb_loc.1.player, None);
-        let third_bomb_loc = &game.board[POINT_1_2];
-        assert!(matches!(third_bomb_loc.0, Cell::Bomb));
-        assert!(!third_bomb_loc.1.revealed);
-        assert_eq!(third_bomb_loc.1.player, None);
+        point_cell(&game, BoardPoint { row: 8, col: 8 }, Cell::Empty(0));
+        point_cell_state(&game, BoardPoint { row: 8, col: 8 }, true, Some(0));
+        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell_state(&game, POINT_1_1, false, None);
+        point_cell(&game, POINT_1_2, Cell::Bomb);
+        point_cell_state(&game, POINT_1_2, false, None);
     }
 
     #[test]
@@ -531,12 +518,7 @@ mod test {
             .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
             .unwrap();
 
-        let num_bombs = game
-            .board
-            .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
-            .count();
-        assert_eq!(num_bombs, 2);
+        num_bombs(&game, 2);
 
         let cell_point = BoardPoint { row: 0, col: 2 };
         let res = game.play(0, Action::Click, cell_point.clone());

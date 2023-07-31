@@ -36,7 +36,7 @@ pub struct RevealedCell {
     pub contents: Cell,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CellState {
     pub revealed: bool,
     pub player: Option<usize>,
