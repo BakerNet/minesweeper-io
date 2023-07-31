@@ -16,24 +16,16 @@ fn main() {
         optional -e, --expert
     };
     let mut cols = 9;
-    if flags.intermediate {
-        cols = 16;
-    }
-    if flags.expert {
-        cols = 30;
-    }
     let mut rows = 9;
-    if flags.intermediate {
-        rows = 16;
-    }
-    if flags.expert {
-        rows = 16;
-    }
     let mut mines = 10;
     if flags.intermediate {
+        cols = 16;
+        rows = 16;
         mines = 40;
     }
     if flags.expert {
+        cols = 30;
+        rows = 16;
         mines = 99;
     }
     let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
@@ -88,7 +80,6 @@ fn main() {
             println!("Invalid col - try again: {:?}", col);
             continue;
         };
-        println!("You played: {:?}", play);
 
         let res = game.play(0, action, BoardPoint { row, col });
         if let Err(e) = res {
