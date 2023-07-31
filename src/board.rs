@@ -68,7 +68,7 @@ impl<T> Board<T> {
     pub fn point_from_index(&self, index: usize) -> BoardPoint {
         BoardPoint {
             row: index / self.cols,
-            col: index % self.rows,
+            col: index % self.cols,
         }
     }
 
@@ -113,7 +113,7 @@ impl<T> Board<T> {
                     col: col - 1,
                 });
             }
-            if row < self.cols - 1 {
+            if row < self.rows - 1 {
                 neighbors.push(BoardPoint {
                     row: row + 1,
                     col: col - 1,
@@ -128,7 +128,7 @@ impl<T> Board<T> {
                     col: col + 1,
                 });
             }
-            if row < self.cols - 1 {
+            if row < self.rows - 1 {
                 neighbors.push(BoardPoint {
                     row: row + 1,
                     col: col + 1,

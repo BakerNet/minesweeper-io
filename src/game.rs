@@ -97,7 +97,7 @@ impl Minesweeper {
         match cell {
             Cell::Bomb => {
                 self.reveal(player, cell_point);
-                self.players[0].dead = true;
+                self.players[player].dead = true;
                 Ok(PlayOutcome::Failure(RevealedCell {
                     cell_point,
                     player,
@@ -165,10 +165,13 @@ impl Minesweeper {
         let unflagged_neighbors = neighbors
             .iter()
             .copied()
-            .filter(|c| !self.board[*c].1.revealed && !self.players[player].flags.contains(c));
+            .filter(|c| !self.board[*c].1.revealed && !self.players[player].flags.contains(c))
+            .collect::<Vec<_>>();
         let has_bomb = unflagged_neighbors
-            .clone()
+            .iter()
+            .copied()
             .find(|c| matches!(self.board[*c].0, Cell::Bomb));
+        // check for bomb first, so other clicks don't go through
         if let Some(c) = has_bomb {
             self.reveal(player, c);
             self.players[player].dead = true;
@@ -178,7 +181,19 @@ impl Minesweeper {
                 contents: self.board[cell_point].0,
             }));
         }
-        todo!()
+        let combined_outcome = unflagged_neighbors.iter().fold(
+            PlayOutcome::Success(Vec::new()),
+            |acc: PlayOutcome, c| {
+                if self.board[*c].1.revealed {
+                    return acc;
+                }
+                let res = self
+                    .handle_click(player, *c)
+                    .expect("Handle click inside double-click should work");
+                acc.combine(res)
+            },
+        );
+        Ok(combined_outcome)
     }
 
     pub fn is_over(&self) -> bool {
@@ -253,10 +268,9 @@ impl Minesweeper {
         self.board[cell_point].0 = self.board[cell_point].0.plant().unwrap();
 
         let neighbors = self.board.neighbors(cell_point);
-        neighbors
-            .iter()
-            .copied()
-            .for_each(|c| self.board[c].0 = self.board[c].0.increment());
+        neighbors.iter().copied().for_each(|c| {
+            self.board[c].0 = self.board[c].0.increment();
+        });
     }
 
     fn unplant(&mut self, cell_point: BoardPoint, rem_neighbors: bool) {
@@ -327,6 +341,35 @@ impl PlayOutcome {
 
     pub fn is_empty(&self) -> bool {
         false
+    }
+
+    pub fn combine(self, other: PlayOutcome) -> Self {
+        let mut is_victory = false;
+        let mut vec = match self {
+            PlayOutcome::Success(x) => x,
+            PlayOutcome::Victory(x) => {
+                is_victory = true;
+                x
+            }
+            PlayOutcome::Failure(_) => {
+                return self;
+            }
+        };
+        match other {
+            PlayOutcome::Failure(_) => other,
+            PlayOutcome::Success(mut x) => {
+                vec.append(&mut x);
+                if is_victory {
+                    PlayOutcome::Victory(vec)
+                } else {
+                    PlayOutcome::Success(vec)
+                }
+            }
+            PlayOutcome::Victory(mut x) => {
+                vec.append(&mut x);
+                PlayOutcome::Victory(vec)
+            }
+        }
     }
 }
 
@@ -487,9 +530,7 @@ mod test {
     fn second_click_bomb_failure() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
         let res = game.play(0, Action::Click, cell_point.clone());
@@ -500,9 +541,7 @@ mod test {
     fn second_click_cell_success() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 0, col: 2 };
         let res = game.play(0, Action::Click, cell_point.clone()).unwrap();
@@ -511,12 +550,86 @@ mod test {
     }
 
     #[test]
+    fn flag_works() {
+        let mut game = set_up_game(true);
+
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
+
+        let cell_point = BoardPoint { row: 1, col: 2 };
+        let res = game.play(0, Action::Flag, cell_point.clone()).unwrap();
+        assert!(matches!(res, PlayOutcome::Success(_)));
+        assert_eq!(res.len(), 0);
+
+        let res = game.play(0, Action::Click, cell_point.clone());
+        assert!(matches!(res, Err(_)));
+    }
+
+    #[test]
+    fn unflag_works() {
+        let mut game = set_up_game(true);
+
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
+
+        let cell_point = BoardPoint { row: 1, col: 2 };
+        let _ = game.play(0, Action::Flag, cell_point.clone()).unwrap();
+        let res = game.play(0, Action::Flag, cell_point.clone()).unwrap();
+        assert!(matches!(res, PlayOutcome::Success(_)));
+        assert_eq!(res.len(), 0);
+
+        let res = game.play(0, Action::Click, cell_point.clone()).unwrap();
+        assert!(matches!(res, PlayOutcome::Failure(_)));
+    }
+
+    #[test]
+    fn double_click_works() {
+        let mut game = set_up_game(true);
+
+        let res = game
+            .play(0, Action::Click, BoardPoint { row: 0, col: 0 })
+            .unwrap();
+        assert_eq!(res.len(), 4);
+
+        num_bombs(&game, 2);
+
+        let _ = game.play(0, Action::Flag, POINT_1_2).unwrap();
+        let _ = game.play(0, Action::Flag, POINT_2_1).unwrap();
+        let _ = game
+            .play(0, Action::Click, BoardPoint { row: 2, col: 2 })
+            .unwrap();
+        point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
+
+        let res = game
+            .play(0, Action::DoubleClick, BoardPoint { row: 2, col: 2 })
+            .expect("double-click should work");
+        assert_eq!(res.len(), 9 * 9 - 9);
+    }
+
+    #[test]
+    fn bad_double_click_fails() {
+        let mut game = set_up_game(true);
+
+        let res = game
+            .play(0, Action::Click, BoardPoint { row: 0, col: 0 })
+            .unwrap();
+        assert_eq!(res.len(), 4);
+
+        num_bombs(&game, 2);
+
+        let _ = game.play(0, Action::Flag, POINT_1_2).unwrap();
+        let _ = game
+            .play(0, Action::Click, BoardPoint { row: 2, col: 2 })
+            .unwrap();
+        point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
+
+        let res = game.play(0, Action::DoubleClick, BoardPoint { row: 2, col: 2 });
+        assert!(matches!(res, Err(_)));
+    }
+
+    #[test]
     fn points_work() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
 
         num_bombs(&game, 2);
 
@@ -529,9 +642,7 @@ mod test {
     fn dead_errors() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
         let _ = game
             .play(0, Action::Click, BoardPoint { row: 1, col: 2 })
             .unwrap();
@@ -544,9 +655,7 @@ mod test {
     fn revealed_errors() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
 
         let res = game.play(0, Action::Click, BoardPoint { row: 1, col: 1 });
         assert!(matches!(res, Err(..)));
@@ -567,9 +676,7 @@ mod test {
     fn victory_works() {
         let mut game = set_up_game(true);
 
-        let _ = game
-            .play(0, Action::Click, BoardPoint { col: 0, row: 0 })
-            .unwrap();
+        let _ = game.play(0, Action::Click, POINT_0_0).unwrap();
         let _ = game
             .play(0, Action::Click, BoardPoint { row: 8, col: 8 })
             .unwrap();

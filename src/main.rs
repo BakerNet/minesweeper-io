@@ -1,6 +1,5 @@
 use ansi_term::Style;
-use anyhow::Result;
-use std::{io, num::ParseIntError};
+use std::io;
 
 use minesweeper::{
     board::BoardPoint,
@@ -12,17 +11,45 @@ fn underline(input: &str) -> ansi_term::ANSIGenericString<str> {
 }
 
 fn main() {
-    let cols = 9;
-    let rows = 9;
-    let mines = 10;
+    let flags = xflags::parse_or_exit! {
+        optional -i,--intermediate
+        optional -e, --expert
+    };
+    let mut cols = 9;
+    if flags.intermediate {
+        cols = 16;
+    }
+    if flags.expert {
+        cols = 30;
+    }
+    let mut rows = 9;
+    if flags.intermediate {
+        rows = 16;
+    }
+    if flags.expert {
+        rows = 16;
+    }
+    let mut mines = 10;
+    if flags.intermediate {
+        mines = 40;
+    }
+    if flags.expert {
+        mines = 99;
+    }
     let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
         let mut r_num = 0;
-        let header = (0..cols).map(|x| format!("|{x}")).collect::<String>();
-        println!("{}", underline(&format!("X{}|", header)));
+        let header = (0..cols)
+            .map(|x| format!("|{}", x / 10))
+            .collect::<String>();
+        println!("{}", &format!("XX{}|", header));
+        let header = (0..cols)
+            .map(|x| format!("|{}", x % 10))
+            .collect::<String>();
+        println!("{}", underline(&format!("XX{}|", header)));
         for row in curr_board.iter() {
-            print!("{}", underline(&format!("{}", r_num)));
+            print!("{}", underline(&format!("{:0>2}", r_num)));
             for item in row.iter() {
                 print!("{}", underline(&format!("|{:?}", item)));
             }
@@ -35,30 +62,35 @@ fn main() {
         io::stdin()
             .read_line(&mut play)
             .expect("Failed to read line");
-        let play = play
-            .trim_end()
-            .split(' ')
-            .into_iter()
-            .map(|x| x.parse())
-            .collect::<Result<Vec<usize>, ParseIntError>>();
-        let Ok(play) = play else {
-            println!("Invalid input - try again: {:?}", play);
-            continue;
-        };
-        if play.len() != 2 {
-            println!("Input too long - try again.");
+        let play = play.trim_end().split(' ');
+        if play.clone().into_iter().count() != 3 {
+            println!("Bad number of inputs - try again.");
             continue;
         }
+        let mut play = play.into_iter();
+
+        let action = match play.next().unwrap() {
+            "c" => Action::Click,
+            "d" => Action::DoubleClick,
+            "f" => Action::Flag,
+            _ => {
+                println!("Bad action - try again");
+                continue;
+            }
+        };
+        let row = play.next().unwrap().parse();
+        let Ok(row) = row else {
+            println!("Invalid row - try again: {:?}", row);
+            continue;
+        };
+        let col = play.next().unwrap().parse();
+        let Ok(col) = col else {
+            println!("Invalid col - try again: {:?}", col);
+            continue;
+        };
         println!("You played: {:?}", play);
 
-        let res = game.play(
-            0,
-            Action::Click,
-            BoardPoint {
-                row: *play.get(0).unwrap(),
-                col: *play.get(1).unwrap(),
-            },
-        );
+        let res = game.play(0, action, BoardPoint { row, col });
         if let Err(e) = res {
             println!("Invalid action - try again: {:?}", e);
             continue;
