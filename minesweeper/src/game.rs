@@ -5,6 +5,7 @@ use crate::cell::{Cell, CellState, PlayerCell, RevealedCell};
 
 use anyhow::{bail, Ok, Result};
 use rand::{seq::SliceRandom, thread_rng};
+use serde::{Serialize, Deserialize};
 
 pub struct Minesweeper {
     num_mines: usize,
@@ -200,7 +201,7 @@ impl Minesweeper {
         self.available.len() == 0 || self.players.iter().all(|x| x.dead)
     }
 
-    pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+    pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
         let mut return_board: Vec<Vec<PlayerCell>> =
             vec![vec![PlayerCell::Hidden; self.board.cols()]; self.board.rows()];
         for r in 0..self.board.rows() {
@@ -216,6 +217,11 @@ impl Minesweeper {
                 }
             }
         }
+        return_board
+    }
+
+    pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+        let mut return_board = self.viewer_board();
         for f in self.players[player].flags.iter() {
             if let PlayerCell::Hidden = return_board[f.row][f.col] {
                 return_board[f.row][f.col] = PlayerCell::Flag
@@ -323,7 +329,7 @@ pub enum Action {
     DoubleClick,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PlayOutcome {
     Success(Vec<RevealedCell>),
     Failure(RevealedCell),

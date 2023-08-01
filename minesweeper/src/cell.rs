@@ -1,6 +1,7 @@
 use std::fmt;
 
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 
 use crate::board::BoardPoint;
 
@@ -29,7 +30,7 @@ impl fmt::Debug for PlayerCell {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct RevealedCell {
     pub cell_point: BoardPoint,
     pub player: usize,
@@ -42,7 +43,7 @@ pub struct CellState {
     pub player: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Cell {
     Empty(u8),
     Bomb,

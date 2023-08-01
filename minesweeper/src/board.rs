@@ -5,6 +5,8 @@ use std::{
     slice::Iter,
 };
 
+use serde::{Deserialize, Serialize};
+
 pub struct Board<T> {
     rows: usize,
     cols: usize,
@@ -145,7 +147,7 @@ impl<T> Board<T> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BoardPoint {
     pub row: usize,
     pub col: usize,
