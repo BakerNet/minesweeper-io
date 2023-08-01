@@ -1,0 +1,7 @@
+.cell {
+    height: 20px;
+    width: 20px;
+    box-sizing: border-box;
+    display: inline-block;
+    text-align: center;
+}
