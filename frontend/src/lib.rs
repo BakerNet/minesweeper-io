@@ -1,62 +1,94 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
+use anyhow::Result;
 use leptos::{leptos_dom::console_log, *};
+use leptos_router::*;
+use leptos_use::{use_websocket, UseWebSocketReadyState, UseWebsocketReturn};
 use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
-    game::{Action, Minesweeper, PlayOutcome},
+    client::{MinesweeperClient, Play},
+    game::{Action as PlayAction, PlayOutcome},
 };
+use web_sys::WebSocket;
 
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
     view! { cx,
-        <Game rows=9 cols=9 mines=10 />
+        <div id="root">
+            <Router>
+                <h1>Minesweeper</h1>
+                <A href="">Home</A>
+            <main>
+            <Routes>
+                <Route path="" view=|cx| view!{cx, <A href="jFSUQSLk">Start game</A>} />
+                <Route path="/:id" view=|cx| view!{ cx,
+                    <Game rows=16 cols=30 game_id="jFSUQSLk".to_string() />
+                } />
+            </Routes>
+            </main>
+            </Router>
+        </div>
     }
 }
 
 struct FrontendGame {
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     err_signal: WriteSignal<Option<String>>,
-    game: Box<Minesweeper>,
+    game: Box<MinesweeperClient>,
+    ws: Option<WebSocket>,
 }
 
 impl FrontendGame {
-    fn click(&mut self, row: usize, col: usize) {
-        console_log("Hello from Click");
-        let res = self.game.play(0, Action::Click, BoardPoint { row, col });
-        match res {
-            Err(e) => {
-                console_log(&format!("{:?}", e));
-                self.err_signal.set(Some(format!("{:?}", e)));
+    fn click(&self, row: usize, col: usize) -> Result<()> {
+        let play_json = serde_json::to_string(&Play {
+            player: 0,
+            action: PlayAction::Click,
+            point: BoardPoint { row, col },
+        })?;
+        self.send(play_json);
+        Ok(())
+    }
+
+    fn handle_message(&mut self, msg: &str) -> Result<()> {
+        console_log(msg);
+        let play_outcome: PlayOutcome = serde_json::from_str(msg)?;
+        let plays = self.game.update(play_outcome);
+        plays.iter().for_each(|(point, cell)| {
+            match cell {
+                PlayerCell::Revealed(_) => self.update_cell(*point, *cell),
+                PlayerCell::Flag => self.update_cell(*point, *cell),
+                PlayerCell::Hidden => {}
             }
-            Ok(outcome) => {
-                console_log(&format!("{:?}", outcome));
-                self.err_signal.set(None);
-                match outcome {
-                    PlayOutcome::Success(v) => v.into_iter().for_each(|rc| {
-                        self.cell_signals[rc.cell_point.row][rc.cell_point.col]
-                            .set(PlayerCell::Revealed(rc));
-                    }),
-                    PlayOutcome::Victory(v) => v.into_iter().for_each(|rc| {
-                        self.cell_signals[rc.cell_point.row][rc.cell_point.col]
-                            .set(PlayerCell::Revealed(rc));
-                        self.err_signal.set(Some(String::from("VICTORY!!!")));
-                    }),
-                    PlayOutcome::Failure(rc) => {
-                        self.cell_signals[rc.cell_point.row][rc.cell_point.col]
-                            .set(PlayerCell::Revealed(rc));
-                        self.err_signal.set(Some(String::from("YOU DIED!")));
-                    }
-                }
+            if self.game.game_over {
+                self.close();
             }
+        });
+        Ok(())
+    }
+
+    fn update_cell(&self, point: BoardPoint, cell: PlayerCell) {
+        self.cell_signals[point.row][point.col](cell);
+    }
+
+    fn send(&self, s: String) {
+        if let Some(web_socket) = self.ws.borrow() {
+            let _ = web_socket.send_with_str(&s);
+        }
+    }
+
+    fn close(&self) {
+        if let Some(web_socket) = self.ws.borrow() {
+            let _ = web_socket.close();
         }
     }
 }
 
 #[component]
-pub fn Game(cx: Scope, rows: usize, cols: usize, mines: usize) -> impl IntoView {
-    let game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
-    let curr_board = &game.player_board(0);
+pub fn Game(cx: Scope, rows: usize, cols: usize, game_id: String) -> impl IntoView {
+    let (game_id, _) = create_signal(cx, game_id);
+    let game = MinesweeperClient::new(rows, cols);
+    let curr_board = game.player_board();
     let mut read_signals: Vec<Vec<ReadSignal<PlayerCell>>> = Vec::new();
     let mut write_signals: Vec<Vec<WriteSignal<PlayerCell>>> = Vec::new();
     curr_board.iter().for_each(|v| {
@@ -71,14 +103,47 @@ pub fn Game(cx: Scope, rows: usize, cols: usize, mines: usize) -> impl IntoView 
         write_signals.push(write_row);
     });
     let (error, set_error) = create_signal::<Option<String>>(cx, None);
-    provide_context(
-        cx,
-        Rc::new(RefCell::new(FrontendGame {
-            cell_signals: write_signals,
-            err_signal: set_error,
-            game: Box::new(game),
-        })),
-    );
+
+    let UseWebsocketReturn {
+        ready_state,
+        message,
+        ws,
+        ..
+    } = use_websocket(cx, "ws://127.0.0.1:3000/api/websocket".to_string());
+    let ws = match ws {
+        None => None,
+        Some(websocket) => Some(websocket.clone()),
+    };
+
+    let game = Rc::new(RefCell::new(FrontendGame {
+        cell_signals: write_signals,
+        err_signal: set_error,
+        game: Box::new(game),
+        ws,
+    }));
+
+    provide_context(cx, Rc::clone(&game));
+
+    let game_clone = Rc::clone(&game);
+    create_effect(cx, move |_| {
+        if ready_state() == UseWebSocketReadyState::Open {
+            let game = (*game_clone).borrow();
+            game.send(game_id());
+        }
+    });
+
+    let game_clone = Rc::clone(&game);
+    create_effect(cx, move |_| {
+        if let Some(msg) = message() {
+            let mut game = (*game_clone).borrow_mut();
+            let res = game.handle_message(&msg);
+            if let Err(e) = res {
+                (game.err_signal)(Some(format!("{:?}", e)))
+            } else {
+                (game.err_signal)(None)
+            }
+        }
+    });
 
     view! { cx,
         <div>{
@@ -109,11 +174,10 @@ fn Row(cx: Scope, row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoVi
 fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let on_click = move |_| {
-        console_log("Hello world");
         let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
-        let mut game = (*game).borrow_mut();
-        console_log(&format!("{:?}", game.err_signal));
-        game.click(row, col);
+        let game = (*game).borrow();
+        let res = game.click(row, col);
+        res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
     };
     view! { cx,
         <span class="cell" id=id on:click=on_click >{move || format!("{:?}", cell()) }</span>

@@ -5,7 +5,7 @@ use crate::cell::{Cell, CellState, PlayerCell, RevealedCell};
 
 use anyhow::{bail, Ok, Result};
 use rand::{seq::SliceRandom, thread_rng};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub struct Minesweeper {
     num_mines: usize,
@@ -322,7 +322,7 @@ struct Player {
     flags: HashSet<BoardPoint>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Action {
     Flag,
     Click,

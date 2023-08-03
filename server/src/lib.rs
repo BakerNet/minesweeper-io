@@ -13,6 +13,7 @@ use game_manager::GameManager;
 use nanoid::nanoid;
 use serde::Deserialize;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 
 // Our shared state
 pub struct AppState {
@@ -56,7 +57,8 @@ pub async fn websocket_handler(
 // receiving / sending chat messages).
 pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     // By splitting, we can send and receive at the same time.
-    let (mut sender, mut receiver) = stream.split();
+    let (sender, mut receiver) = stream.split();
+    let sender = Arc::new(Mutex::new(sender));
 
     // Game id gets set in the receive loop, if it's valid.
     let mut game_id = String::new();
@@ -70,6 +72,8 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
                 break;
             } else {
                 let _ = sender
+                    .lock()
+                    .await
                     .send(Message::Text(String::from("Game not found")))
                     .await;
 
@@ -82,12 +86,19 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     // display it to our client.
     let mut rx = state.game_manager.join_game(&game_id).unwrap();
 
+    let sender_clone = Arc::clone(&sender);
     // Spawn the first task that will receive broadcast messages and send text
     // messages over the websocket to our client.
     let mut send_task = tokio::spawn(async move {
         while let Ok(msg) = rx.recv().await {
             // In any websocket error, break loop.
-            if sender.send(Message::Text(msg)).await.is_err() {
+            if sender_clone
+                .lock()
+                .await
+                .send(Message::Text(msg))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -97,7 +108,14 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
     // name, and sends them to all broadcast subscribers.
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            state.game_manager.handle_message(&game_id, &text);
+            let res = state.game_manager.handle_message(&game_id, &text);
+            if let Err(e) = res {
+                let _ = sender
+                    .lock()
+                    .await
+                    .send(Message::Text(format!("{:?}", e)))
+                    .await;
+            }
         }
     });
 
@@ -132,8 +150,8 @@ pub async fn play_game(
     State(state): State<Arc<AppState>>,
     Form(PlayForm { game_id, user }): Form<PlayForm>,
 ) -> Result<String, AppError> {
-    state.game_manager.play_game(&game_id, &user)?;
-    Ok(String::from("Success"))
+    let user_id = state.game_manager.play_game(&game_id, &user)?;
+    Ok(format!("{}", user_id))
 }
 
 // Include utf-8 file at **compile** time.

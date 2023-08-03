@@ -7,6 +7,23 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+impl<T> From<&Board<T>> for Vec<Vec<T>>
+where
+    T: Copy,
+{
+    fn from(value: &Board<T>) -> Self {
+        let mut return_board: Vec<Vec<T>> = Vec::new();
+        for r in 0..value.rows() {
+            let mut row = Vec::new();
+            for c in 0..value.cols() {
+                row.push(value[BoardPoint { row: r, col: c }]);
+            }
+            return_board.push(row);
+        }
+        return_board
+    }
+}
+
 pub struct Board<T> {
     rows: usize,
     cols: usize,

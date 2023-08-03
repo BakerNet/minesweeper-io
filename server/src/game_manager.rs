@@ -4,17 +4,17 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use axum::extract::ws::Message;
 use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
+    client::Play,
     game::{Action, Minesweeper, PlayOutcome},
 };
 use tokio::sync::broadcast;
 
 struct Game {
     // We require unique usernames. This tracks which usernames have been taken.
-    user_set: RwLock<HashMap<String, usize>>,
+    users: RwLock<Vec<String>>,
     // Channel used to send messages to all connected clients.
     tx: broadcast::Sender<String>,
     minesweeper: Mutex<Minesweeper>,
@@ -22,22 +22,31 @@ struct Game {
 }
 
 impl Game {
-    fn player(&self, user: &str) -> Result<usize> {
-        let players = self.user_set.read().unwrap();
-        let player = players
-            .get(user)
-            .ok_or(anyhow!("User {user} doesn't exist"));
-        player.copied()
+    fn player(&self, username: &str) -> Option<usize> {
+        let players = self.users.read().unwrap();
+        players.iter().position(|s| s == username)
     }
 
-    fn add_user(&mut self, user: &str) -> Result<usize> {
-        let mut users = self.user_set.write().unwrap();
-        let player_id = user.len();
+    fn add_user(&mut self, username: &str) -> Result<usize> {
+        let mut users = self.users.write().unwrap();
+        let player_id = users.len();
         if player_id >= self.num_players {
             bail!("Tried to join full game")
         }
-        users.insert(user.to_string(), player_id);
+        if let Some(_) = self.player(username) {
+            bail!("Player with username {} already exists", username)
+        }
+        users.push(username.to_string());
         Ok(player_id)
+    }
+
+    fn users(&self) -> Vec<(usize, String)> {
+        let users = self.users.read().unwrap();
+        users
+            .iter()
+            .enumerate()
+            .map(|(i, s)| (i, s.to_owned()))
+            .collect::<Vec<_>>()
     }
 
     fn game_state(&self) -> Vec<Vec<PlayerCell>> {
@@ -45,14 +54,17 @@ impl Game {
         minesweeper.viewer_board()
     }
 
-    fn player_state(&self, user: &str) -> Result<Vec<Vec<PlayerCell>>> {
-        let player = self.player(user)?;
+    fn player_state(&self, player: usize) -> Result<Vec<Vec<PlayerCell>>> {
         let minesweeper = self.minesweeper.lock().unwrap();
         Ok(minesweeper.player_board(player))
     }
 
-    fn play(&mut self, user: &str, action: Action, cell_point: BoardPoint) -> Result<PlayOutcome> {
-        let player = self.player(user)?;
+    fn play(
+        &mut self,
+        player: usize,
+        action: Action,
+        cell_point: BoardPoint,
+    ) -> Result<PlayOutcome> {
         let mut minesweeper = self.minesweeper.lock().unwrap();
         minesweeper.play(player, action, cell_point)
     }
@@ -78,19 +90,25 @@ impl GameManager {
         if games.contains_key(id) {
             bail!("Game with id {id} already exists")
         }
-        let user_set = RwLock::new(HashMap::new());
+        let users = RwLock::new(Vec::new());
         let (tx, _rx) = broadcast::channel(100);
-        let minesweeper = Mutex::new(Minesweeper::init_game(30, 16, 99, 8).unwrap());
+        let minesweeper = Mutex::new(Minesweeper::init_game(16, 30, 99, 8).unwrap());
         games.insert(
             id.to_string(),
             Game {
-                user_set,
+                users,
                 tx,
                 minesweeper,
                 num_players: 8,
             },
         );
         Ok(())
+    }
+
+    pub fn users(&self, id: &str) -> Result<Vec<(usize, String)>> {
+        let games = self.games.read().unwrap();
+        let game = games.get(id).ok_or(game_err(id))?;
+        Ok(game.users())
     }
 
     pub fn game_exists(&self, id: &str) -> bool {
@@ -105,10 +123,10 @@ impl GameManager {
         Ok(game.tx.subscribe())
     }
 
-    pub fn play_game(&self, id: &str, user: &str) -> Result<()> {
+    pub fn play_game(&self, id: &str, username: &str) -> Result<usize> {
         let mut games = self.games.write().unwrap();
         let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
-        game.add_user(user).map(|_| ())
+        game.add_user(username)
     }
 
     pub fn game_state(&self, id: &str) -> Result<Vec<Vec<PlayerCell>>> {
@@ -117,24 +135,33 @@ impl GameManager {
         Ok(game.game_state())
     }
 
-    pub fn player_game_state(&self, id: &str, user: &str) -> Result<Vec<Vec<PlayerCell>>> {
+    pub fn player_game_state(&self, id: &str, player: usize) -> Result<Vec<Vec<PlayerCell>>> {
         let games = self.games.read().unwrap();
         let game = games.get(id).ok_or(game_err(id))?;
-        game.player_state(user)
+        game.player_state(player)
     }
 
-    pub fn play(&self, id: &str, user: &str, action: Action, point: BoardPoint) -> Result<usize> {
+    pub fn play(
+        &self,
+        id: &str,
+        player: usize,
+        action: Action,
+        point: BoardPoint,
+    ) -> Result<usize> {
         let mut games = self.games.write().unwrap();
         let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
-        let res = game.play(user, action, point)?;
+        let res = game.play(player, action, point)?;
         let res_json = serde_json::to_string(&res)?;
         game.tx.send(res_json).map_err(|e| anyhow!("{:?}", e))
     }
 
     pub fn handle_message(&self, id: &str, msg: &str) -> Result<()> {
+        let play = serde_json::from_str::<Play>(msg)?;
         let mut games = self.games.write().unwrap();
         let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
-        game.tx.send(msg.to_string())?;
+        let res = game.play(play.player, play.action, play.point)?;
+        let outcome = serde_json::to_string(&res)?;
+        game.tx.send(outcome)?;
         Ok(())
     }
 }

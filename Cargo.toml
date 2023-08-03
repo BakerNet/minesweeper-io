@@ -18,6 +18,7 @@ version = "0.1.0"
 [workspace.dependencies]
 minesweeper = { path = "./minesweeper", version = "0.1.0" }
 server = { path = "./server", version = "0.1.0" }
+frontend = { path = "./frontend", version = "0.1.0" }
 
 [profile.release]
 codegen-units = 1

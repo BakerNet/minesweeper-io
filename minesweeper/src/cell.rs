@@ -12,6 +12,12 @@ pub enum PlayerCell {
     Revealed(RevealedCell),
 }
 
+impl Default for PlayerCell {
+    fn default() -> Self {
+        Self::Hidden
+    }
+}
+
 impl fmt::Debug for PlayerCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
