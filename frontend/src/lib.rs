@@ -21,6 +21,7 @@ pub fn App(cx: Scope) -> impl IntoView {
                 <A href="">Home</A>
             <main>
             <Routes>
+                // TODO - new game & join game suspense
                 <Route path="" view=|cx| view!{cx, <A href="jFSUQSLk">Start game</A>} />
                 <Route path="/:id" view=|cx| view!{ cx,
                     <Game rows=16 cols=30 game_id="jFSUQSLk".to_string() />
@@ -41,6 +42,7 @@ struct FrontendGame {
 
 impl FrontendGame {
     fn click(&self, row: usize, col: usize) -> Result<()> {
+        // TODO - actual player, flag, and double-click
         let play_json = serde_json::to_string(&Play {
             player: 0,
             action: PlayAction::Click,
@@ -104,6 +106,7 @@ pub fn Game(cx: Scope, rows: usize, cols: usize, game_id: String) -> impl IntoVi
     });
     let (error, set_error) = create_signal::<Option<String>>(cx, None);
 
+    // TODO - use_websocket causes panic on route change - investigate
     let UseWebsocketReturn {
         ready_state,
         message,
