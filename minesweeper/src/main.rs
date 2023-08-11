@@ -62,8 +62,8 @@ fn main() {
         let mut play = play.into_iter();
 
         let action = match play.next().unwrap() {
-            "c" => Action::Click,
-            "d" => Action::DoubleClick,
+            "c" => Action::Reveal,
+            "d" => Action::RevealAdjacent,
             "f" => Action::Flag,
             _ => {
                 println!("Bad action - try again");
@@ -90,6 +90,7 @@ fn main() {
             PlayOutcome::Success(_) => println!("Success"),
             PlayOutcome::Failure(_) => println!("You Died"),
             PlayOutcome::Victory(_) => println!("You won!!!"),
+            PlayOutcome::Flag(_) => println!("Flagged"),
         }
     }
 }

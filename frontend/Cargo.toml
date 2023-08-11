@@ -1,4 +1,5 @@
 [package]
+resolver = "2"
 name = "frontend"
 edition = "2021"
 version.workspace = true

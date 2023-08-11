@@ -84,6 +84,16 @@ impl<T> Board<T> {
         }
     }
 
+    pub fn from_vec(vec: Vec<Vec<T>>) -> Self {
+        let rows = vec.len();
+        let cols = vec[0].len();
+        Board {
+            rows,
+            cols,
+            board: vec.into_iter().flatten().collect(),
+        }
+    }
+
     pub fn point_from_index(&self, index: usize) -> BoardPoint {
         BoardPoint {
             row: index / self.cols,

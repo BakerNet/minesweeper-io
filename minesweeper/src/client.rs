@@ -23,6 +23,10 @@ impl MinesweeperClient {
         game
     }
 
+    pub fn set_state(&mut self, from_vec: Vec<Vec<PlayerCell>>) {
+        self.board = Board::from_vec(from_vec)
+    }
+
     pub fn player_board(&self) -> Vec<Vec<PlayerCell>> {
         (&self.board).into()
     }
@@ -51,6 +55,12 @@ impl MinesweeperClient {
                 let player_cell = PlayerCell::Revealed(cell);
                 self.board[point] = player_cell;
                 updated.push((point, player_cell));
+            }
+            PlayOutcome::Flag(item) => {
+                let point = item.0;
+                let player_cell = item.1;
+                self.board[point] = player_cell;
+                updated.push(item);
             }
         }
         updated

@@ -15,6 +15,8 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use minesweeper::GameMessage;
+
 // Our shared state
 pub struct AppState {
     pub game_manager: GameManager,
@@ -71,11 +73,10 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
             if !game_id.is_empty() {
                 break;
             } else {
-                let _ = sender
-                    .lock()
-                    .await
-                    .send(Message::Text(String::from("Game not found")))
-                    .await;
+                let err_msg =
+                    serde_json::to_string(&GameMessage::Error(String::from("Game not found")))
+                        .unwrap();
+                let _ = sender.lock().await.send(Message::Text(err_msg)).await;
 
                 return;
             }
@@ -84,7 +85,13 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
 
     // We subscribe *before* sending the "joined" message, so that we will also
     // display it to our client.
-    let mut rx = state.game_manager.join_game(&game_id).unwrap();
+    let (mut rx, game_state) = state.game_manager.join_game(&game_id).unwrap();
+    let game_state_msg = serde_json::to_string(&GameMessage::GameState(game_state)).unwrap();
+    let _ = sender
+        .lock()
+        .await
+        .send(Message::Text(game_state_msg))
+        .await;
 
     let sender_clone = Arc::clone(&sender);
     // Spawn the first task that will receive broadcast messages and send text
@@ -110,11 +117,11 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             let res = state.game_manager.handle_message(&game_id, &text);
             if let Err(e) = res {
-                let _ = sender
-                    .lock()
-                    .await
-                    .send(Message::Text(format!("{:?}", e)))
-                    .await;
+                let err_msg =
+                    serde_json::to_string(&GameMessage::Error(format!("{:?}", e))).unwrap();
+                let _ = sender.lock().await.send(Message::Text(err_msg)).await;
+            } else if let Ok(Some(msg)) = res {
+                let _ = sender.lock().await.send(Message::Text(msg)).await;
             }
         }
     });

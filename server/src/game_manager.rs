@@ -9,6 +9,7 @@ use minesweeper::{
     cell::PlayerCell,
     client::Play,
     game::{Action, Minesweeper, PlayOutcome},
+    GameMessage,
 };
 use tokio::sync::broadcast;
 
@@ -117,10 +118,13 @@ impl GameManager {
         game.is_some()
     }
 
-    pub fn join_game(&self, id: &str) -> Result<broadcast::Receiver<String>> {
+    pub fn join_game(
+        &self,
+        id: &str,
+    ) -> Result<(broadcast::Receiver<String>, Vec<Vec<PlayerCell>>)> {
         let games = self.games.read().unwrap();
         let game = games.get(id).ok_or(game_err(id))?;
-        Ok(game.tx.subscribe())
+        Ok((game.tx.subscribe(), game.game_state()))
     }
 
     pub fn play_game(&self, id: &str, username: &str) -> Result<usize> {
@@ -155,13 +159,22 @@ impl GameManager {
         game.tx.send(res_json).map_err(|e| anyhow!("{:?}", e))
     }
 
-    pub fn handle_message(&self, id: &str, msg: &str) -> Result<()> {
+    pub fn handle_message(&self, id: &str, msg: &str) -> Result<Option<String>> {
         let play = serde_json::from_str::<Play>(msg)?;
         let mut games = self.games.write().unwrap();
         let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
         let res = game.play(play.player, play.action, play.point)?;
-        let outcome = serde_json::to_string(&res)?;
-        game.tx.send(outcome)?;
-        Ok(())
+        match res {
+            PlayOutcome::Flag(flag) => {
+                let message =
+                    serde_json::to_string(&GameMessage::PlayOutcome(PlayOutcome::Flag(flag)))?;
+                Ok(Some(message))
+            }
+            default => {
+                let outcome = serde_json::to_string(&GameMessage::PlayOutcome(default))?;
+                game.tx.send(outcome)?;
+                Ok(None)
+            }
+        }
     }
 }

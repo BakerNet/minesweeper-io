@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::BoardPoint;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub enum PlayerCell {
     Hidden,
     Flag,

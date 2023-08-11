@@ -8,9 +8,10 @@ use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
     client::{MinesweeperClient, Play},
-    game::{Action as PlayAction, PlayOutcome},
+    game::Action as PlayAction,
+    GameMessage,
 };
-use web_sys::WebSocket;
+use web_sys::{MouseEvent, WebSocket};
 
 #[component]
 pub fn App(cx: Scope) -> impl IntoView {
@@ -24,7 +25,7 @@ pub fn App(cx: Scope) -> impl IntoView {
                 // TODO - new game & join game suspense
                 <Route path="" view=|cx| view!{cx, <A href="jFSUQSLk">Start game</A>} />
                 <Route path="/:id" view=|cx| view!{ cx,
-                    <Game rows=16 cols=30 game_id="jFSUQSLk".to_string() />
+                    <Game rows=16 cols=30 />
                 } />
             </Routes>
             </main>
@@ -41,11 +42,33 @@ struct FrontendGame {
 }
 
 impl FrontendGame {
-    fn click(&self, row: usize, col: usize) -> Result<()> {
+    fn try_reveal(&self, row: usize, col: usize) -> Result<()> {
         // TODO - actual player, flag, and double-click
         let play_json = serde_json::to_string(&Play {
             player: 0,
-            action: PlayAction::Click,
+            action: PlayAction::Reveal,
+            point: BoardPoint { row, col },
+        })?;
+        self.send(play_json);
+        Ok(())
+    }
+
+    fn try_flag(&self, row: usize, col: usize) -> Result<()> {
+        // TODO - actual player, flag, and double-click
+        let play_json = serde_json::to_string(&Play {
+            player: 0,
+            action: PlayAction::Flag,
+            point: BoardPoint { row, col },
+        })?;
+        self.send(play_json);
+        Ok(())
+    }
+
+    fn try_reveal_adjacent(&self, row: usize, col: usize) -> Result<()> {
+        // TODO - actual player, flag, and double-click
+        let play_json = serde_json::to_string(&Play {
+            player: 0,
+            action: PlayAction::RevealAdjacent,
             point: BoardPoint { row, col },
         })?;
         self.send(play_json);
@@ -54,19 +77,41 @@ impl FrontendGame {
 
     fn handle_message(&mut self, msg: &str) -> Result<()> {
         console_log(msg);
-        let play_outcome: PlayOutcome = serde_json::from_str(msg)?;
-        let plays = self.game.update(play_outcome);
-        plays.iter().for_each(|(point, cell)| {
-            match cell {
-                PlayerCell::Revealed(_) => self.update_cell(*point, *cell),
-                PlayerCell::Flag => self.update_cell(*point, *cell),
-                PlayerCell::Hidden => {}
+        let game_message: GameMessage = serde_json::from_str(msg)?;
+        console_log(&format!("{:?}", game_message));
+        match game_message {
+            GameMessage::PlayOutcome(po) => {
+                let plays = self.game.update(po);
+                plays.iter().for_each(|(point, cell)| {
+                    match cell {
+                        PlayerCell::Revealed(_) => self.update_cell(*point, *cell),
+                        PlayerCell::Flag => self.update_cell(*point, *cell),
+                        PlayerCell::Hidden => {}
+                    }
+                    if self.game.game_over {
+                        self.close();
+                    }
+                });
+                Ok(())
             }
-            if self.game.game_over {
-                self.close();
+            GameMessage::Error(e) => {
+                (self.err_signal)(Some(e));
+                Ok(())
             }
-        });
-        Ok(())
+            GameMessage::GameState(gs) => {
+                self.game.set_state(gs);
+                self.game
+                    .player_board()
+                    .iter()
+                    .enumerate()
+                    .for_each(|(row, vec)| {
+                        vec.iter().enumerate().for_each(|(col, cell)| {
+                            (self.cell_signals[row][col])(*cell);
+                        })
+                    });
+                Ok(())
+            }
+        }
     }
 
     fn update_cell(&self, point: BoardPoint, cell: PlayerCell) {
@@ -87,8 +132,10 @@ impl FrontendGame {
 }
 
 #[component]
-pub fn Game(cx: Scope, rows: usize, cols: usize, game_id: String) -> impl IntoView {
-    let (game_id, _) = create_signal(cx, game_id);
+pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
+    let params = use_params_map(cx);
+    let game_id = move || params.with(|params| params.get("id").cloned().unwrap_or_default());
+
     let game = MinesweeperClient::new(rows, cols);
     let curr_board = game.player_board();
     let mut read_signals: Vec<Vec<ReadSignal<PlayerCell>>> = Vec::new();
@@ -176,13 +223,45 @@ fn Row(cx: Scope, row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoVi
 #[component]
 fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
-    let on_click = move |_| {
+    let (skip_mouseup, set_skip_mouseup) = create_signal(cx, 0);
+
+    let handle_action = move |pa: PlayAction| {
         let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
         let game = (*game).borrow();
-        let res = game.click(row, col);
+        let res = match pa {
+            PlayAction::Reveal => game.try_reveal(row, col),
+            PlayAction::Flag => game.try_flag(row, col),
+            PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
+        };
         res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
     };
+    let handle_mousedown = move |ev: MouseEvent| {
+        if ev.buttons() == 3 {
+            set_skip_mouseup(2);
+            handle_action(PlayAction::RevealAdjacent);
+        }
+    };
+    let handle_mouseup = move |ev: MouseEvent| {
+        if skip_mouseup() > 0 {
+            set_skip_mouseup(skip_mouseup() - 1);
+            return;
+        }
+        if ev.button() == 0 {
+            handle_action(PlayAction::Reveal);
+        }
+        if ev.button() == 2 {
+            handle_action(PlayAction::Flag);
+        }
+    };
+
     view! { cx,
-        <span class="cell" id=id on:click=on_click >{move || format!("{:?}", cell()) }</span>
+        <span
+        class="cell"
+        id=id
+        on:mouseup=handle_mouseup
+        on:mousedown=handle_mousedown
+        oncontextmenu="event.preventDefault();" >
+            {move || format!("{:?}", cell()) }
+        </span>
     }
 }

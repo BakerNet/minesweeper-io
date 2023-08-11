@@ -1,4 +1,5 @@
 [package]
+package = "2"
 name = "server"
 edition = "2021"
 version.workspace = true
