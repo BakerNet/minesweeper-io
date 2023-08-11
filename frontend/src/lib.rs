@@ -160,10 +160,7 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
         ws,
         ..
     } = use_websocket(cx, "ws://127.0.0.1:3000/api/websocket".to_string());
-    let ws = match ws {
-        None => None,
-        Some(websocket) => Some(websocket.clone()),
-    };
+    let ws = ws.clone();
 
     let game = Rc::new(RefCell::new(FrontendGame {
         cell_signals: write_signals,
