@@ -41,7 +41,7 @@ where
             .map(|row| {
                 let row_slice = &self.board[(row * self.cols)..(row * self.cols + self.cols)];
                 let row_flat = row_slice
-                    .into_iter()
+                    .iter()
                     .map(|item| format!("{:?}", item))
                     .collect::<String>();
                 row_flat
@@ -102,7 +102,7 @@ impl<T> Board<T> {
     }
 
     pub fn index_from_point(&self, point: BoardPoint) -> usize {
-        point.row & self.cols + point.col
+        point.row & (self.cols + point.col)
     }
 
     pub fn rows(&self) -> usize {

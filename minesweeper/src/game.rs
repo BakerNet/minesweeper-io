@@ -200,18 +200,21 @@ impl Minesweeper {
     }
 
     pub fn is_over(&self) -> bool {
-        self.available.len() == 0 || self.players.iter().all(|x| x.dead)
+        self.available.is_empty() || self.players.iter().all(|x| x.dead)
     }
 
     pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
         let mut return_board: Vec<Vec<PlayerCell>> =
             vec![vec![PlayerCell::Hidden; self.board.cols()]; self.board.rows()];
-        for r in 0..self.board.rows() {
-            for c in 0..self.board.cols() {
-                let point = BoardPoint { row: r, col: c };
+        for (r_num, row) in return_board.iter_mut().enumerate() {
+            for (c_num, return_item) in row.iter_mut().enumerate() {
+                let point = BoardPoint {
+                    row: r_num,
+                    col: c_num,
+                };
                 let item = &self.board[point];
                 if item.1.revealed {
-                    return_board[r][c] = PlayerCell::Revealed(RevealedCell {
+                    *return_item = PlayerCell::Revealed(RevealedCell {
                         cell_point: point,
                         player: item.1.player.unwrap(),
                         contents: item.0,
@@ -252,7 +255,7 @@ impl Minesweeper {
         let final_vec = vec![cell_point];
         let neighbors = self.board.neighbors(cell_point);
         neighbors.iter().try_fold(final_vec, |mut acc, c| {
-            let item = self.board[*c].clone();
+            let item = self.board[*c];
             if item.1.revealed {
                 return Ok(acc);
             }

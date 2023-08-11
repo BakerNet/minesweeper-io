@@ -31,7 +31,6 @@ fn main() {
     let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
-        let mut r_num = 0;
         let header = (0..cols)
             .map(|x| format!("|{}", x / 10))
             .collect::<String>();
@@ -40,13 +39,12 @@ fn main() {
             .map(|x| format!("|{}", x % 10))
             .collect::<String>();
         println!("{}", underline(&format!("XX{}|", header)));
-        for row in curr_board.iter() {
+        for (r_num, row) in curr_board.iter().enumerate() {
             print!("{}", underline(&format!("{:0>2}", r_num)));
             for item in row.iter() {
                 print!("{}", underline(&format!("|{:?}", item)));
             }
             print!("{}", underline("|\n"));
-            r_num += 1;
         }
         println!("Input action & 2 numbers `{{c|d|f}} {{row}} {{col}}` as play:");
         let mut play = String::new();
@@ -55,7 +53,7 @@ fn main() {
             .read_line(&mut play)
             .expect("Failed to read line");
         let play = play.trim_end().split(' ');
-        if play.clone().into_iter().count() != 3 {
+        if play.clone().count() != 3 {
             println!("Bad number of inputs - try again.");
             continue;
         }

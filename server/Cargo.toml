@@ -1,5 +1,5 @@
 [package]
-package = "2"
+resolver = "2"
 name = "server"
 edition = "2021"
 version.workspace = true

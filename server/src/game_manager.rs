@@ -34,7 +34,7 @@ impl Game {
         if player_id >= self.num_players {
             bail!("Tried to join full game")
         }
-        if let Some(_) = self.player(username) {
+        if self.player(username).is_some() {
             bail!("Player with username {} already exists", username)
         }
         users.push(username.to_string());
@@ -77,6 +77,12 @@ pub struct GameManager {
 
 fn game_err(id: &str) -> anyhow::Error {
     anyhow!("Game wiht id {id} doesn't exist")
+}
+
+impl Default for GameManager {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GameManager {

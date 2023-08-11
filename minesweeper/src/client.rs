@@ -14,13 +14,12 @@ pub struct MinesweeperClient {
 impl MinesweeperClient {
     pub fn new(rows: usize, cols: usize) -> Self {
         let board = Board::new(rows, cols, PlayerCell::default());
-        let game = MinesweeperClient {
+        MinesweeperClient {
             player: None,
             dead: false,
             game_over: false,
             board,
-        };
-        game
+        }
     }
 
     pub fn set_state(&mut self, from_vec: Vec<Vec<PlayerCell>>) {
