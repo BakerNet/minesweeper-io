@@ -1,7 +1,106 @@
+.error {
+    color: red;
+}
+
+.row {
+    white-space: nowrap;
+}
+
 .cell {
-    height: 20px;
-    width: 20px;
     box-sizing: border-box;
     display: inline-block;
     text-align: center;
+    border: 1px solid black;
+    font-weight: bold;
+    vertical-align: top;
+}
+
+.s-30p {
+    height: 30px;
+    width: 30px;
+    line-height: 30px;
+    font-size: 28px;
+}
+
+.cell img {
+    object-fit: cover;
+    height: 100%;
+    width: 100%;
+}
+
+.hidden, .flag {
+    background-color: grey;
+}
+
+.cell.bomb {
+    background-color: red;
+
+}
+
+.flag img rect {
+    fill: red;
+}
+
+.rev-1 {
+    color: blue;
+}
+
+.rev-2 {
+    color: green;
+}
+
+.rev-3 {
+    color: red;
+}
+
+.rev-4 {
+    color: navy;
+}
+
+.rev-5 {
+    color: maroon;
+}
+
+.rev-6 {
+    color: teal;
+}
+
+.rev-7 {
+    color: black;
+}
+
+.rev-8 {
+    color: gray;
+}
+
+.p-0 {
+    background-color: lightcyan;
+}
+
+.p-1 {
+    background-color: lightgoldenrodyellow;
+}
+
+.p-2 {
+    background-color: lightgrey;
+}
+
+.p-3 {
+    background-color: lightpink;
+}
+
+.p-4 {
+    background-color: lightskyblue;
+}
+
+.p-5 {
+    background-color: lightyellow;
+}
+
+.p-6 {
+    background-color: lightsteelblue;
+}
+
+.p-7 {
+    background-color: lightsalmon;
 }

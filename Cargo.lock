@@ -65,9 +65,9 @@ dependencies = [
 
 [[package]]
 name = "async-trait"
-version = "0.1.72"
+version = "0.1.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc6dde6e4ed435a4c1ee4e73592f5ba9da2151af10076cc04858746af9352d09"
+checksum = "bc00ceb34980c03614e35a3a4e218276a0a824e911d07651cd0d858a51e8c0f0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -516,6 +516,7 @@ dependencies = [
  "leptos-use",
  "leptos_router",
  "minesweeper",
+ "reqwasm",
  "serde",
  "serde_json",
  "web-sys",
@@ -638,6 +639,26 @@ name = "gimli"
 version = "0.27.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c80984affa11d98d1b88b66ac8853f143217b399d3c74116778ff8fdb4ed2e"
+
+[[package]]
+name = "gloo-net"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2899cb1a13be9020b010967adc6b2a8a343b6f1428b90238c9d53ca24decc6db"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-sink",
+ "gloo-utils",
+ "js-sys",
+ "pin-project",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
 
 [[package]]
 name = "gloo-net"
@@ -905,9 +926,9 @@ dependencies = [
 
 [[package]]
 name = "leptos-use"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c7b2ecf4b5d3ed0854b1374ce5233ae3040a890217829775dc494dd8830ddde"
+checksum = "690450449ac844745a4074a0a10b47a33f270ded89b5deb1e9785440627419df"
 dependencies = [
  "cfg-if",
  "default-struct-builder",
@@ -1035,7 +1056,7 @@ checksum = "57a6cd29a56992923c9bad3c814ab9d7a78bf0bfec80c8f4dfbf049144fa5828"
 dependencies = [
  "cfg-if",
  "common_macros",
- "gloo-net",
+ "gloo-net 0.2.6",
  "js-sys",
  "lazy_static",
  "leptos",
@@ -1103,9 +1124,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.19"
+version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b06a4cde4c0f271a446782e3eff8de789548ce57dbc8eca9292c27f4a42004b4"
+checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "matchers"
@@ -1572,6 +1593,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 
 [[package]]
+name = "reqwasm"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05b89870d729c501fa7a68c43bf4d938bbb3a8c156d333d90faa0e8b3e3212fb"
+dependencies = [
+ "gloo-net 0.1.0",
+]
+
+[[package]]
 name = "reqwest"
 version = "0.11.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1794,7 +1824,7 @@ checksum = "644216cf54c944da2d7fc7a75337a35dc39de19130be3fd88fd58674719a1b5b"
 dependencies = [
  "ciborium",
  "const_format",
- "gloo-net",
+ "gloo-net 0.2.6",
  "js-sys",
  "lazy_static",
  "once_cell",
@@ -2013,9 +2043,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.30.0"
+version = "1.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d3ce25f50619af8b0aec2eb23deebe84249e19e2ddd393a6e16e3300a6dadfd"
+checksum = "40de3a2ba249dcb097e01be5e67a5ff53cf250397715a071a81543e8a832a920"
 dependencies = [
  "backtrace",
  "bytes",
@@ -2324,6 +2354,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7706a72ab36d8cb1f80ffbf0e071533974a60d0a308d01a5d0375bf60499a342"
 dependencies = [
  "cfg-if",
+ "serde",
+ "serde_json",
  "wasm-bindgen-macro",
 ]
 
@@ -2531,6 +2563,6 @@ dependencies = [
 
 [[package]]
 name = "yansi"
-version = "1.0.0-rc"
+version = "1.0.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ee746ad3851dd3bc40e4a028ab3b00b99278d929e48957bcb2d111874a7e43e"
+checksum = "1367295b8f788d371ce2dbc842c7b709c73ee1364d30351dd300ec2203b12377"
