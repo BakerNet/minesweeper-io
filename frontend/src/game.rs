@@ -1,5 +1,6 @@
 mod cell;
 mod client;
+pub mod players;
 
 use cell::Cell;
 use client::FrontendGame;
@@ -9,12 +10,15 @@ use std::{cell::RefCell, rc::Rc};
 use leptos::*;
 use leptos_router::*;
 use leptos_use::{use_websocket, UseWebSocketReadyState, UseWebsocketReturn};
-use minesweeper::{cell::PlayerCell, client::MinesweeperClient};
+use minesweeper::{
+    cell::PlayerCell,
+    client::{ClientPlayer, MinesweeperClient},
+};
 
 #[component]
 pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
     let params = use_params_map(cx);
-    let game_id = move || params.with(|params| params.get("id").cloned().unwrap_or_default());
+    let game_id = params.get().get("id").cloned().unwrap_or_default();
 
     let game = MinesweeperClient::new(rows, cols);
     let curr_board = game.player_board();
@@ -31,6 +35,14 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
         read_signals.push(read_row);
         write_signals.push(write_row);
     });
+    let mut players: Vec<ReadSignal<Option<ClientPlayer>>> = Vec::new();
+    let mut player_signals: Vec<WriteSignal<Option<ClientPlayer>>> = Vec::new();
+    game.players.iter().for_each(|_| {
+        let (rs, ws) = create_signal(cx, None);
+        players.push(rs);
+        player_signals.push(ws);
+    });
+    let (player, set_player) = create_signal::<Option<usize>>(cx, None);
     let (error, set_error) = create_signal::<Option<String>>(cx, None);
     let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(cx, 0);
 
@@ -44,7 +56,12 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
     let ws = ws.clone();
 
     let game = Rc::new(RefCell::new(FrontendGame {
+        game_id: game_id.clone(),
         cell_signals: write_signals,
+        player,
+        set_player,
+        players,
+        player_signals,
         skip_mouseup,
         set_skip_mouseup,
         err_signal: set_error,
@@ -58,7 +75,7 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
     create_effect(cx, move |_| {
         if ready_state() == UseWebSocketReadyState::Open {
             let game = (*game_clone).borrow();
-            game.send(game_id());
+            game.send(game_id.clone());
         }
     });
 
@@ -76,7 +93,8 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
     });
 
     view! { cx,
-        <div>{
+        <Outlet />
+        <div class="board">{
             read_signals
                 .into_iter()
                 .enumerate()

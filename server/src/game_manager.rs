@@ -7,7 +7,7 @@ use anyhow::{anyhow, bail, Result};
 use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
-    client::Play,
+    client::{ClientPlayer, Play},
     game::{Action, Minesweeper, PlayOutcome},
     GameMessage,
 };
@@ -28,14 +28,29 @@ impl Game {
         players.iter().position(|s| s == username)
     }
 
+    fn client_player(&self, player_id: usize) -> Result<ClientPlayer> {
+        let (score, dead) = {
+            let game = self.minesweeper.lock().unwrap();
+            let score = game.player_score(player_id)?;
+            let dead = game.player_dead(player_id)?;
+            (score, dead)
+        };
+        Ok(ClientPlayer {
+            player_id,
+            username: self.users.read().unwrap()[player_id].clone(),
+            dead,
+            score,
+        })
+    }
+
     fn add_user(&mut self, username: &str) -> Result<usize> {
+        if self.player(username).is_some() {
+            bail!("Player with username {} already exists", username)
+        }
         let mut users = self.users.write().unwrap();
         let player_id = users.len();
         if player_id >= self.num_players {
             bail!("Tried to join full game")
-        }
-        if self.player(username).is_some() {
-            bail!("Player with username {} already exists", username)
         }
         users.push(username.to_string());
         Ok(player_id)
@@ -50,12 +65,19 @@ impl Game {
             .collect::<Vec<_>>()
     }
 
+    fn players_state(&self) -> Vec<Option<ClientPlayer>> {
+        self.users()
+            .iter()
+            .map(|(id, _)| self.client_player(*id).ok())
+            .collect()
+    }
+
     fn game_state(&self) -> Vec<Vec<PlayerCell>> {
         let minesweeper = self.minesweeper.lock().unwrap();
         minesweeper.viewer_board()
     }
 
-    fn player_state(&self, player: usize) -> Result<Vec<Vec<PlayerCell>>> {
+    fn player_game_state(&self, player: usize) -> Result<Vec<Vec<PlayerCell>>> {
         let minesweeper = self.minesweeper.lock().unwrap();
         Ok(minesweeper.player_board(player))
     }
@@ -136,7 +158,17 @@ impl GameManager {
     pub fn play_game(&self, id: &str, username: &str) -> Result<usize> {
         let mut games = self.games.write().unwrap();
         let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
-        game.add_user(username)
+        let player_id = game.add_user(username)?;
+        let player = game.client_player(player_id)?;
+        let message = serde_json::to_string(&GameMessage::PlayerUpdate(player))?;
+        let _ = game.tx.send(message); // Don't care if send fails
+        Ok(player_id)
+    }
+
+    pub fn players_state(&self, id: &str) -> Result<Vec<Option<ClientPlayer>>> {
+        let games = self.games.read().unwrap();
+        let game = games.get(id).ok_or(game_err(id))?;
+        Ok(game.players_state())
     }
 
     pub fn game_state(&self, id: &str) -> Result<Vec<Vec<PlayerCell>>> {
@@ -148,7 +180,7 @@ impl GameManager {
     pub fn player_game_state(&self, id: &str, player: usize) -> Result<Vec<Vec<PlayerCell>>> {
         let games = self.games.read().unwrap();
         let game = games.get(id).ok_or(game_err(id))?;
-        game.player_state(player)
+        game.player_game_state(player)
     }
 
     pub fn play(

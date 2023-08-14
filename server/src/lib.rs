@@ -92,6 +92,14 @@ pub async fn websocket(stream: WebSocket, state: Arc<AppState>) {
         .await
         .send(Message::Text(game_state_msg))
         .await;
+    let players_state = state.game_manager.players_state(&game_id).unwrap();
+    let players_state_msg =
+        serde_json::to_string(&GameMessage::PlayersState(players_state)).unwrap();
+    let _ = sender
+        .lock()
+        .await
+        .send(Message::Text(players_state_msg))
+        .await;
 
     let sender_clone = Arc::clone(&sender);
     // Spawn the first task that will receive broadcast messages and send text
