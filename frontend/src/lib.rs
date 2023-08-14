@@ -20,7 +20,7 @@ pub fn App(cx: Scope) -> impl IntoView {
                 // TODO - new game & join game suspense
                 <Route path="" view=|cx| view!{cx, <StartGame />} />
                 <Route path="/:id" view=|cx| view!{ cx,
-                    <Game rows=16 cols=30 />
+                    <Game rows=50 cols=50 />
                 } >
                     <Route path="players" view=|cx| view! { cx, <Players /> } />
                     <Route path="" view=|cx| view! {cx, <A href="players">"Join Game / Scoreboard"</A>} />

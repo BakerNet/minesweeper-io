@@ -30,6 +30,9 @@ impl FrontendGame {
         let Some(player) =  self.player.get() else {
             bail!("Tried to play when not a player")
         };
+        if let PlayerCell::Revealed(_) = self.game.board[BoardPoint { row, col }] {
+            bail!("Tried to click revealed cell")
+        }
         let play_json = serde_json::to_string(&Play {
             player,
             action: PlayAction::Reveal,
@@ -43,6 +46,9 @@ impl FrontendGame {
         let Some(player) =  self.player.get() else {
             bail!("Tried to play when not a player")
         };
+        if let PlayerCell::Revealed(_) = self.game.board[BoardPoint { row, col }] {
+            bail!("Tried to flag revealed cell")
+        }
         let play_json = serde_json::to_string(&Play {
             player,
             action: PlayAction::Flag,
@@ -56,6 +62,13 @@ impl FrontendGame {
         let Some(player) =  self.player.get() else {
             bail!("Tried to play when not a player")
         };
+        if let PlayerCell::Revealed(_) = self.game.board[BoardPoint { row, col }] {
+        } else {
+            bail!("Tried to reveal adjacent for hidden cell")
+        }
+        if !self.game.neighbors_flagged(BoardPoint { row, col }) {
+            bail!("Tried to reveal adjacent with wrong number of flags")
+        }
         let play_json = serde_json::to_string(&Play {
             player,
             action: PlayAction::RevealAdjacent,

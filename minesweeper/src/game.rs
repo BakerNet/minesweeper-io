@@ -106,7 +106,7 @@ impl Minesweeper {
         if self.players[player].flags.contains(&cell_point) {
             bail!("Tried to play flagged cell")
         }
-        if !(self.players[player].played) {
+        if !(self.players[player].played) && self.has_no_revealed_neighbors(cell_point) {
             self.players[player].played = true;
             self.unplant(cell_point, true);
         }
@@ -167,7 +167,8 @@ impl Minesweeper {
         let neighbors = self.board.neighbors(cell_point);
         let flagged_neighbors = neighbors
             .iter()
-            .filter(|c| self.players[player].flags.contains(*c));
+            .copied()
+            .filter(|c| self.players[player].flags.contains(c) || self.is_revealed_bomb(*c));
         if let Cell::Empty(x) = cell {
             if *x == 0 {
                 bail!("Tried to double-click zero space")
@@ -213,6 +214,11 @@ impl Minesweeper {
         Ok(combined_outcome)
     }
 
+    fn is_revealed_bomb(&self, cell_point: BoardPoint) -> bool {
+        let item = self.board[cell_point];
+        item.1.revealed && item.0.is_bomb()
+    }
+
     pub fn is_over(&self) -> bool {
         self.available.is_empty() || self.players.iter().all(|x| x.dead)
     }
@@ -256,6 +262,9 @@ impl Minesweeper {
             self.board[cell_point].1.revealed = true;
             self.board[cell_point].1.player = Some(player);
             self.available.remove(&cell_point);
+            self.players.iter_mut().for_each(|p| {
+                p.flags.remove(&cell_point);
+            });
             true
         }
     }
@@ -285,6 +294,16 @@ impl Minesweeper {
             }
             Ok(acc)
         })
+    }
+
+    fn has_no_revealed_neighbors(&self, cell_point: BoardPoint) -> bool {
+        let neighbors = self.board.neighbors(cell_point);
+        neighbors
+            .iter()
+            .copied()
+            .filter(|i| self.board[*i].1.revealed)
+            .count()
+            == 0
     }
 
     fn plant(&mut self, cell_point: BoardPoint) {

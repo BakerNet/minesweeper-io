@@ -121,7 +121,7 @@ impl GameManager {
         }
         let users = RwLock::new(Vec::new());
         let (tx, _rx) = broadcast::channel(100);
-        let minesweeper = Mutex::new(Minesweeper::init_game(16, 30, 99, 8).unwrap());
+        let minesweeper = Mutex::new(Minesweeper::init_game(50, 50, 500, 8).unwrap());
         games.insert(
             id.to_string(),
             Game {
@@ -183,20 +183,6 @@ impl GameManager {
         game.player_game_state(player)
     }
 
-    pub fn play(
-        &self,
-        id: &str,
-        player: usize,
-        action: Action,
-        point: BoardPoint,
-    ) -> Result<usize> {
-        let mut games = self.games.write().unwrap();
-        let game: &mut Game = games.get_mut(id).ok_or(game_err(id))?;
-        let res = game.play(player, action, point)?;
-        let res_json = serde_json::to_string(&res)?;
-        game.tx.send(res_json).map_err(|e| anyhow!("{:?}", e))
-    }
-
     pub fn handle_message(&self, id: &str, msg: &str) -> Result<Option<String>> {
         let play = serde_json::from_str::<Play>(msg)?;
         let mut games = self.games.write().unwrap();
@@ -211,6 +197,10 @@ impl GameManager {
             default => {
                 let outcome = serde_json::to_string(&GameMessage::PlayOutcome(default))?;
                 game.tx.send(outcome)?;
+                let player_state = game.client_player(play.player)?;
+                let player_state_message =
+                    serde_json::to_string(&GameMessage::PlayerUpdate(player_state))?;
+                game.tx.send(player_state_message)?;
                 Ok(None)
             }
         }

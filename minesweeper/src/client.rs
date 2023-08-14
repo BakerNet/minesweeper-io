@@ -1,5 +1,5 @@
 use crate::board::{Board, BoardPoint};
-use crate::cell::PlayerCell;
+use crate::cell::{Cell, PlayerCell};
 use crate::game::{Action, PlayOutcome};
 
 use serde::{Deserialize, Serialize};
@@ -94,10 +94,34 @@ impl MinesweeperClient {
         updated
     }
 
-    fn is_player(&self, player: usize) -> bool {
-        match &self.player {
-            None => false,
-            Some(p) => *p == player,
+    pub fn neighbors_flagged(&self, cell_point: BoardPoint) -> bool {
+        if let PlayerCell::Revealed(rc) = self.board[cell_point] {
+            if let Cell::Empty(x) = rc.contents {
+                let neighbors = self.board.neighbors(cell_point);
+                neighbors
+                    .iter()
+                    .copied()
+                    .filter(|pc| {
+                        let item = self.board[*pc];
+                        if let PlayerCell::Flag = item {
+                            true
+                        } else if let PlayerCell::Revealed(nrc) = item {
+                            if let Cell::Bomb = nrc.contents {
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+                    == Into::<usize>::into(x)
+            } else {
+                false
+            }
+        } else {
+            false
         }
     }
 }
