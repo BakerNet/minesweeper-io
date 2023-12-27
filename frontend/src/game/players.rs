@@ -20,14 +20,22 @@ pub fn Players(cx: Scope) -> impl IntoView {
     let last_slot = *players.last().unwrap();
     let available_slots = move || last_slot().is_none() && player().is_none();
     view! { cx,
-        <Show when=available_slots fallback=move |_| view!{cx, <h4>Scoreboard</h4>}>
-            <JoinForm game_id=game_id.clone() />
+        <Show when=available_slots fallback=move |_| view! { cx, <h4>Scoreboard</h4> }>
+            <JoinForm game_id=game_id.clone()/>
         </Show>
         <table>
-        <tr><th>Player</th><th>Username</th><th>Score</th></tr>
-        {players.iter().enumerate().map(move |(n, player)|{
-            view! { cx, <Player player_num=n player=*player /> }
-        }).collect_view(cx)}
+            <tr>
+                <th>Player</th>
+                <th>Username</th>
+                <th>Score</th>
+            </tr>
+            {players
+                .iter()
+                .enumerate()
+                .map(move |(n, player)| {
+                    view! { cx, <Player player_num=n player=*player/> }
+                })
+                .collect_view(cx)}
         </table>
         <A href="..">Hide</A>
     }
@@ -56,7 +64,7 @@ fn Player(cx: Scope, player_num: usize, player: ReadSignal<Option<ClientPlayer>>
             0
         }
     };
-    view! {cx,
+    view! { cx,
         <tr class=class>
             <td>{player_num}</td>
             <td>{username}</td>
@@ -133,24 +141,20 @@ fn JoinForm(cx: Scope, game_id: String) -> impl IntoView {
         });
     let join_game_val = join_game.value();
 
-    view! {cx,
-        <form
-            on:submit=move |ev| {
-                ev.prevent_default(); // don't reload the page...
-                join_game.dispatch((input_element.get().unwrap().value(), game_id.get()));
-            }
-         >
-            <input type="text" ref=input_element placeholder="Username" />
+    view! { cx,
+        <form on:submit=move |ev| {
+            ev.prevent_default();
+            join_game.dispatch((input_element.get().unwrap().value(), game_id.get()));
+        }>
+
+            <input type="text" ref=input_element placeholder="Username"/>
             <button type="submit">"Join Game"</button>
         </form>
         <div class="error">
-        { move || {
-            if let Some(Err(e)) = join_game_val() {
-                e.err_msg
-            } else {
-                String::from("")
-            }
-        }}
-       </div>
+            {move || {
+                if let Some(Err(e)) = join_game_val() { e.err_msg } else { String::from("") }
+            }}
+
+        </div>
     }
 }

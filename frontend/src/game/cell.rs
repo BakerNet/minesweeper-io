@@ -82,15 +82,17 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
 
     view! { cx,
         <span
-        class=class
-        id=id
-        on:mouseup=handle_mouseup
-        on:mousedown=handle_mousedown
-        oncontextmenu="event.preventDefault();" >
+            class=class
+            id=id
+            on:mouseup=handle_mouseup
+            on:mousedown=handle_mousedown
+            oncontextmenu="event.preventDefault();"
+        >
             {move || {
                 let item = cell();
-                view! { cx, <CellContents cell=item /> }
+                view! { cx, <CellContents cell=item/> }
             }}
+
         </span>
     }
 }
@@ -98,11 +100,19 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
 #[component]
 fn CellContents(cx: Scope, cell: PlayerCell) -> impl IntoView {
     match cell {
-        PlayerCell::Flag => view! { cx, <span><img src="/images/Flag.svg" /></span>},
-        PlayerCell::Hidden => view! { cx, <span>""</span>},
+        PlayerCell::Flag => view! { cx,
+            <span>
+                <img src="/images/Flag.svg"/>
+            </span>
+        },
+        PlayerCell::Hidden => view! { cx, <span>""</span> },
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => view! { cx, <span><img src="/images/Mine.svg" /></span>},
-            Cell::Empty(_) => view! { cx, <span>{format!("{:?}", cell)}</span>},
+            Cell::Bomb => view! { cx,
+                <span>
+                    <img src="/images/Mine.svg"/>
+                </span>
+            },
+            Cell::Empty(_) => view! { cx, <span>{format!("{:?}", cell)}</span> },
         },
     }
 }

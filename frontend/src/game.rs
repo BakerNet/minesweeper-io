@@ -93,14 +93,14 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
     });
 
     view! { cx,
-        <Outlet />
-        <div class="board">{
-            read_signals
+        <Outlet/>
+        <div class="board">
+            {read_signals
                 .into_iter()
                 .enumerate()
-                .map(move |(row, vec)| view!{cx, <Row row=row cells=vec />})
-                .collect_view(cx)
-        }</div>
+                .map(move |(row, vec)| view! { cx, <Row row=row cells=vec/> })
+                .collect_view(cx)}
+        </div>
         <div class="error">{error}</div>
     }
 }
@@ -108,12 +108,12 @@ pub fn Game(cx: Scope, rows: usize, cols: usize) -> impl IntoView {
 #[component]
 fn Row(cx: Scope, row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoView {
     view! { cx,
-        <div class="row" >{
-            cells
+        <div class="row">
+            {cells
                 .into_iter()
                 .enumerate()
-                .map(move |(col, cell)| view! {cx, <Cell row=row col=col cell=cell /> })
-                .collect_view(cx)
-        }</div>
+                .map(move |(col, cell)| view! { cx, <Cell row=row col=col cell=cell/> })
+                .collect_view(cx)}
+        </div>
     }
 }
