@@ -31,7 +31,6 @@ pub async fn get_user() -> Result<Option<User>, ServerFnError> {
 
 #[server(LogIn, "/api")]
 pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, ServerFnError> {
-    println!("LogIn received target: {:?}", target);
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
     let session = use_context::<Session>()

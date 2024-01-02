@@ -6,7 +6,6 @@ use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
-use reqwasm::http::Request;
 use std::{cell::RefCell, rc::Rc};
 
 use minesweeper::{
@@ -16,6 +15,9 @@ use minesweeper::{
 
 use cell::Cell;
 use client::FrontendGame;
+
+#[cfg(feature = "ssr")]
+use crate::backend::users::AuthSession;
 
 #[component]
 pub fn Game(rows: usize, cols: usize) -> impl IntoView {
@@ -121,24 +123,32 @@ fn Row(row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoView {
     }
 }
 
+#[server(StartGame, "/api")]
+async fn start_game() -> Result<(), ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+
+    let _user = match auth_session.user {
+        Some(user) => user,
+        None => {
+            return Err(ServerFnError::ServerError("Not logged in".to_string()));
+        }
+    };
+
+    todo!()
+    // let id = create_game(user);
+    // leptos_axum::redirect(&format!("/game/{}", id));
+    // Ok(())
+}
+
 #[component]
 pub fn StartGame() -> impl IntoView {
-    // TODO - refactor to ActionForm & ServerFn
-    let new_game: Action<(), Result<()>> = create_action(move |_: &()| async move {
-        let navigate = use_navigate();
-        let id = Request::post("/api/new").send().await?.text().await?;
-        request_animation_frame(move || {
-            let _ = navigate(&format!("/{}", id), Default::default());
-        });
-        Result::Ok(())
-    });
+    let new_game = create_server_action::<StartGame>();
+
     view! {
-        <form on:submit=move |ev| {
-            ev.prevent_default();
-            new_game.dispatch(());
-        }>
+        <ActionForm action=new_game >
 
             <button type="submit">"New Game"</button>
-        </form>
+        </ActionForm>
     }
 }

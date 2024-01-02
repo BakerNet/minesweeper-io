@@ -115,12 +115,8 @@ impl Backend {
         user_id: i64,
         display_name: &str,
     ) -> Result<(), BackendError> {
-        sqlx::query("update users set display_name = ? where id = ?")
-            .bind(display_name)
-            .bind(user_id)
-            .execute(&self.db)
+        User::update_display_name(&self.db, user_id, display_name)
             .await
-            .map(|_| ())
             .map_err(BackendError::Sqlx)
     }
 }
@@ -231,28 +227,15 @@ impl AuthnBackend for Backend {
         };
 
         // Persist user in our database so we can use `get_user`.
-        let user = sqlx::query_as(
-            r#"
-            insert into users (username, access_token)
-            values (?, ?)
-            on conflict(username) do update
-            set access_token = excluded.access_token
-            returning *
-            "#,
-        )
-        .bind(username)
-        .bind(token_res.access_token().secret())
-        .fetch_one(&self.db)
-        .await
-        .map_err(Self::Error::Sqlx)?;
+        let user = User::add_user(&self.db, &username, token_res.access_token().secret())
+            .await
+            .map_err(Self::Error::Sqlx)?;
 
         Ok(Some(user))
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
-        Ok(sqlx::query_as("select * from users where id = ?")
-            .bind(user_id)
-            .fetch_optional(&self.db)
+        Ok(User::get_user(&self.db, *user_id)
             .await
             .map_err(Self::Error::Sqlx)?)
     }
