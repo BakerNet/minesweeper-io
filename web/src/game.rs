@@ -48,7 +48,6 @@ pub fn Game(rows: usize, cols: usize) -> impl IntoView {
     let (error, set_error) = create_signal::<Option<String>>(None);
     let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
 
-    // TODO - use_websocjet causes panic on route change - investigate
     let UseWebsocketReturn {
         ready_state,
         message,

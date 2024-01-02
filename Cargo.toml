@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
   # core
-  "server", # TODO - migrate to web
   "web",
 
   # integrations
@@ -17,8 +16,7 @@ version = "0.1.0"
 
 [workspace.dependencies]
 minesweeper = { path = "./minesweeper", version = "0.1.0" }
-server = { path = "./server", version = "0.1.0" }
-frontend = { path = "./frontend", version = "0.1.0" }
+minesweeper-web = { path = "./web", version = "0.1.0" }
 
 [profile.release]
 codegen-units = 1
