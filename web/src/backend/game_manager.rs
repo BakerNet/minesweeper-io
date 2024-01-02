@@ -14,6 +14,7 @@ use minesweeper::{
 };
 use tokio::sync::broadcast;
 
+// TODO - create model for games
 struct Game {
     // We require unique usernames. This tracks which usernames have been taken.
     users: RwLock<Vec<String>>,
@@ -99,7 +100,7 @@ pub struct GameManager {
 }
 
 fn game_err(id: &str) -> anyhow::Error {
-    anyhow!("Game wiht id {id} doesn't exist")
+    anyhow!("Game with id {id} doesn't exist")
 }
 
 impl Default for GameManager {

@@ -19,6 +19,8 @@ use client::FrontendGame;
 
 #[component]
 pub fn Game(rows: usize, cols: usize) -> impl IntoView {
+    // TODO - game_id should be parameter, and there should be a parent component that renders
+    // Games based on id param (with Suspense)
     let params = use_params_map();
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
 

@@ -3,6 +3,18 @@
     <img src="https://raw.githubusercontent.com/leptos-rs/leptos/main/docs/logos/Leptos_logo_RGB.svg" alt="Leptos Logo">
 </picture>
 
+# Minesweeper-io
+
+Multiplayer Minesweeper website
+
+## Create database
+
+Create sqlite database in workspace root
+
+## Setup .env
+
+Copy `.env.example` in workspace root into `.env` and fill in
+
 ## Running the project
 
 ```bash
