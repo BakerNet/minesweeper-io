@@ -49,10 +49,9 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Stylesheet id="leptos" href="/pkg/minesweeper-web.css"/>
-        <Stylesheet id="leptos" href="/pkg/minesweeper-web.css"/>
 
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="Welcome to Minesweeper"/>
 
         // content for this welcome page
         <Router fallback=|| {
@@ -116,7 +115,7 @@ fn Header(user: Option<User>) -> impl IntoView {
     view! {
         <header>
             <A href="/">
-                <h1>Minesweeper</h1>
+                <h2>Minesweeper</h2>
             </A>
             {move || match &user {
                 None => {
