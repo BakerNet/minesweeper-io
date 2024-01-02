@@ -1,5 +1,7 @@
 use crate::auth::*;
 use crate::error_template::{AppError, ErrorTemplate};
+use crate::game::players::Players;
+use crate::game::Game;
 use crate::models::user::User;
 use crate::views::home::HomePage;
 use crate::views::login::LoginPage;
@@ -24,33 +26,6 @@ cfg_if! { if #[cfg(feature = "ssr")] {
 }}
 
 #[component]
-fn Header(user: Option<User>) -> impl IntoView {
-    view! {
-        <header>
-            <A href="/">
-                <h1>Minesweeper</h1>
-            </A>
-            {move || match &user {
-                None => {
-                    view! { <span>"Guest (" <A href="/auth/login">Log in</A> ")"</span> }
-                        .into_view()
-                }
-                Some(user) => {
-                    let name = if let Some(name) = &user.display_name {
-                        name.to_owned()
-                    } else {
-                        "Anonymous".to_string()
-                    };
-                    view! { <span>{name} " (" <A href="/profile">Profile</A> ")"</span> }
-                        .into_view()
-                }
-            }}
-
-        </header>
-    }
-}
-
-#[component]
 pub fn App() -> impl IntoView {
     let login = create_server_action::<LogIn>();
     let logout = create_server_action::<LogOut>();
@@ -73,6 +48,7 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
+        <Stylesheet id="leptos" href="/pkg/minesweeper-web.css"/>
         <Stylesheet id="leptos" href="/pkg/minesweeper-web.css"/>
 
         // sets the document title
@@ -119,9 +95,45 @@ pub fn App() -> impl IntoView {
                             }
                         }
                     />
+                    <Route path="/game/:id" view=|| view! { <Game rows=50 cols=50/> }>
+                        <Route path="players" view=|| view! { <Players/> }/>
+                        <Route
+                            path=""
+                            view=|| {
+                                view! { <A href="players">"Join Game / Scoreboard"</A> }
+                            }
+                        />
+                    </Route>
 
                 </Routes>
             </main>
         </Router>
+    }
+}
+
+#[component]
+fn Header(user: Option<User>) -> impl IntoView {
+    view! {
+        <header>
+            <A href="/">
+                <h1>Minesweeper</h1>
+            </A>
+            {move || match &user {
+                None => {
+                    view! { <span>"Guest (" <A href="/auth/login">Log in</A> ")"</span> }
+                        .into_view()
+                }
+                Some(user) => {
+                    let name = if let Some(name) = &user.display_name {
+                        name.to_owned()
+                    } else {
+                        "Anonymous".to_string()
+                    };
+                    view! { <span>{name} " (" <A href="/profile">Profile</A> ")"</span> }
+                        .into_view()
+                }
+            }}
+
+        </header>
     }
 }

@@ -2,7 +2,6 @@
 resolver = "2"
 members = [
   # core
-  "frontend", # TODO - migrate to web
   "server", # TODO - migrate to web
   "web",
 

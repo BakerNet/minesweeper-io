@@ -6,6 +6,7 @@ pub mod app;
 pub mod auth;
 pub mod error_template;
 pub mod fileserv;
+pub mod game;
 pub mod models;
 pub mod views;
 

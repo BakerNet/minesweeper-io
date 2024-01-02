@@ -2298,10 +2298,13 @@ dependencies = [
  "leptos_meta",
  "leptos_router 0.5.4",
  "log",
+ "minesweeper",
  "oauth2",
  "regex",
+ "reqwasm",
  "reqwest",
  "serde",
+ "serde_json",
  "simple_logger",
  "sqlx",
  "thiserror",
@@ -2312,6 +2315,7 @@ dependencies = [
  "tower-sessions",
  "tracing",
  "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]

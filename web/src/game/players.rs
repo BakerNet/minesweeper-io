@@ -11,17 +11,17 @@ use serde::Serialize;
 use wasm_bindgen::JsValue;
 
 #[component]
-pub fn Players(cx: Scope) -> impl IntoView {
-    let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
+pub fn Players() -> impl IntoView {
+    let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
     let (player, players, game_id) = {
         let game = (*game).borrow();
-        (game.player, game.players.clone(), game.game_id.clone())
+        (game.player, game.players.clone(), game.game_id)
     };
     let last_slot = *players.last().unwrap();
     let available_slots = move || last_slot().is_none() && player().is_none();
-    view! { cx,
-        <Show when=available_slots fallback=move |_| view! { cx, <h4>Scoreboard</h4> }>
-            <JoinForm game_id=game_id.clone()/>
+    view! {
+        <Show when=available_slots fallback=move || view! { <h4>Scoreboard</h4> }>
+            <JoinForm game_id=game_id.get() />
         </Show>
         <table>
             <tr>
@@ -33,16 +33,16 @@ pub fn Players(cx: Scope) -> impl IntoView {
                 .iter()
                 .enumerate()
                 .map(move |(n, player)| {
-                    view! { cx, <Player player_num=n player=*player/> }
+                    view! { <Player player_num=n player=*player/> }
                 })
-                .collect_view(cx)}
+                .collect_view()}
         </table>
         <A href="..">Hide</A>
     }
 }
 
 #[component]
-fn Player(cx: Scope, player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
+fn Player(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
     let class = move || {
         if let Some(player) = player() {
             format!("p-{}", player.player_id)
@@ -64,7 +64,7 @@ fn Player(cx: Scope, player_num: usize, player: ReadSignal<Option<ClientPlayer>>
             0
         }
     };
-    view! { cx,
+    view! {
         <tr class=class>
             <td>{player_num}</td>
             <td>{username}</td>
@@ -98,12 +98,13 @@ impl From<anyhow::Error> for PlayFormError {
     }
 }
 
+// TODO - rework joining game
 #[component]
-fn JoinForm(cx: Scope, game_id: String) -> impl IntoView {
-    let input_element: NodeRef<html::Input> = create_node_ref(cx);
-    let (game_id, _) = create_signal(cx, game_id);
+fn JoinForm(game_id: String) -> impl IntoView {
+    let input_element: NodeRef<html::Input> = create_node_ref();
+    let (game_id, _) = create_signal(game_id);
     let join_game: Action<(String, String), Result<(), PlayFormError>> =
-        create_action(cx, move |(user, game_id): &(String, String)| {
+        create_action(move |(user, game_id): &(String, String)| {
             let user = user.to_owned();
             let game_id = game_id.to_owned();
             async move {
@@ -117,7 +118,7 @@ fn JoinForm(cx: Scope, game_id: String) -> impl IntoView {
                     user: user.to_owned(),
                 }
                 .to_jsvalue();
-                let res = Request::post("http://127.0.0.1:3000/api/play")
+                let res = Request::post("/api/play")
                     .header("content-type", "application/x-www-form-urlencoded")
                     .body(form_message)
                     .send()
@@ -131,7 +132,7 @@ fn JoinForm(cx: Scope, game_id: String) -> impl IntoView {
                 if res.status() != 200 {
                     return Err(PlayFormError { err_msg: id });
                 }
-                let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
+                let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
                 let id = id.parse::<usize>().map_err(|e| PlayFormError {
                     err_msg: format!("{:?}", e),
                 })?;
@@ -141,7 +142,7 @@ fn JoinForm(cx: Scope, game_id: String) -> impl IntoView {
         });
     let join_game_val = join_game.value();
 
-    view! { cx,
+    view! {
         <form on:submit=move |ev| {
             ev.prevent_default();
             join_game.dispatch((input_element.get().unwrap().value(), game_id.get()));

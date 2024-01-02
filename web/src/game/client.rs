@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use anyhow::{anyhow, bail, Result};
-use leptos::{leptos_dom::console_log, *};
+use leptos::*;
 use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
@@ -12,7 +12,7 @@ use minesweeper::{
 use web_sys::WebSocket;
 
 pub struct FrontendGame {
-    pub game_id: String,
+    pub game_id: Signal<String>,
     pub cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     pub player: ReadSignal<Option<usize>>,
     pub set_player: WriteSignal<Option<usize>>,
@@ -79,14 +79,14 @@ impl FrontendGame {
     }
 
     pub fn handle_message(&mut self, msg: &str) -> Result<()> {
-        console_log(msg);
+        leptos_dom::log!("{}", msg);
         let game_message: GameMessage = serde_json::from_str(msg)?;
-        console_log(&format!("{:?}", game_message));
+        leptos_dom::log!("{:?}", game_message);
         match game_message {
             GameMessage::PlayOutcome(po) => {
                 let plays = self.game.update(po);
                 plays.iter().for_each(|(point, cell)| {
-                    console_log(&format!("{:?} {:?}", point, cell));
+                    leptos_dom::log!("{:?} {:?}", point, cell);
                     self.update_cell(*point, *cell);
                     if self.game.game_over {
                         self.close();

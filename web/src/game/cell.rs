@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::game::FrontendGame;
 
-use leptos::{leptos_dom::console_log, *};
+use leptos::*;
 use minesweeper::{
     cell::{Cell, PlayerCell},
     game::Action as PlayAction,
@@ -32,11 +32,11 @@ fn player_class(cell: PlayerCell) -> String {
 }
 
 #[component]
-pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+pub fn Cell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
 
     let handle_action = move |pa: PlayAction| {
-        let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
+        let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
         let game = (*game).borrow();
         let res = match pa {
             PlayAction::Reveal => game.try_reveal(row, col),
@@ -47,7 +47,7 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
     };
     let handle_mousedown = move |ev: MouseEvent| {
         let set_skip_signal = {
-            let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
+            let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
             let game = (*game).borrow();
             game.set_skip_mouseup
         };
@@ -57,13 +57,13 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
         }
     };
     let handle_mouseup = move |ev: MouseEvent| {
-        console_log("handle_mouseup");
+        leptos_dom::log!("handle_mouseup");
         let (skip_mouseup, set_skip_mouseup) = {
-            let game = use_context::<Rc<RefCell<FrontendGame>>>(cx).unwrap();
+            let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
             let game = (*game).borrow();
             (game.skip_mouseup, game.set_skip_mouseup)
         };
-        console_log(&format!("{}", skip_mouseup.get()));
+        leptos_dom::log!("{}", skip_mouseup.get());
         if skip_mouseup.get() > 0 {
             set_skip_mouseup.set(skip_mouseup() - 1);
             return;
@@ -80,7 +80,7 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
         format!("cell s-30p {} {}", cell_class(item), player_class(item))
     };
 
-    view! { cx,
+    view! {
         <span
             class=class
             id=id
@@ -90,7 +90,7 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
         >
             {move || {
                 let item = cell();
-                view! { cx, <CellContents cell=item/> }
+                view! {  <CellContents cell=item/> }
             }}
 
         </span>
@@ -98,21 +98,21 @@ pub fn Cell(cx: Scope, row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> 
 }
 
 #[component]
-fn CellContents(cx: Scope, cell: PlayerCell) -> impl IntoView {
+fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
-        PlayerCell::Flag => view! { cx,
+        PlayerCell::Flag => view! {
             <span>
                 <img src="/images/Flag.svg"/>
             </span>
         },
-        PlayerCell::Hidden => view! { cx, <span>""</span> },
+        PlayerCell::Hidden => view! {  <span>""</span> },
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => view! { cx,
+            Cell::Bomb => view! {
                 <span>
                     <img src="/images/Mine.svg"/>
                 </span>
             },
-            Cell::Empty(_) => view! { cx, <span>{format!("{:?}", cell)}</span> },
+            Cell::Empty(_) => view! {  <span>{format!("{:?}", cell)}</span> },
         },
     }
 }
