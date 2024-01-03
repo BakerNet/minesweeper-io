@@ -123,11 +123,7 @@ fn Header(user: Option<User>) -> impl IntoView {
                         .into_view()
                 }
                 Some(user) => {
-                    let name = if let Some(name) = &user.display_name {
-                        name.to_owned()
-                    } else {
-                        "Anonymous".to_string()
-                    };
+                    let name = user.display_name_or_anon();
                     view! { <span>{name} " (" <A href="/profile">Profile</A> ")"</span> }
                         .into_view()
                 }

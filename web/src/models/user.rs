@@ -29,6 +29,16 @@ impl std::fmt::Debug for User {
     }
 }
 
+impl User {
+    pub fn display_name_or_anon(&self) -> String {
+        if let Some(name) = &self.display_name {
+            name.to_owned()
+        } else {
+            "Anonymous".to_string()
+        }
+    }
+}
+
 #[cfg(feature = "ssr")]
 impl AuthUser for User {
     type Id = i64;
