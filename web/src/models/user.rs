@@ -10,7 +10,7 @@ cfg_if! { if #[cfg(feature="ssr")] {
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ssr", derive(FromRow))]
 pub struct User {
-    id: i64,
+    pub id: i64,
     pub username: String,
     pub display_name: Option<String>,
     pub access_token: String,

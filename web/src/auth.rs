@@ -37,9 +37,6 @@ pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, 
         .ok_or_else(|| ServerFnError::ServerError("Unable to find session".to_string()))?;
     let (auth_url, csrf_state) = auth_session.backend.authorize_url(target);
 
-    log::debug!("{}", auth_url);
-    log::debug!("{}", csrf_state.secret());
-
     session
         .insert(CSRF_STATE_KEY, csrf_state.secret())
         .await

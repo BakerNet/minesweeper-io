@@ -136,7 +136,7 @@ async fn start_game() -> Result<(), ServerFnError> {
     };
 
     todo!()
-    // let id = create_game(user);
+    // let id = game_manager.create_game(user);
     // leptos_axum::redirect(&format!("/game/{}", id));
     // Ok(())
 }

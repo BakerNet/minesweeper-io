@@ -56,14 +56,6 @@ fn oauth_client(target: OAuthTarget) -> Result<BasicClient, Box<dyn std::error::
     let redirect_host = env::var("REDIRECT_HOST")
         .map(String::from)
         .expect("REDIRECT_HOST should be provided");
-    log::debug!(
-        "{:?} {} {} {} {}",
-        target,
-        id_key,
-        secret_key,
-        auth_url,
-        token_url
-    );
 
     let auth_url = AuthUrl::new(auth_url.to_string())?;
     let token_url = TokenUrl::new(token_url.to_string())?;

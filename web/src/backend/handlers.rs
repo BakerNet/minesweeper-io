@@ -1,4 +1,5 @@
 // TODO - rework this functionality
+use super::game_manager::GameManager;
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -8,7 +9,6 @@ use axum::{
     response::{Html, IntoResponse, Response},
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use game_manager::GameManager;
 use nanoid::nanoid;
 use serde::Deserialize;
 use std::sync::Arc;
