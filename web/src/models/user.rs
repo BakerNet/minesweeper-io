@@ -1,19 +1,25 @@
-use cfg_if::cfg_if;
+#![cfg(feature = "ssr")]
 
+use axum_login::AuthUser;
 use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, SqlitePool};
 
-cfg_if! { if #[cfg(feature="ssr")] {
-    use sqlx::{FromRow, SqlitePool};
-    use axum_login::AuthUser;
-}}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ssr", derive(FromRow))]
+#[derive(Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: i64,
     pub username: String,
     pub display_name: Option<String>,
     pub access_token: String,
+}
+
+impl User {
+    pub fn display_name_or_anon(&self) -> String {
+        if let Some(name) = &self.display_name {
+            name.to_owned()
+        } else {
+            "Anonymous".to_string()
+        }
+    }
 }
 
 // Here we've implemented `Debug` manually to avoid accidentally logging the
@@ -29,17 +35,6 @@ impl std::fmt::Debug for User {
     }
 }
 
-impl User {
-    pub fn display_name_or_anon(&self) -> String {
-        if let Some(name) = &self.display_name {
-            name.to_owned()
-        } else {
-            "Anonymous".to_string()
-        }
-    }
-}
-
-#[cfg(feature = "ssr")]
 impl AuthUser for User {
     type Id = i64;
 
@@ -52,7 +47,6 @@ impl AuthUser for User {
     }
 }
 
-#[cfg(feature = "ssr")]
 impl User {
     pub async fn get_user(db: &SqlitePool, user_id: i64) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as("select * from users where id = ?")

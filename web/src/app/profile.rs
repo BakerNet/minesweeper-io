@@ -3,18 +3,19 @@ use cfg_if::cfg_if;
 use leptos::*;
 use leptos_router::*;
 
-use crate::{auth::LogOut, models::user::User, no_prefix_serverfnerror, validate_display_name};
+use super::{auth::LogOut, FrontendUser};
+use crate::{no_prefix_serverfnerror, validate_display_name};
 
 cfg_if! { if #[cfg(feature="ssr")] {
     use axum_login::AuthUser;
+    use super::auth::get_user;
     use crate::backend::users::AuthSession;
-    use crate::auth::get_user;
 }}
 
 #[component]
 pub fn Profile(
     logout: Action<LogOut, Result<(), ServerFnError>>,
-    user: User,
+    user: FrontendUser,
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
     view! {
@@ -50,7 +51,7 @@ async fn set_display_name(display_name: String) -> Result<String, ServerFnError>
 }
 
 #[component]
-fn SetDisplayName(user: User, user_updated: WriteSignal<String>) -> impl IntoView {
+fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl IntoView {
     let set_display_name = create_server_action::<SetDisplayName>();
     let (name_err, set_name_err) = create_signal::<Option<String>>(None);
 
@@ -75,13 +76,10 @@ fn SetDisplayName(user: User, user_updated: WriteSignal<String>) -> impl IntoVie
 
     view! {
         <div>
-            {match &user.display_name {
-                Some(name) => view! { <span>{name}</span> }.into_view(),
-                None => view! {}.into_view(),
-            }}
+            <span>{user.display_name_or_anon()}</span>
             {move || name_err.get().map(|s| view! {<div><span class="error">{s}</span></div>})}
             <ActionForm action=set_display_name on:submit=move |e| on_submit(e.into())>
-                <input type="text" name="display_name" placeholder=user.display_name/>
+                <input type="text" name="display_name" placeholder=user.display_name />
                 <input type="submit" value="Set display name"/>
             </ActionForm>
         </div>

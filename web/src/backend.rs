@@ -1,8 +1,6 @@
-pub use app::App;
-pub use users::Credentials;
-
-mod app;
+pub mod app;
 pub mod auth;
-mod game_manager;
-// mod handlers;
+mod fileserv;
+pub mod game_manager;
 pub mod users;
+// mod handlers;

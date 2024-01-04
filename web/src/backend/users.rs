@@ -10,7 +10,7 @@ use oauth2::{
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use crate::{auth::OAuthTarget, models::user::User};
+use crate::{app::auth::OAuthTarget, models::user::User};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {

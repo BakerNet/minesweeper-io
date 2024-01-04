@@ -1,6 +1,6 @@
 use leptos::*;
 
-use crate::auth::{LogIn, Login, OAuthTarget};
+use super::auth::{LogIn, Login, OAuthTarget};
 
 #[component]
 pub fn LoginPage(login: Action<LogIn, Result<String, ServerFnError>>) -> impl IntoView {

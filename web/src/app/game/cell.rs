@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::game::FrontendGame;
+use super::FrontendGame;
 
 use leptos::*;
 use minesweeper::{

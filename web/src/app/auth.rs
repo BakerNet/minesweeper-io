@@ -1,19 +1,20 @@
-use cfg_if::cfg_if;
-
 use leptos::*;
 use leptos_router::*;
 use leptos_use::use_window;
 use serde::{Deserialize, Serialize};
 
-use crate::models::user::User;
+use super::FrontendUser;
 
-cfg_if! { if #[cfg(feature="ssr")] {
-    use axum_login::tower_sessions::Session;
-    use crate::backend::{
+#[cfg(feature = "ssr")]
+use crate::{
+    backend::{
         auth::{CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET},
         users::AuthSession,
-    };
-}}
+    },
+    models::user::User,
+};
+#[cfg(feature = "ssr")]
+use axum_login::tower_sessions::Session;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OAuthTarget {
@@ -22,11 +23,20 @@ pub enum OAuthTarget {
     GITHUB,
 }
 
-#[server(GetUser, "/api")]
+#[cfg(feature = "ssr")]
 pub async fn get_user() -> Result<Option<User>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
     Ok(auth_session.user)
+}
+
+#[server(GetUser, "/api")]
+pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+    Ok(auth_session.user.map(|u| FrontendUser {
+        display_name: u.display_name,
+    }))
 }
 
 #[server(LogIn, "/api")]

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::game::client::FrontendGame;
+use super::client::FrontendGame;
 
 use anyhow::Result;
 use leptos::*;

@@ -1,29 +1,39 @@
-use crate::auth::*;
-use crate::error_template::{AppError, ErrorTemplate};
-use crate::game::players::Players;
-use crate::game::Game;
-use crate::models::user::User;
-use crate::views::home::HomePage;
-use crate::views::login::LoginPage;
-use crate::views::profile::Profile;
+pub mod auth;
+mod error_template;
+mod game;
+mod header;
+mod home;
+mod login;
+mod profile;
+
+use auth::*;
+use error_template::{AppError, ErrorTemplate};
+use game::players::Players;
+use game::Game;
+use header::Header;
+use home::HomePage;
+use login::LoginPage;
+use profile::Profile;
+
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
+use serde::{Deserialize, Serialize};
 
-use cfg_if::cfg_if;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FrontendUser {
+    pub display_name: Option<String>,
+}
 
-cfg_if! { if #[cfg(feature = "ssr")] {
-    use leptos::LeptosOptions;
-    use axum::extract::FromRef;
-    use leptos_router::RouteListing;
-    /// This takes advantage of Axum's SubStates feature by deriving FromRef. This is the only way to have more than one
-    /// item in Axum's State. Leptos requires you to have leptosOptions in your State struct for the leptos route handlers
-    #[derive(FromRef, Debug, Clone)]
-    pub struct AppState{
-        pub leptos_options: LeptosOptions,
-        pub routes: Vec<RouteListing>,
+impl FrontendUser {
+    pub fn display_name_or_anon(&self) -> String {
+        if let Some(name) = &self.display_name {
+            name.to_owned()
+        } else {
+            "Anonymous".to_string()
+        }
     }
-}}
+}
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -33,7 +43,7 @@ pub fn App() -> impl IntoView {
 
     let user = create_resource(
         move || (login.version().get(), logout.version().get(), user_update()),
-        move |_| get_user(),
+        move |_| get_frontend_user(),
     );
     let user_into = move || {
         let user = user.get();
@@ -107,28 +117,5 @@ pub fn App() -> impl IntoView {
                 </Routes>
             </main>
         </Router>
-    }
-}
-
-#[component]
-fn Header(user: Option<User>) -> impl IntoView {
-    view! {
-        <header>
-            <A href="/">
-                <h2>Minesweeper</h2>
-            </A>
-            {move || match &user {
-                None => {
-                    view! { <span>"Guest (" <A href="/auth/login">Log in</A> ")"</span> }
-                        .into_view()
-                }
-                Some(user) => {
-                    let name = user.display_name_or_anon();
-                    view! { <span>{name} " (" <A href="/profile">Profile</A> ")"</span> }
-                        .into_view()
-                }
-            }}
-
-        </header>
     }
 }

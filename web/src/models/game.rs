@@ -1,16 +1,11 @@
-use cfg_if::cfg_if;
-
+#![cfg(feature = "ssr")]
 use minesweeper::cell::PlayerCell;
 use serde::{Deserialize, Serialize};
+use sqlx::{types::Json, FromRow, SqlitePool};
 
 use super::user::User;
 
-cfg_if! { if #[cfg(feature="ssr")] {
-    use sqlx::{FromRow, SqlitePool, types::Json};
-}}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ssr", derive(FromRow))]
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct Game {
     pub game_id: String,
     pub owner: i64, // User.id
@@ -21,10 +16,9 @@ pub struct Game {
     pub is_completed: bool,
     pub is_started: bool,
     #[sqlx(json)]
-    pub final_board: Vec<Vec<PlayerCell>>,
+    pub final_board: Option<Vec<Vec<PlayerCell>>>,
 }
 
-#[cfg(feature = "ssr")]
 impl Game {
     pub async fn get_game(db: &SqlitePool, game_id: &str) -> Result<Option<Game>, sqlx::Error> {
         sqlx::query_as("select * from games where game_id = ?")
@@ -44,8 +38,8 @@ impl Game {
     ) -> Result<Game, sqlx::Error> {
         sqlx::query_as(
             r#"
-            insert into games (game_id, owner, rows, cols, num_mines, max_players)
-            values (?, ?, ?, ?, ?, ?)
+            insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
+            values (?, ?, ?, ?, ?, ?, ?)
             returning *
             "#,
         )
@@ -55,6 +49,7 @@ impl Game {
         .bind(cols)
         .bind(num_mines)
         .bind(max_players)
+        .bind(Json(None::<Vec<Vec<PlayerCell>>>))
         .fetch_one(db)
         .await
     }
@@ -81,8 +76,7 @@ impl Game {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ssr", derive(FromRow))]
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct Player {
     pub game_id: String,
     pub user: i64, // User.id
@@ -91,8 +85,7 @@ pub struct Player {
     pub score: i64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "ssr", derive(FromRow))]
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct PlayerUser {
     pub game_id: String,
     pub user: i64, // User.id
@@ -115,7 +108,6 @@ impl PlayerUser {
     }
 }
 
-#[cfg(feature = "ssr")]
 impl Player {
     pub async fn get_players(
         db: &SqlitePool,

@@ -9,9 +9,7 @@ use axum_login::tower_sessions::Session;
 use oauth2::CsrfToken;
 use serde::Deserialize;
 
-use crate::backend::users::{AuthSession, Credentials};
-
-use super::users::OAuthCreds;
+use super::users::{AuthSession, Credentials, OAuthCreds};
 
 pub const NEXT_URL_KEY: &str = "auth.next-url";
 pub const CSRF_STATE_KEY: &str = "oauth.csrf-state";

@@ -1,6 +1,6 @@
 use leptos::*;
 
-use crate::game::StartGame;
+use super::game::StartGame;
 
 /// Renders the home page of your application.
 #[component]

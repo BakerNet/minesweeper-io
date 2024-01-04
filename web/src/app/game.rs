@@ -17,7 +17,9 @@ use cell::Cell;
 use client::FrontendGame;
 
 #[cfg(feature = "ssr")]
-use crate::backend::users::AuthSession;
+use crate::backend::{app::AppState, users::AuthSession};
+#[cfg(feature = "ssr")]
+use nanoid::nanoid;
 
 #[component]
 pub fn Game(rows: usize, cols: usize) -> impl IntoView {
@@ -98,15 +100,17 @@ pub fn Game(rows: usize, cols: usize) -> impl IntoView {
     });
 
     view! {
-        <Outlet/>
-        <div class="board">
-            {read_signals
-                .into_iter()
-                .enumerate()
-                .map(move |(row, vec)| view! { <Row row=row cells=vec/> })
-                .collect_view()}
+        <div class="Game">
+            <Outlet/>
+            <div class="board">
+                {read_signals
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(row, vec)| view! { <Row row=row cells=vec/> })
+                    .collect_view()}
+            </div>
+            <div class="error">{error}</div>
         </div>
-        <div class="error">{error}</div>
     }
 }
 
@@ -127,18 +131,27 @@ fn Row(row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoView {
 async fn start_game() -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+    let AppState {
+        leptos_options: _,
+        routes: _,
+        game_manager,
+    } = use_context::<AppState>()
+        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
 
-    let _user = match auth_session.user {
+    let user = match auth_session.user {
         Some(user) => user,
         None => {
             return Err(ServerFnError::ServerError("Not logged in".to_string()));
         }
     };
 
-    todo!()
-    // let id = game_manager.create_game(user);
-    // leptos_axum::redirect(&format!("/game/{}", id));
-    // Ok(())
+    let id = nanoid!(12);
+    game_manager
+        .new_game(&user, &id, 50, 50, 500, 8)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    leptos_axum::redirect(&format!("/game/{}", id));
+    Ok(())
 }
 
 #[component]

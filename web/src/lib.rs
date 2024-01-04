@@ -3,16 +3,10 @@ use leptos::*;
 use regex::Regex;
 
 pub mod app;
-pub mod auth;
-pub mod error_template;
-pub mod fileserv;
-pub mod game;
 pub mod models;
-pub mod views;
 
-cfg_if! { if #[cfg(feature = "ssr")]{
-    pub mod backend;
-}}
+#[cfg(feature = "ssr")]
+pub mod backend;
 
 pub fn no_prefix_serverfnerror(s: ServerFnError) -> String {
     s.to_string()

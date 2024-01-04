@@ -2,7 +2,7 @@
 use anyhow::{bail, Result};
 use axum::extract::ws::{Message, WebSocket};
 use futures::stream::SplitSink;
-use minesweeper::{game::Minesweeper, GameMessage};
+use minesweeper::game::Minesweeper;
 use sqlx::SqlitePool;
 use std::{
     collections::HashMap,
@@ -11,27 +11,36 @@ use std::{
 use tokio::sync::{broadcast, mpsc};
 
 use crate::models::{
-    game::{Game, Player, PlayerUser},
+    game::{Game, Player},
     user::User,
 };
 
+#[derive(Clone, Debug)]
+struct PlayerHandle {
+    id: i64,
+    display_name: String,
+    ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+}
+
+#[derive(Clone, Debug)]
 struct GameHandle {
     to_client: broadcast::Sender<String>,
     from_client: mpsc::Sender<String>,
-    players: Vec<(String, Arc<Mutex<SplitSink<WebSocket, Message>>>)>,
+    players: Vec<PlayerHandle>,
     max_players: u8,
 }
 
+#[derive(Clone, Debug)]
 pub struct GameManager {
     db: SqlitePool,
-    games: RwLock<HashMap<String, GameHandle>>,
+    games: Arc<RwLock<HashMap<String, GameHandle>>>,
 }
 
 impl GameManager {
     pub fn new(db: SqlitePool) -> Self {
         GameManager {
             db,
-            games: RwLock::new(HashMap::new()),
+            games: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -89,20 +98,23 @@ impl GameManager {
         }
         let _player =
             Player::add_player(&self.db, game_id, user, handle.players.len() as u8).await?;
-        handle
-            .players
-            .push((user.display_name_or_anon(), ws_sender));
+        handle.players.push(PlayerHandle {
+            id: user.id,
+            display_name: user.display_name_or_anon(),
+            ws_sender,
+        });
         Ok(handle.from_client.clone())
     }
+    // TODO - reconnect
 }
 
 async fn handle_game(
     game: Game,
-    db: SqlitePool,
-    broadcaster: broadcast::Sender<String>,
-    receiver: mpsc::Receiver<String>,
+    _db: SqlitePool,
+    _broadcaster: broadcast::Sender<String>,
+    _receiver: mpsc::Receiver<String>,
 ) -> () {
-    let mut minesweeper = Minesweeper::init_game(
+    let mut _minesweeper = Minesweeper::init_game(
         game.rows as usize,
         game.cols as usize,
         game.num_mines as usize,
