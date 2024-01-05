@@ -88,6 +88,7 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
                         }
                     })
             }}
+
             <ActionForm action=set_display_name on:submit=move |e| on_submit(e.into())>
                 <input type="text" name="display_name" placeholder=user.display_name/>
                 <input type="submit" value="Set display name"/>

@@ -74,8 +74,8 @@ pub fn Game() -> impl IntoView {
     provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactiveGame game_info=game_info.clone()/> },
-        false => view! { <ActiveGame game_info=game_info.clone()/> },
+        true => view! { <InactiveGame game_info/> },
+        false => view! { <ActiveGame game_info/> },
     };
 
     view! {
@@ -88,8 +88,7 @@ pub fn Game() -> impl IntoView {
                     view! {
                         <ErrorBoundary fallback=|_| {
                             view! { <div class="error">"Game not found"</div> }
-                        }>{move || { game_info.clone().map(game_view) }}
-                        </ErrorBoundary>
+                        }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
                     }
                 })}
 

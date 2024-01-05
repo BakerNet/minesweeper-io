@@ -17,27 +17,24 @@ use crate::backend::game_manager::GameManager;
 
 #[component]
 pub fn Players() -> impl IntoView {
-    let game_info = use_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
+    let game_info = use_context::<Resource<String, Result<GameInfo, ServerFnError>>>()
+        .expect("Game info context missing");
 
     let player_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactivePlayers game_info=game_info/> },
-        false => view! { <ActivePlayers game_info=game_info/> },
+        true => view! { <InactivePlayers game_info/> },
+        false => view! { <ActivePlayers game_info/> },
     };
 
     view! {
         <Suspense fallback=move || ()>
             {game_info
-                .map(|gi| {
-                    gi
-                        .get()
-                        .map(|game_info| {
-                            view! {
-                                <ErrorBoundary fallback=|_| {
-                                    view! { <div class="error">"Unable to load players"</div> }
-                                }>{move || { game_info.clone().map(player_view) }}
-                                </ErrorBoundary>
-                            }
-                        })
+                .get()
+                .map(|game_info| {
+                    view! {
+                        <ErrorBoundary fallback=|_| {
+                            view! { <div class="error">"Unable to load players"</div> }
+                        }>{move || { game_info.clone().map(player_view) }}</ErrorBoundary>
+                    }
                 })}
 
         </Suspense>
