@@ -12,7 +12,7 @@ use minesweeper::{
 use web_sys::WebSocket;
 
 pub struct FrontendGame {
-    pub game_id: Signal<String>,
+    pub game_id: String,
     pub cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     pub player: ReadSignal<Option<usize>>,
     pub set_player: WriteSignal<Option<usize>>,

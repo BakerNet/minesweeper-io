@@ -12,16 +12,6 @@ pub struct User {
     pub access_token: String,
 }
 
-impl User {
-    pub fn display_name_or_anon(&self) -> String {
-        if let Some(name) = &self.display_name {
-            name.to_owned()
-        } else {
-            "Anonymous".to_string()
-        }
-    }
-}
-
 // Here we've implemented `Debug` manually to avoid accidentally logging the
 // access token.
 impl std::fmt::Debug for User {

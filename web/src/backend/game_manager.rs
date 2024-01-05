@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use axum::extract::ws::{Message, WebSocket};
 use futures::stream::SplitSink;
 use minesweeper::game::Minesweeper;
@@ -10,9 +10,12 @@ use std::{
 };
 use tokio::sync::{broadcast, mpsc};
 
-use crate::models::{
-    game::{Game, Player},
-    user::User,
+use crate::{
+    app::FrontendUser,
+    models::{
+        game::{Game, Player, PlayerUser},
+        user::User,
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -73,6 +76,22 @@ impl GameManager {
         Ok(())
     }
 
+    pub async fn game_exists(&self, game_id: &str) -> bool {
+        Game::get_game(&self.db, game_id).await.is_ok()
+    }
+
+    pub async fn get_game(&self, game_id: &str) -> Result<Game> {
+        Game::get_game(&self.db, game_id)
+            .await?
+            .ok_or(anyhow!("Game does not exist"))
+    }
+
+    pub async fn get_players(&self, game_id: &str) -> Result<Vec<PlayerUser>> {
+        Player::get_players(&self.db, game_id)
+            .await
+            .map_err(|e| e.into())
+    }
+
     pub fn join_game(&self, game_id: &str) -> Result<broadcast::Receiver<String>> {
         let games = self.games.read().unwrap();
         if !games.contains_key(game_id) {
@@ -100,7 +119,7 @@ impl GameManager {
             Player::add_player(&self.db, game_id, user, handle.players.len() as u8).await?;
         handle.players.push(PlayerHandle {
             id: user.id,
-            display_name: user.display_name_or_anon(),
+            display_name: FrontendUser::display_name_or_anon(&user.display_name),
             ws_sender,
         });
         Ok(handle.from_client.clone())

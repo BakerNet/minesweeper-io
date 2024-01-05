@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use super::client::FrontendGame;
+use super::{client::FrontendGame, GameInfo};
 
 use anyhow::Result;
 use leptos::*;
@@ -10,18 +10,52 @@ use reqwasm::http::Request;
 use serde::Serialize;
 use wasm_bindgen::JsValue;
 
+#[cfg(feature = "ssr")]
+use crate::app::FrontendUser;
+#[cfg(feature = "ssr")]
+use crate::backend::game_manager::GameManager;
+
 #[component]
 pub fn Players() -> impl IntoView {
+    let game_info = use_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
+
+    let player_view = move |game_info: GameInfo| match game_info.is_completed {
+        true => view! { <InactivePlayers game_info=game_info/> },
+        false => view! { <ActivePlayers game_info=game_info/> },
+    };
+
+    view! {
+        <Suspense fallback=move || ()>
+            {game_info
+                .map(|gi| {
+                    gi
+                        .get()
+                        .map(|game_info| {
+                            view! {
+                                <ErrorBoundary fallback=|_| {
+                                    view! { <div class="error">"Unable to load players"</div> }
+                                }>{move || { game_info.clone().map(player_view) }}
+                                </ErrorBoundary>
+                            }
+                        })
+                })}
+
+        </Suspense>
+    }
+}
+
+#[component]
+pub fn ActivePlayers(game_info: GameInfo) -> impl IntoView {
     let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
     let (player, players, game_id) = {
         let game = (*game).borrow();
-        (game.player, game.players.clone(), game.game_id)
+        (game.player, game.players.clone(), game.game_id.clone())
     };
     let last_slot = *players.last().unwrap();
     let available_slots = move || last_slot().is_none() && player().is_none();
     view! {
         <Show when=available_slots fallback=move || view! { <h4>Scoreboard</h4> }>
-            <JoinForm game_id=game_id.get() />
+            <JoinForm game_id=game_id.clone()/>
         </Show>
         <table>
             <tr>
@@ -33,7 +67,7 @@ pub fn Players() -> impl IntoView {
                 .iter()
                 .enumerate()
                 .map(move |(n, player)| {
-                    view! { <Player player_num=n player=*player/> }
+                    view! { <ActivePlayer player_num=n player=*player/> }
                 })
                 .collect_view()}
         </table>
@@ -41,28 +75,101 @@ pub fn Players() -> impl IntoView {
     }
 }
 
+#[server(GetPlayers, "/api")]
+pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnError> {
+    let game_manager = use_context::<GameManager>()
+        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+    let players = game_manager
+        .get_players(&game_id)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    Ok(players
+        .iter()
+        .map(|p| ClientPlayer {
+            player_id: p.player as usize,
+            username: FrontendUser::display_name_or_anon(&p.display_name),
+            dead: p.dead,
+            score: p.score as usize,
+        })
+        .collect())
+}
+
 #[component]
-fn Player(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
-    let class = move || {
+pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
+    let (game_info, _) = create_signal((game_info.max_players, game_info.game_id));
+    let players = create_resource(
+        move || game_info(),
+        |game_info| async move {
+            let players = get_players(game_info.1.clone()).await.ok();
+            players.map(|pv| {
+                let mut players = vec![None; game_info.0 as usize];
+                pv.iter()
+                    .for_each(|p| players[p.player_id] = Some(p.clone()));
+                players
+            })
+        },
+    );
+    view! {
+        <table>
+            <tr>
+                <th>Player</th>
+                <th>Username</th>
+                <th>Score</th>
+            </tr>
+            <Transition fallback=move || {
+                view! {}
+            }>
+                {move || {
+                    let players = players.get().flatten()?;
+                    Some(
+                        players
+                            .iter()
+                            .enumerate()
+                            .map(|(i, player)| {
+                                view! { <InactivePlayer player_num=i player=player.clone()/> }
+                            })
+                            .collect_view(),
+                    )
+                }}
+
+            </Transition>
+        </table>
+        <A href="..">Hide</A>
+    }
+}
+
+#[component]
+fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
+    let items = move || {
         if let Some(player) = player() {
-            format!("p-{}", player.player_id)
+            (
+                format!("p-{}", player.player_id),
+                player.username,
+                player.score,
+            )
         } else {
-            String::from("")
+            (String::from(""), String::from("--------"), 0)
         }
     };
-    let username = move || {
-        if let Some(player) = player() {
-            player.username
-        } else {
-            String::from("--------")
-        }
-    };
-    let score = move || {
-        if let Some(player) = player() {
-            player.score
-        } else {
-            0
-        }
+    view! {
+        <tr class=items().0>
+            <td>{player_num}</td>
+            <td>{items().1}</td>
+            <td>{items().2}</td>
+        </tr>
+    }
+}
+
+#[component]
+fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
+    let (class, username, score) = if let Some(player) = &player {
+        (
+            format!("p-{}", player.player_id),
+            player.username.clone(),
+            player.score.clone(),
+        )
+    } else {
+        (String::from(""), String::from("--------"), 0)
     };
     view! {
         <tr class=class>

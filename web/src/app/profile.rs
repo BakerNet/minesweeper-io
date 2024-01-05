@@ -76,10 +76,20 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
 
     view! {
         <div>
-            <span>{user.display_name_or_anon()}</span>
-            {move || name_err.get().map(|s| view! {<div><span class="error">{s}</span></div>})}
+            <span>{FrontendUser::display_name_or_anon(&user.display_name)}</span>
+            {move || {
+                name_err
+                    .get()
+                    .map(|s| {
+                        view! {
+                            <div>
+                                <span class="error">{s}</span>
+                            </div>
+                        }
+                    })
+            }}
             <ActionForm action=set_display_name on:submit=move |e| on_submit(e.into())>
-                <input type="text" name="display_name" placeholder=user.display_name />
+                <input type="text" name="display_name" placeholder=user.display_name/>
                 <input type="submit" value="Set display name"/>
             </ActionForm>
         </div>

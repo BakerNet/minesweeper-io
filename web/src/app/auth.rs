@@ -88,8 +88,8 @@ pub fn Login(
 
     view! {
         <ActionForm action=login>
-            <input type="hidden" name="target" value=target_str />
-            <input type="submit" value=target_readable />
+            <input type="hidden" name="target" value=target_str/>
+            <input type="submit" value=target_readable/>
         </ActionForm>
     }
 }

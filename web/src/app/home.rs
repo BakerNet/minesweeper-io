@@ -1,12 +1,15 @@
 use leptos::*;
 
-use super::game::StartGame;
+use super::{game::StartGame, FrontendUser};
 
 /// Renders the home page of your application.
 #[component]
-pub fn HomePage() -> impl IntoView {
+pub fn HomePage<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
+where
+    S: PartialEq + Clone + 'static,
+{
     view! {
         <h1>"Welcome to Minesweeper!"</h1>
-        <StartGame />
+        <StartGame user/>
     }
 }

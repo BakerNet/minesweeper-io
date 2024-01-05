@@ -26,8 +26,8 @@ pub struct FrontendUser {
 }
 
 impl FrontendUser {
-    pub fn display_name_or_anon(&self) -> String {
-        if let Some(name) = &self.display_name {
+    pub fn display_name_or_anon(display_name: &Option<String>) -> String {
+        if let Some(name) = display_name {
             name.to_owned()
         } else {
             "Anonymous".to_string()
@@ -43,16 +43,8 @@ pub fn App() -> impl IntoView {
 
     let user = create_resource(
         move || (login.version().get(), logout.version().get(), user_update()),
-        move |_| get_frontend_user(),
+        move |_| async { get_frontend_user().await.ok().flatten() },
     );
-    let user_into = move || {
-        let user = user.get();
-        if let Some(res) = user {
-            res.ok()
-        } else {
-            Some(None)
-        }
-    };
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
@@ -70,17 +62,9 @@ pub fn App() -> impl IntoView {
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
             <main>
-                <Transition fallback=move || {
-                    view! { <Header user=None/> }
-                }>
-                    {move || {
-                        let user = user_into();
-                        user.map(|user| view! { <Header user/> })
-                    }}
-
-                </Transition>
+                <Header user/>
                 <Routes>
-                    <Route path="" view=HomePage/>
+                    <Route path="/" view=move || view! { <HomePage user/> }/>
                     <Route path="/auth/login" view=move || view! { <LoginPage login/> }/>
                     <Route
                         path="/profile"
@@ -90,7 +74,7 @@ pub fn App() -> impl IntoView {
                                     view! { <span>"Loading..."</span> }
                                 }>
                                     {move || {
-                                        if let Some(Ok(Some(user))) = user.get() {
+                                        if let Some(Some(user)) = user.get() {
                                             view! { <Profile user logout user_updated/> }
                                         } else {
                                             let mut outside_errors = Errors::default();
@@ -104,7 +88,8 @@ pub fn App() -> impl IntoView {
                             }
                         }
                     />
-                    <Route path="/game/:id" view=|| view! { <Game rows=50 cols=50/> }>
+
+                    <Route path="/game/:id" view=|| view! { <Game/> }>
                         <Route path="players" view=|| view! { <Players/> }/>
                         <Route
                             path=""
@@ -112,8 +97,8 @@ pub fn App() -> impl IntoView {
                                 view! { <A href="players">"Join Game / Scoreboard"</A> }
                             }
                         />
-                    </Route>
 
+                    </Route>
                 </Routes>
             </main>
         </Router>

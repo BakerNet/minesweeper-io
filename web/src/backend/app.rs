@@ -99,7 +99,7 @@ async fn server_fn_handler(
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
-            provide_context(app_state.clone());
+            provide_context(app_state.game_manager.clone());
         },
         request,
     )
@@ -118,7 +118,7 @@ async fn leptos_routes_handler(
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
-            provide_context(app_state.clone());
+            provide_context(app_state.game_manager.clone());
         },
         app::App,
     );
