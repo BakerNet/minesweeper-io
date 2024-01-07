@@ -5,7 +5,7 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Path, State,
     },
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     routing::get,
     Router,
 };
@@ -84,7 +84,7 @@ impl GameManager {
         };
         games.insert(game_id.to_string(), handle);
         let db_clone = self.db.clone();
-        tokio::spawn(async move { handle_game(game, db_clone, bc_tx, mp_rx) });
+        tokio::spawn(async move { handle_game(game, db_clone, bc_tx, mp_rx).await });
         Ok(())
     }
 
@@ -127,8 +127,7 @@ impl GameManager {
         if handle.players.len() >= handle.max_players as usize {
             bail!("Game already has max players")
         }
-        let _player =
-            Player::add_player(&self.db, game_id, user, handle.players.len() as u8).await?;
+        Player::add_player(&self.db, game_id, user, handle.players.len() as u8).await?;
         handle.players.push(PlayerHandle {
             id: user.id,
             display_name: FrontendUser::display_name_or_anon(&user.display_name),
@@ -144,7 +143,7 @@ async fn handle_game(
     _db: SqlitePool,
     _broadcaster: broadcast::Sender<String>,
     _receiver: mpsc::Receiver<String>,
-) -> () {
+) {
     let mut _minesweeper = Minesweeper::init_game(
         game.rows as usize,
         game.cols as usize,
@@ -234,7 +233,7 @@ pub async fn websocket(
     // name, and sends them to all broadcast subscribers.
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            if let Err(_) = game_sender.send(text).await {
+            if game_sender.send(text).await.is_err() {
                 return;
             }
         }

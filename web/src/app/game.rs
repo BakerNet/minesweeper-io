@@ -69,7 +69,7 @@ pub fn Game() -> impl IntoView {
     // Games based on id param (with Suspense)
     let params = use_params_map();
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
-    let game_info = create_resource(move || game_id(), move |id| get_game(id));
+    let game_info = create_resource(game_id, get_game);
 
     provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
 

@@ -22,7 +22,7 @@ pub fn Players() -> impl IntoView {
 
     let player_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactivePlayers game_info/> },
-        false => view! { <ActivePlayers game_info/> },
+        false => view! { <ActivePlayers /> },
     };
 
     view! {
@@ -42,7 +42,7 @@ pub fn Players() -> impl IntoView {
 }
 
 #[component]
-pub fn ActivePlayers(game_info: GameInfo) -> impl IntoView {
+pub fn ActivePlayers() -> impl IntoView {
     let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
     let (player, players, game_id) = {
         let game = (*game).borrow();
@@ -94,18 +94,15 @@ pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnE
 #[component]
 pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
     let (game_info, _) = create_signal((game_info.max_players, game_info.game_id));
-    let players = create_resource(
-        move || game_info(),
-        |game_info| async move {
-            let players = get_players(game_info.1.clone()).await.ok();
-            players.map(|pv| {
-                let mut players = vec![None; game_info.0 as usize];
-                pv.iter()
-                    .for_each(|p| players[p.player_id] = Some(p.clone()));
-                players
-            })
-        },
-    );
+    let players = create_resource(game_info, |game_info| async move {
+        let players = get_players(game_info.1.clone()).await.ok();
+        players.map(|pv| {
+            let mut players = vec![None; game_info.0 as usize];
+            pv.iter()
+                .for_each(|p| players[p.player_id] = Some(p.clone()));
+            players
+        })
+    });
     view! {
         <table>
             <tr>
@@ -163,7 +160,7 @@ fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoV
         (
             format!("p-{}", player.player_id),
             player.username.clone(),
-            player.score.clone(),
+            player.score,
         )
     } else {
         (String::from(""), String::from("--------"), 0)

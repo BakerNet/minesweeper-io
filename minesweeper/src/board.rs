@@ -42,8 +42,7 @@ where
                 let row_slice = &self.board[(row * self.cols)..(row * self.cols + self.cols)];
                 let row_flat = row_slice
                     .iter()
-                    .map(|item| format!("{:?}", item))
-                    .collect::<String>();
+                    .fold(String::new(), |acc, item| acc + &format!("{:?}", item));
                 row_flat
             })
             .fold(String::new(), |mut acc, s| {

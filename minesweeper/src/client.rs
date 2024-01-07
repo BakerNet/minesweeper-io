@@ -106,11 +106,7 @@ impl MinesweeperClient {
                         if let PlayerCell::Flag = item {
                             true
                         } else if let PlayerCell::Revealed(nrc) = item {
-                            if let Cell::Bomb = nrc.contents {
-                                true
-                            } else {
-                                false
-                            }
+                            matches!(nrc.contents, Cell::Bomb)
                         } else {
                             false
                         }

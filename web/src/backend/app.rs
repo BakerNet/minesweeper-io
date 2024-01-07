@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{
     body::Body,
     error_handling::HandleErrorLayer,
@@ -44,7 +45,7 @@ pub struct App {
     pub session_store: SqliteStore,
 }
 
-fn oauth_client(target: OAuthTarget) -> Result<BasicClient, Box<dyn std::error::Error>> {
+fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
     let (id_key, secret_key, auth_url, token_url) = match target {
         OAuthTarget::GOOGLE => (
             "GOOGLE_CLIENT_ID",
@@ -67,10 +68,10 @@ fn oauth_client(target: OAuthTarget) -> Result<BasicClient, Box<dyn std::error::
     };
     let client_id = env::var(id_key)
         .map(ClientId::new)
-        .expect(&format!("{} should be provided.", id_key));
+        .unwrap_or_else(|_| panic!("{} should be provided.", id_key));
     let client_secret = env::var(secret_key)
         .map(ClientSecret::new)
-        .expect(&format!("{} should be provided.", secret_key));
+        .unwrap_or_else(|_| panic!("{} should be provided.", secret_key));
     let redirect_host = env::var("REDIRECT_HOST")
         .map(String::from)
         .expect("REDIRECT_HOST should be provided");
