@@ -96,6 +96,7 @@ pub fn Game() -> impl IntoView {
     }
 }
 
+// TODO - get active games working
 #[component]
 pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     let game = MinesweeperClient::new(game_info.rows, game_info.cols);

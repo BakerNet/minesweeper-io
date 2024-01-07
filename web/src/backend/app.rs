@@ -22,7 +22,7 @@ use time::Duration;
 use tower::ServiceBuilder;
 use tower_sessions::{Session, SqliteStore};
 
-use super::{auth, fileserv::file_and_error_handler, users};
+use super::{auth, fileserv::file_and_error_handler, game_manager, users};
 use crate::{app, app::auth::OAuthTarget};
 
 use super::{auth::REDIRECT_URL, game_manager::GameManager, users::AuthSession};
@@ -206,6 +206,7 @@ impl App {
             .leptos_routes_with_handler(routes, get(leptos_routes_handler))
             .fallback(file_and_error_handler)
             .merge(auth::router())
+            .merge(game_manager::router())
             .layer(auth_service)
             .with_state(app_state);
         (app, addr)

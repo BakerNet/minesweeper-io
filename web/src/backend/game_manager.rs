@@ -1,14 +1,20 @@
 #![allow(dead_code)]
 use anyhow::{anyhow, bail, Result};
-use axum::extract::ws::{Message, WebSocket};
-use futures::stream::SplitSink;
+use axum::{
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, State,
+    },
+    response::{IntoResponse, Response},
+    routing::get,
+    Router,
+};
+use futures::{sink::SinkExt, stream::SplitSink, StreamExt};
+use http::StatusCode;
 use minesweeper::game::Minesweeper;
 use sqlx::SqlitePool;
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, RwLock},
-};
-use tokio::sync::{broadcast, mpsc};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 use crate::{
     app::FrontendUser,
@@ -17,6 +23,12 @@ use crate::{
         user::User,
     },
 };
+
+use super::{app::AppState, users::AuthSession};
+
+pub fn router() -> Router<AppState> {
+    Router::<AppState>::new().route("api/websocket/game/:id", get(websocket_handler))
+}
 
 #[derive(Clone, Debug)]
 struct PlayerHandle {
@@ -56,7 +68,7 @@ impl GameManager {
         num_mines: i64,
         max_players: u8,
     ) -> Result<()> {
-        let mut games = self.games.write().unwrap();
+        let mut games = self.games.write().await;
         if games.contains_key(game_id) {
             bail!("Game with id {game_id} already exists")
         }
@@ -92,8 +104,8 @@ impl GameManager {
             .map_err(|e| e.into())
     }
 
-    pub fn join_game(&self, game_id: &str) -> Result<broadcast::Receiver<String>> {
-        let games = self.games.read().unwrap();
+    pub async fn join_game(&self, game_id: &str) -> Result<broadcast::Receiver<String>> {
+        let games = self.games.read().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
@@ -101,13 +113,13 @@ impl GameManager {
         Ok(handle.to_client.subscribe())
     }
 
-    pub async fn play_gamme(
+    pub async fn play_game(
         &self,
         game_id: &str,
         user: &User,
         ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> Result<mpsc::Sender<String>> {
-        let mut games = self.games.write().unwrap();
+        let mut games = self.games.write().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
@@ -142,4 +154,95 @@ async fn handle_game(
     .unwrap();
 
     todo!()
+}
+
+pub async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    auth_session: AuthSession,
+    Path(game_id): Path<String>,
+    State(app_state): State<AppState>,
+) -> impl IntoResponse {
+    if !app_state.game_manager.game_exists(&game_id).await {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    ws.on_upgrade(|socket| websocket(socket, auth_session.user, game_id, app_state.game_manager))
+}
+
+// This function deals with a single websocket connection, i.e., a single
+// connected client / user, for which we will spawn two independent tasks (for
+// receiving / sending chat messages).
+pub async fn websocket(
+    stream: WebSocket,
+    user: Option<User>,
+    game_id: String,
+    game_manager: GameManager,
+) {
+    // By splitting, we can send and receive at the same time.
+    let (sender, mut receiver) = stream.split();
+
+    let mut rx = game_manager.join_game(&game_id).await.unwrap();
+
+    let sender = Arc::new(Mutex::new(sender));
+    let sender_clone = sender.clone();
+    // Spawn the first task that will receive broadcast messages and send text
+    // messages over the websocket to our client.
+    let mut send_task = tokio::spawn(async move {
+        while let Ok(msg) = rx.recv().await {
+            // In any websocket error, break loop.
+            if sender_clone
+                .lock()
+                .await
+                .send(Message::Text(msg))
+                .await
+                .is_err()
+            {
+                break;
+            }
+        }
+    });
+
+    let user = if let Some(user) = user {
+        user
+    } else {
+        let _ = send_task.await;
+        return;
+    };
+
+    let mut game_sender = None;
+    loop {
+        tokio::select! {
+            _ = (&mut send_task) => break,
+            recvd = receiver.next() => {
+                match recvd {
+                    Some(Ok(Message::Text(msg))) if msg == "Play" => {
+                        game_sender = game_manager.play_game(&game_id, &user, sender.clone()).await.ok();
+                    }
+                    _ => break,
+                }
+            },
+        }
+    }
+
+    let game_sender = if let Some(game_sender) = game_sender {
+        game_sender
+    } else {
+        let _ = send_task.await;
+        return;
+    };
+
+    // Spawn a task that takes messages from the websocket, prepends the user
+    // name, and sends them to all broadcast subscribers.
+    let mut recv_task = tokio::spawn(async move {
+        while let Some(Ok(Message::Text(text))) = receiver.next().await {
+            if let Err(_) = game_sender.send(text).await {
+                return;
+            }
+        }
+    });
+
+    // If any one of the tasks run to completion, we abort the other.
+    tokio::select! {
+        _ = (&mut send_task) => recv_task.abort(),
+        _ = (&mut recv_task) => send_task.abort(),
+    };
 }
