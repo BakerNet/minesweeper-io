@@ -1,5 +1,3 @@
-use std::{cell::RefCell, rc::Rc};
-
 use super::FrontendGame;
 
 use leptos::*;
@@ -60,23 +58,19 @@ fn player_class(cell: PlayerCell) -> String {
 #[component]
 pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
+    let game = expect_context::<FrontendGame>();
+    let (game, _) = create_signal(game);
 
     let handle_action = move |pa: PlayAction| {
-        let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
-        let game = (*game).borrow();
         let res = match pa {
-            PlayAction::Reveal => game.try_reveal(row, col),
-            PlayAction::Flag => game.try_flag(row, col),
-            PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
+            PlayAction::Reveal => game().try_reveal(row, col),
+            PlayAction::Flag => game().try_flag(row, col),
+            PlayAction::RevealAdjacent => game().try_reveal_adjacent(row, col),
         };
-        res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
+        res.unwrap_or_else(|e| (game().err_signal)(Some(format!("{:?}", e))));
     };
     let handle_mousedown = move |ev: MouseEvent| {
-        let set_skip_signal = {
-            let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
-            let game = (*game).borrow();
-            game.set_skip_mouseup
-        };
+        let set_skip_signal = { game().set_skip_mouseup };
         if ev.buttons() == 3 {
             set_skip_signal.set(2);
             handle_action(PlayAction::RevealAdjacent);
@@ -84,11 +78,7 @@ pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
     };
     let handle_mouseup = move |ev: MouseEvent| {
         leptos_dom::log!("handle_mouseup");
-        let (skip_mouseup, set_skip_mouseup) = {
-            let game = use_context::<Rc<RefCell<FrontendGame>>>().unwrap();
-            let game = (*game).borrow();
-            (game.skip_mouseup, game.set_skip_mouseup)
-        };
+        let (skip_mouseup, set_skip_mouseup) = { (game().skip_mouseup, game().set_skip_mouseup) };
         leptos_dom::log!("{}", skip_mouseup.get());
         if skip_mouseup.get() > 0 {
             set_skip_mouseup.set(skip_mouseup() - 1);

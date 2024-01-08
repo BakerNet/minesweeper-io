@@ -27,7 +27,7 @@ use crate::{
 use super::{app::AppState, users::AuthSession};
 
 pub fn router() -> Router<AppState> {
-    Router::<AppState>::new().route("api/websocket/game/:id", get(websocket_handler))
+    Router::<AppState>::new().route("/api/websocket/game/:id", get(websocket_handler))
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +104,11 @@ impl GameManager {
             .map_err(|e| e.into())
     }
 
+    pub async fn game_is_active(&self, game_id: &str) -> bool {
+        let games = self.games.read().await;
+        games.contains_key(game_id)
+    }
+
     pub async fn join_game(&self, game_id: &str) -> Result<broadcast::Receiver<String>> {
         let games = self.games.read().await;
         if !games.contains_key(game_id) {
@@ -142,8 +147,9 @@ async fn handle_game(
     game: Game,
     _db: SqlitePool,
     _broadcaster: broadcast::Sender<String>,
-    _receiver: mpsc::Receiver<String>,
+    receiver: mpsc::Receiver<String>,
 ) {
+    let mut receiver = receiver;
     let mut _minesweeper = Minesweeper::init_game(
         game.rows as usize,
         game.cols as usize,
@@ -152,6 +158,10 @@ async fn handle_game(
     )
     .unwrap();
 
+    while let Some(msg) = receiver.recv().await {
+        log::debug!("Message received: {}", msg);
+        todo!();
+    }
     todo!()
 }
 
@@ -161,7 +171,9 @@ pub async fn websocket_handler(
     Path(game_id): Path<String>,
     State(app_state): State<AppState>,
 ) -> impl IntoResponse {
-    if !app_state.game_manager.game_exists(&game_id).await {
+    if !app_state.game_manager.game_exists(&game_id).await
+        || !app_state.game_manager.game_is_active(&game_id).await
+    {
         return StatusCode::BAD_REQUEST.into_response();
     }
     ws.on_upgrade(|socket| websocket(socket, auth_session.user, game_id, app_state.game_manager))
@@ -176,6 +188,7 @@ pub async fn websocket(
     game_id: String,
     game_manager: GameManager,
 ) {
+    log::debug!("Websocket upgraded");
     // By splitting, we can send and receive at the same time.
     let (sender, mut receiver) = stream.split();
 
@@ -216,6 +229,9 @@ pub async fn websocket(
                     Some(Ok(Message::Text(msg))) if msg == "Play" => {
                         game_sender = game_manager.play_game(&game_id, &user, sender.clone()).await.ok();
                     }
+                    Some(msg) => {
+                        log::debug!("Non Play message: {:?}", msg);
+                    },
                     _ => break,
                 }
             },
