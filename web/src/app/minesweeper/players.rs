@@ -3,7 +3,7 @@ use super::{client::FrontendGame, GameInfo};
 use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
-use minesweeper::client::ClientPlayer;
+use minesweeper_lib::client::ClientPlayer;
 use serde::Serialize;
 
 #[cfg(feature = "ssr")]

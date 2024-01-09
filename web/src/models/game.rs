@@ -1,5 +1,5 @@
 #![cfg(feature = "ssr")]
-use minesweeper::cell::PlayerCell;
+use minesweeper_lib::cell::PlayerCell;
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, FromRow, SqlitePool};
 

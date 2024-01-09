@@ -2,7 +2,7 @@ use std::{borrow::Borrow, cell::RefCell, rc::Rc};
 
 use anyhow::{anyhow, bail, Result};
 use leptos::*;
-use minesweeper::{
+use minesweeper_lib::{
     board::BoardPoint,
     cell::PlayerCell,
     client::{ClientPlayer, MinesweeperClient, Play},

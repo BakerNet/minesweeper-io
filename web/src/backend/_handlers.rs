@@ -14,7 +14,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use minesweeper::GameMessage;
+use minesweeper_lib::GameMessage;
 
 // Our shared state
 pub struct AppState {

@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-minesweeper = { path="../minesweeper" }
+minesweeper-lib = { path="../minesweeper-lib" }
 anyhow = "1.0"
 async-trait = "0.1"
 axum = { version = "0.7", features = ["ws", "macros"], optional = true }

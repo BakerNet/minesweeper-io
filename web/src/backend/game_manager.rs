@@ -11,13 +11,13 @@ use axum::{
 };
 use futures::{sink::SinkExt, stream::SplitSink, StreamExt};
 use http::StatusCode;
-use minesweeper::game::Minesweeper;
+use minesweeper_lib::game::Minesweeper;
 use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 use crate::{
-    app::{game::client::GameMessage, FrontendUser},
+    app::{minesweeper::client::GameMessage, FrontendUser},
     models::{
         game::{Game, Player, PlayerUser},
         user::User,

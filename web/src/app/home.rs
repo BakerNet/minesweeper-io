@@ -1,6 +1,6 @@
 use leptos::*;
 
-use super::{game::StartGame, FrontendUser};
+use super::{minesweeper::StartGame, FrontendUser};
 
 /// Renders the home page of your application.
 #[component]

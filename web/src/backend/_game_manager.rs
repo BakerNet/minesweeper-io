@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use minesweeper::{
+use minesweeper_lib::{
     board::BoardPoint,
     cell::PlayerCell,
     client::{ClientPlayer, Play},

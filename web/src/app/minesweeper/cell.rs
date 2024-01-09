@@ -1,7 +1,7 @@
 use super::FrontendGame;
 
 use leptos::*;
-use minesweeper::{
+use minesweeper_lib::{
     cell::{Cell, PlayerCell},
     game::Action as PlayAction,
 };

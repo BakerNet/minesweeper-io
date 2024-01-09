@@ -1,18 +1,17 @@
 pub mod auth;
 mod error_template;
-pub mod game;
 mod header;
 mod home;
 mod login;
+pub mod minesweeper;
 mod profile;
 
 use auth::*;
 use error_template::{AppError, ErrorTemplate};
-use game::players::Players;
-use game::Game;
 use header::Header;
 use home::HomePage;
 use login::LoginPage;
+use minesweeper::{players::Players, Game};
 use profile::Profile;
 
 use leptos::*;
