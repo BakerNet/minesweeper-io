@@ -14,7 +14,10 @@ use http::StatusCode;
 use minesweeper_lib::game::Minesweeper;
 use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
+use tokio::{
+    sync::{broadcast, mpsc, Mutex, RwLock},
+    time::{sleep, Duration},
+};
 
 use crate::{
     app::{minesweeper::client::GameMessage, FrontendUser},
@@ -38,9 +41,21 @@ struct PlayerHandle {
 }
 
 #[derive(Clone, Debug)]
+struct SpectatorHandle {
+    ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+}
+
+#[derive(Debug)]
+enum ClientHandle {
+    Player(PlayerHandle),
+    Spectator(SpectatorHandle),
+}
+
+#[derive(Clone, Debug)]
 struct GameHandle {
     to_client: broadcast::Sender<String>,
     from_client: mpsc::Sender<String>,
+    client_updates: mpsc::Sender<ClientHandle>,
     players: Vec<PlayerHandle>,
     max_players: u8,
 }
@@ -76,15 +91,17 @@ impl GameManager {
             Game::create_game(&self.db, game_id, user, rows, cols, num_mines, max_players).await?;
         let (bc_tx, _bc_rx) = broadcast::channel(100);
         let (mp_tx, mp_rx) = mpsc::channel(100);
+        let (ch_tx, ch_rx) = mpsc::channel(100);
         let handle = GameHandle {
             to_client: bc_tx.clone(),
             from_client: mp_tx,
+            client_updates: ch_tx,
             players: Vec::with_capacity(max_players as usize),
             max_players,
         };
         games.insert(game_id.to_string(), handle);
         let db_clone = self.db.clone();
-        tokio::spawn(async move { handle_game(game, db_clone, bc_tx, mp_rx).await });
+        tokio::spawn(async move { handle_game(game, db_clone, bc_tx, mp_rx, ch_rx).await });
         Ok(())
     }
 
@@ -109,12 +126,20 @@ impl GameManager {
         games.contains_key(game_id)
     }
 
-    pub async fn join_game(&self, game_id: &str) -> Result<broadcast::Receiver<String>> {
+    pub async fn join_game(
+        &self,
+        game_id: &str,
+        ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
+    ) -> Result<broadcast::Receiver<String>> {
         let games = self.games.read().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get(game_id).unwrap();
+        handle
+            .client_updates
+            .send(ClientHandle::Spectator(SpectatorHandle { ws_sender }))
+            .await?;
         Ok(handle.to_client.subscribe())
     }
 
@@ -144,6 +169,14 @@ impl GameManager {
             let msg = GameMessage::PlayerId(player_id);
             (send).send(Message::Text(msg.to_string())).await?;
         }
+        handle
+            .client_updates
+            .send(ClientHandle::Player(PlayerHandle {
+                id: user.id,
+                display_name: FrontendUser::display_name_or_anon(&user.display_name),
+                ws_sender: ws_sender.clone(),
+            }))
+            .await?;
         Ok(handle.from_client.clone())
     }
     // TODO - reconnect
@@ -154,8 +187,13 @@ async fn handle_game(
     _db: SqlitePool,
     _broadcaster: broadcast::Sender<String>,
     receiver: mpsc::Receiver<String>,
+    client_updates: mpsc::Receiver<ClientHandle>,
 ) {
     let mut receiver = receiver;
+    let mut client_updates = client_updates;
+    let timeout = sleep(Duration::from_secs(60 * 60)); // timeout after 1 hour
+    tokio::pin!(timeout);
+
     let mut _minesweeper = Minesweeper::init_game(
         game.rows as usize,
         game.cols as usize,
@@ -164,10 +202,23 @@ async fn handle_game(
     )
     .unwrap();
 
-    while let Some(msg) = receiver.recv().await {
-        log::debug!("Message received: {}", msg);
-        todo!();
+    loop {
+        tokio::select! {
+            Some(msg) = receiver.recv() => {
+                log::debug!("Message received: {}", msg);
+                todo!();
+            },
+            Some(handle) = client_updates.recv() => {
+                log::debug!("Client update received: {:?}", handle);
+                todo!();
+            }
+            () = &mut timeout => {
+                log::debug!("Game timeout reached {}", game.game_id);
+                break;
+            },
+        }
     }
+
     todo!()
 }
 
@@ -197,10 +248,14 @@ pub async fn websocket(
     log::debug!("Websocket upgraded");
     // By splitting, we can send and receive at the same time.
     let (sender, mut receiver) = stream.split();
-
-    let mut rx = game_manager.join_game(&game_id).await.unwrap();
-
     let sender = Arc::new(Mutex::new(sender));
+
+    let sender_clone = sender.clone();
+    let mut rx = game_manager
+        .join_game(&game_id, sender_clone)
+        .await
+        .unwrap();
+
     let sender_clone = sender.clone();
     // Spawn the first task that will receive broadcast messages and send text
     // messages over the websocket to our client.
