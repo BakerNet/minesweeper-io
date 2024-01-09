@@ -6,11 +6,29 @@ use minesweeper::{
     board::BoardPoint,
     cell::PlayerCell,
     client::{ClientPlayer, MinesweeperClient, Play},
-    game::Action as PlayAction,
-    GameMessage,
+    game::{Action as PlayAction, PlayOutcome},
 };
+use serde::{Deserialize, Serialize};
 
 use super::GameInfo;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "game_message", content = "data")]
+pub enum GameMessage {
+    PlayerId(usize),
+    PlayOutcomes(PlayOutcome),
+    PlayerUpdate(ClientPlayer),
+    GameState(Vec<Vec<PlayerCell>>),
+    PlayersState(Vec<Option<ClientPlayer>>),
+    Error(String),
+}
+
+impl GameMessage {
+    pub fn to_string(self) -> String {
+        serde_json::to_string::<GameMessage>(&self)
+            .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {:?}", self))
+    }
+}
 
 #[derive(Clone)]
 pub struct FrontendGame {
@@ -135,11 +153,15 @@ impl FrontendGame {
 
     pub fn handle_message(&self, msg: &str) -> Result<()> {
         leptos_dom::log!("{}", msg);
-        let game_message: GameMessage = serde_json::from_str(msg)?;
+        let game_message = serde_json::from_str::<GameMessage>(msg)?;
         leptos_dom::log!("{:?}", game_message);
         let game: &mut MinesweeperClient = &mut (*self.game).borrow_mut();
         match game_message {
-            GameMessage::PlayOutcome(po) => {
+            GameMessage::PlayerId(player_id) => {
+                (self.set_player_id)(Some(player_id));
+                Ok(())
+            }
+            GameMessage::PlayOutcomes(po) => {
                 let plays = game.update(po);
                 plays.iter().for_each(|(point, cell)| {
                     leptos_dom::log!("{:?} {:?}", point, cell);
@@ -169,7 +191,7 @@ impl FrontendGame {
                 Ok(())
             }
             GameMessage::PlayersState(ps) => {
-                ps.iter().cloned().for_each(|cp| {
+                ps.into_iter().for_each(|cp| {
                     if let Some(cp) = cp {
                         game.players[cp.player_id] = Some(cp.clone());
                         self.player_signals[cp.player_id](Some(cp));
@@ -177,6 +199,7 @@ impl FrontendGame {
                 });
                 Ok(())
             }
+            _ => bail!("Shouldn't happen"),
         }
     }
 

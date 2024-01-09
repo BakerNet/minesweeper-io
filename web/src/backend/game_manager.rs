@@ -17,7 +17,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 use crate::{
-    app::FrontendUser,
+    app::{game::client::GameMessage, FrontendUser},
     models::{
         game::{Game, Player, PlayerUser},
         user::User,
@@ -129,15 +129,21 @@ impl GameManager {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get_mut(game_id).unwrap();
-        if handle.players.len() >= handle.max_players as usize {
+        let player_id = handle.players.len();
+        if player_id >= handle.max_players as usize {
             bail!("Game already has max players")
         }
-        Player::add_player(&self.db, game_id, user, handle.players.len() as u8).await?;
+        Player::add_player(&self.db, game_id, user, player_id as u8).await?;
         handle.players.push(PlayerHandle {
             id: user.id,
             display_name: FrontendUser::display_name_or_anon(&user.display_name),
-            ws_sender,
+            ws_sender: ws_sender.clone(),
         });
+        {
+            let mut send = ws_sender.lock().await;
+            let msg = GameMessage::PlayerId(player_id);
+            (send).send(Message::Text(msg.to_string())).await?;
+        }
         Ok(handle.from_client.clone())
     }
     // TODO - reconnect
@@ -227,7 +233,12 @@ pub async fn websocket(
             recvd = receiver.next() => {
                 match recvd {
                     Some(Ok(Message::Text(msg))) if msg == "Play" => {
-                        game_sender = game_manager.play_game(&game_id, &user, sender.clone()).await.ok();
+                        let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
+                        match resp {
+                            Ok(tx) => {game_sender = Some(tx);},
+                            Err(e) => {log::error!("Error playing game: {}", e)},
+                        }
+
                     }
                     Some(msg) => {
                         log::debug!("Non Play message: {:?}", msg);

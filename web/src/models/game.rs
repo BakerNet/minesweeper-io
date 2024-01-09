@@ -127,7 +127,7 @@ impl Player {
         user: &User,
         player: u8,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query_as(
+        sqlx::query(
             r#"
             insert into players (game_id, user, player)
             values (?, ?, ?)
@@ -136,8 +136,9 @@ impl Player {
         .bind(game_id)
         .bind(user.id)
         .bind(player)
-        .fetch_one(db)
+        .execute(db)
         .await
+        .map(|_| ())
     }
 
     pub async fn set_score(

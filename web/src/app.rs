@@ -1,6 +1,6 @@
 pub mod auth;
 mod error_template;
-mod game;
+pub mod game;
 mod header;
 mod home;
 mod login;

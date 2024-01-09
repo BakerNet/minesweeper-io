@@ -1,5 +1,5 @@
 mod cell;
-mod client;
+pub mod client;
 pub mod players;
 
 use anyhow::Result;
@@ -144,6 +144,7 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="Game">
             <Outlet/>
+        <div>do you see me?</div>
             <div class="error">{error}</div>
             <div class="board">
                 {read_signals
