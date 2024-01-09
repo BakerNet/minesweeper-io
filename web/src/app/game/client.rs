@@ -199,7 +199,6 @@ impl FrontendGame {
                 });
                 Ok(())
             }
-            _ => bail!("Shouldn't happen"),
         }
     }
 
