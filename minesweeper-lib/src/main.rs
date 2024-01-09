@@ -1,7 +1,7 @@
 use ansi_term::Style;
 use std::io;
 
-use minesweeper::{
+use minesweeper_lib::{
     board::BoardPoint,
     game::{Action, Minesweeper, PlayOutcome},
 };

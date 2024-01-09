@@ -7,7 +7,7 @@ members = [
   # integrations
 
   # libraries
-  "minesweeper",
+  "minesweeper-lib",
 ]
 exclude = []
 
@@ -15,7 +15,7 @@ exclude = []
 version = "0.1.0"
 
 [workspace.dependencies]
-minesweeper = { path = "./minesweeper", version = "0.1.0" }
+minesweeper-lib = { path = "./minesweeper-lib", version = "0.1.0" }
 minesweeper-web = { path = "./web", version = "0.1.0" }
 
 [profile.release]
