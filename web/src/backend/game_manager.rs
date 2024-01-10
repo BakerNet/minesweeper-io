@@ -11,7 +11,10 @@ use axum::{
 };
 use futures::{sink::SinkExt, stream::SplitSink, StreamExt};
 use http::StatusCode;
-use minesweeper_lib::game::Minesweeper;
+use minesweeper_lib::{
+    client::{ClientPlayer, Play},
+    game::{Minesweeper, PlayOutcome},
+};
 use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
@@ -36,26 +39,28 @@ pub fn router() -> Router<AppState> {
 #[derive(Clone, Debug)]
 struct PlayerHandle {
     id: i64,
+    player_id: usize,
     display_name: String,
     ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
 }
 
 #[derive(Clone, Debug)]
-struct SpectatorHandle {
+struct ViewerHandle {
     ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
 }
 
 #[derive(Debug)]
-enum ClientHandle {
+enum GameEvent {
     Player(PlayerHandle),
-    Spectator(SpectatorHandle),
+    Viewer(ViewerHandle),
+    Start,
 }
 
 #[derive(Clone, Debug)]
 struct GameHandle {
     to_client: broadcast::Sender<String>,
     from_client: mpsc::Sender<String>,
-    client_updates: mpsc::Sender<ClientHandle>,
+    game_events: mpsc::Sender<GameEvent>,
     players: Vec<PlayerHandle>,
     max_players: u8,
 }
@@ -95,7 +100,7 @@ impl GameManager {
         let handle = GameHandle {
             to_client: bc_tx.clone(),
             from_client: mp_tx,
-            client_updates: ch_tx,
+            game_events: ch_tx,
             players: Vec::with_capacity(max_players as usize),
             max_players,
         };
@@ -137,8 +142,8 @@ impl GameManager {
         }
         let handle = games.get(game_id).unwrap();
         handle
-            .client_updates
-            .send(ClientHandle::Spectator(SpectatorHandle { ws_sender }))
+            .game_events
+            .send(GameEvent::Viewer(ViewerHandle { ws_sender }))
             .await?;
         Ok(handle.to_client.subscribe())
     }
@@ -161,18 +166,20 @@ impl GameManager {
         Player::add_player(&self.db, game_id, user, player_id as u8).await?;
         handle.players.push(PlayerHandle {
             id: user.id,
+            player_id,
             display_name: FrontendUser::display_name_or_anon(&user.display_name),
             ws_sender: ws_sender.clone(),
         });
         {
             let mut send = ws_sender.lock().await;
             let msg = GameMessage::PlayerId(player_id);
-            (send).send(Message::Text(msg.to_string())).await?;
+            (send).send(Message::Text(msg.to_json())).await?;
         }
         handle
-            .client_updates
-            .send(ClientHandle::Player(PlayerHandle {
+            .game_events
+            .send(GameEvent::Player(PlayerHandle {
                 id: user.id,
+                player_id,
                 display_name: FrontendUser::display_name_or_anon(&user.display_name),
                 ws_sender: ws_sender.clone(),
             }))
@@ -182,19 +189,108 @@ impl GameManager {
     // TODO - reconnect
 }
 
+async fn handle_game_event(
+    event: GameEvent,
+    player_handles: &mut [Option<PlayerHandle>],
+    minesweeper: &mut Minesweeper,
+    broadcast: &mut broadcast::Sender<String>,
+) {
+    match event {
+        GameEvent::Player(player) => {
+            player_handles[player.player_id] = Some(player.clone());
+            let player_board = minesweeper.player_board(player.player_id);
+            {
+                let mut player_sender = player.ws_sender.lock().await;
+                let player_msg = serde_json::to_string(&GameMessage::GameState(player_board))
+                    .expect("GameMessage GameState should be serializable");
+                log::debug!("Sending player_msg {:?}", player_msg);
+                let _ = player_sender.send(Message::Text(player_msg)).await;
+            }
+
+            let players = player_handles
+                .iter()
+                .map(|item| {
+                    item.as_ref().map(|player| ClientPlayer {
+                        player_id: player.player_id,
+                        username: player.display_name.clone(),
+                        dead: false,
+                        score: 0,
+                    })
+                })
+                .collect();
+            let players_msg = serde_json::to_string(&GameMessage::PlayersState(players))
+                .expect("GameMessage PlayerState should be serializable");
+            log::debug!("Sending players_msg {:?}", players_msg);
+            let _ = broadcast.send(players_msg);
+        }
+        GameEvent::Viewer(viewer) => {
+            let viewer_board = minesweeper.viewer_board();
+            {
+                let mut viewer_sender = viewer.ws_sender.lock().await;
+                let viewer_msg = serde_json::to_string(&GameMessage::GameState(viewer_board))
+                    .expect("GameMessage GameState should be serializable");
+                log::debug!("Sending viewer_msg {:?}", viewer_msg);
+                let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
+            }
+        }
+        GameEvent::Start => todo!(),
+    }
+}
+
+#[allow(unused)]
+async fn handle_message(
+    msg: &str,
+    player_handles: &mut [Option<PlayerHandle>],
+    minesweeper: &mut Minesweeper,
+    broadcast: &mut broadcast::Sender<String>,
+) {
+    let play = match serde_json::from_str::<Play>(msg) {
+        Ok(play) => play,
+        Err(_) => return,
+    };
+    let outcome = minesweeper.play(play.player, play.action, play.point);
+    let res = match outcome {
+        Ok(res) => res,
+        Err(e) => {
+            let err_msg = serde_json::to_string(&GameMessage::Error(format!("{:?}", e)))
+                .expect("GameMessage Error should be serializable");
+            todo!(); // send to player
+            return;
+        }
+    };
+    match res {
+        PlayOutcome::Flag(flag) => {
+            let flag_message =
+                serde_json::to_string(&GameMessage::PlayOutcome(PlayOutcome::Flag(flag)))
+                    .expect("GameMessage PlayOutcome Flag should be serializable");
+            todo!(); // send to player
+        }
+        default => {
+            let outcome_message = serde_json::to_string(&GameMessage::PlayOutcome(default))
+                .expect("GameMessage PlayOutcome non-Flag should be serializable");
+            // let player_state_message =
+            //     serde_json::to_string(&GameMessage::PlayerUpdate(player_state))
+            //         .expect("GameMessage PlayerUpdate should be serializable");
+            todo!(); // send to broadcast
+        }
+    }
+}
+
 async fn handle_game(
     game: Game,
     _db: SqlitePool,
-    _broadcaster: broadcast::Sender<String>,
+    broadcaster: broadcast::Sender<String>,
     receiver: mpsc::Receiver<String>,
-    client_updates: mpsc::Receiver<ClientHandle>,
+    game_events: mpsc::Receiver<GameEvent>,
 ) {
     let mut receiver = receiver;
-    let mut client_updates = client_updates;
+    let mut game_events = game_events;
+    let mut broadcaster = broadcaster;
     let timeout = sleep(Duration::from_secs(60 * 60)); // timeout after 1 hour
     tokio::pin!(timeout);
 
-    let mut _minesweeper = Minesweeper::init_game(
+    let mut player_handles = vec![None; game.max_players as usize];
+    let mut minesweeper = Minesweeper::init_game(
         game.rows as usize,
         game.cols as usize,
         game.num_mines as usize,
@@ -206,11 +302,11 @@ async fn handle_game(
         tokio::select! {
             Some(msg) = receiver.recv() => {
                 log::debug!("Message received: {}", msg);
-                todo!();
+                // todo!();
             },
-            Some(handle) = client_updates.recv() => {
+            Some(handle) = game_events.recv() => {
                 log::debug!("Client update received: {:?}", handle);
-                todo!();
+                handle_game_event(handle, &mut player_handles, &mut minesweeper, &mut broadcaster).await;
             }
             () = &mut timeout => {
                 log::debug!("Game timeout reached {}", game.game_id);

@@ -16,7 +16,7 @@ use super::GameInfo;
 #[serde(tag = "game_message", content = "data")]
 pub enum GameMessage {
     PlayerId(usize),
-    PlayOutcomes(PlayOutcome),
+    PlayOutcome(PlayOutcome),
     PlayerUpdate(ClientPlayer),
     GameState(Vec<Vec<PlayerCell>>),
     PlayersState(Vec<Option<ClientPlayer>>),
@@ -24,7 +24,7 @@ pub enum GameMessage {
 }
 
 impl GameMessage {
-    pub fn to_string(self) -> String {
+    pub fn to_json(self) -> String {
         serde_json::to_string::<GameMessage>(&self)
             .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {:?}", self))
     }
@@ -152,19 +152,19 @@ impl FrontendGame {
     }
 
     pub fn handle_message(&self, msg: &str) -> Result<()> {
-        leptos_dom::log!("{}", msg);
+        log::debug!("{}", msg);
         let game_message = serde_json::from_str::<GameMessage>(msg)?;
-        leptos_dom::log!("{:?}", game_message);
+        log::debug!("{:?}", game_message);
         let game: &mut MinesweeperClient = &mut (*self.game).borrow_mut();
         match game_message {
             GameMessage::PlayerId(player_id) => {
                 (self.set_player_id)(Some(player_id));
                 Ok(())
             }
-            GameMessage::PlayOutcomes(po) => {
+            GameMessage::PlayOutcome(po) => {
                 let plays = game.update(po);
                 plays.iter().for_each(|(point, cell)| {
-                    leptos_dom::log!("{:?} {:?}", point, cell);
+                    log::debug!("Play outcome: {:?} {:?}", point, cell);
                     self.update_cell(*point, *cell);
                     if game.game_over {
                         self.close();
@@ -194,6 +194,7 @@ impl FrontendGame {
                 ps.into_iter().for_each(|cp| {
                     if let Some(cp) = cp {
                         game.players[cp.player_id] = Some(cp.clone());
+                        log::debug!("Sending player signal {:?}", cp);
                         self.player_signals[cp.player_id](Some(cp));
                     }
                 });

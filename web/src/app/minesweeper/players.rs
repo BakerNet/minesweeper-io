@@ -138,10 +138,10 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
         }
     };
     view! {
-        <tr class=items().0>
+        <tr class=move || items().0>
             <td>{player_num}</td>
-            <td>{items().1}</td>
-            <td>{items().2}</td>
+            <td>{move || items().1}</td>
+            <td>{move || items().2}</td>
         </tr>
     }
 }
