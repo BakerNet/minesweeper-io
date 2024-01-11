@@ -71,6 +71,9 @@ pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
     };
     let handle_mousedown = move |ev: MouseEvent| {
         let set_skip_signal = { game().set_skip_mouseup };
+        if ev.button() == 2 {
+            handle_action(PlayAction::Flag);
+        }
         if ev.buttons() == 3 {
             set_skip_signal.set(2);
             handle_action(PlayAction::RevealAdjacent);
@@ -87,13 +90,10 @@ pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
         if ev.button() == 0 {
             handle_action(PlayAction::Reveal);
         }
-        if ev.button() == 2 {
-            handle_action(PlayAction::Flag);
-        }
     };
     let class = move || {
         let item = cell();
-        format!("cell s-30p {} {}", cell_class(item), player_class(item))
+        format!("cell s-32p {} {}", cell_class(item), player_class(item))
     };
 
     view! {
