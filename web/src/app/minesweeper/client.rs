@@ -20,6 +20,7 @@ pub enum GameMessage {
     PlayerUpdate(ClientPlayer),
     GameState(Vec<Vec<PlayerCell>>),
     PlayersState(Vec<Option<ClientPlayer>>),
+    GameStarted,
     Error(String),
 }
 
@@ -33,15 +34,19 @@ impl GameMessage {
 #[derive(Clone)]
 pub struct FrontendGame {
     pub game_info: GameInfo,
-    pub cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     pub player_id: ReadSignal<Option<usize>>,
-    pub set_player_id: WriteSignal<Option<usize>>,
     pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
-    pub player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
     pub skip_mouseup: ReadSignal<usize>,
     pub set_skip_mouseup: WriteSignal<usize>,
     pub err_signal: WriteSignal<Option<String>>,
-    pub game: Rc<RefCell<MinesweeperClient>>,
+    pub started: ReadSignal<bool>,
+    pub completed: ReadSignal<bool>,
+    cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
+    set_player_id: WriteSignal<Option<usize>>,
+    player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
+    set_started: WriteSignal<bool>,
+    set_completed: WriteSignal<bool>,
+    game: Rc<RefCell<MinesweeperClient>>,
     send: Rc<dyn Fn(&str)>,
     close: Rc<dyn Fn()>,
 }
@@ -75,6 +80,8 @@ impl FrontendGame {
         });
         let (player_id, set_player_id) = create_signal::<Option<usize>>(None);
         let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
+        let (started, set_started) = create_signal::<bool>(game_info.is_started);
+        let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
         let rows = game_info.rows;
         let cols = game_info.cols;
         (
@@ -88,6 +95,10 @@ impl FrontendGame {
                 skip_mouseup,
                 set_skip_mouseup,
                 err_signal,
+                started,
+                set_started,
+                completed,
+                set_completed,
                 game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
                 send,
                 close,
@@ -96,10 +107,25 @@ impl FrontendGame {
         )
     }
 
-    pub fn try_reveal(&self, row: usize, col: usize) -> Result<()> {
+    fn play_protections(&self) -> Result<usize> {
+        if !(self.started)() || (self.completed)() {
+            bail!("Tried to play when game not active")
+        }
         let Some(player) =  self.player_id.get() else {
             bail!("Tried to play when not a player")
         };
+        let Some(player_info) = self.players[player]
+            .get() else {
+            bail!("Tried to play when player info not available")
+        };
+        if player_info.dead {
+            bail!("Tried to play when dead")
+        }
+        Ok(player)
+    }
+
+    pub fn try_reveal(&self, row: usize, col: usize) -> Result<()> {
+        let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
         if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
             bail!("Tried to click revealed cell")
@@ -114,9 +140,7 @@ impl FrontendGame {
     }
 
     pub fn try_flag(&self, row: usize, col: usize) -> Result<()> {
-        let Some(player) =  self.player_id.get() else {
-            bail!("Tried to play when not a player")
-        };
+        let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
         if let PlayerCell::Revealed(_) = game.borrow().board[BoardPoint { row, col }] {
             bail!("Tried to flag revealed cell")
@@ -131,9 +155,7 @@ impl FrontendGame {
     }
 
     pub fn try_reveal_adjacent(&self, row: usize, col: usize) -> Result<()> {
-        let Some(player) =  self.player_id.get() else {
-            bail!("Tried to play when not a player")
-        };
+        let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
         if let PlayerCell::Revealed(_) = game.borrow().board[BoardPoint { row, col }] {
         } else {
@@ -167,6 +189,7 @@ impl FrontendGame {
                     log::debug!("Play outcome: {:?} {:?}", point, cell);
                     self.update_cell(*point, *cell);
                     if game.game_over {
+                        (self.set_completed)(true);
                         self.close();
                     }
                 });
@@ -198,6 +221,10 @@ impl FrontendGame {
                         self.player_signals[cp.player_id](Some(cp));
                     }
                 });
+                Ok(())
+            }
+            GameMessage::GameStarted => {
+                (self.set_started)(true);
                 Ok(())
             }
         }

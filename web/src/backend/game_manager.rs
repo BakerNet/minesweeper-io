@@ -229,8 +229,7 @@ async fn handle_game_event(
             let player_board = minesweeper.player_board(player.player_id);
             {
                 let mut player_sender = player.ws_sender.lock().await;
-                let player_msg = serde_json::to_string(&GameMessage::GameState(player_board))
-                    .expect("GameMessage GameState should be serializable");
+                let player_msg = GameMessage::GameState(player_board).to_json();
                 log::debug!("Sending player_msg {:?}", player_msg);
                 let _ = player_sender.send(Message::Text(player_msg)).await;
             }
@@ -246,8 +245,7 @@ async fn handle_game_event(
                     })
                 })
                 .collect();
-            let players_msg = serde_json::to_string(&GameMessage::PlayersState(players))
-                .expect("GameMessage PlayerState should be serializable");
+            let players_msg = GameMessage::PlayersState(players).to_json();
             log::debug!("Sending players_msg {:?}", players_msg);
             let _ = broadcast.send(players_msg);
         }
@@ -255,14 +253,15 @@ async fn handle_game_event(
             let viewer_board = minesweeper.viewer_board();
             {
                 let mut viewer_sender = viewer.ws_sender.lock().await;
-                let viewer_msg = serde_json::to_string(&GameMessage::GameState(viewer_board))
-                    .expect("GameMessage GameState should be serializable");
+                let viewer_msg = GameMessage::GameState(viewer_board).to_json();
                 log::debug!("Sending viewer_msg {:?}", viewer_msg);
                 let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
             }
         }
         GameEvent::Start => {
             *started = true;
+            let start_msg = GameMessage::GameStarted.to_json();
+            let _ = broadcast.send(start_msg);
         }
     }
 }
@@ -294,29 +293,24 @@ async fn handle_message(
     let res = match outcome {
         Ok(res) => res,
         Err(e) => {
-            let err_msg = serde_json::to_string(&GameMessage::Error(format!("{:?}", e)))
-                .expect("GameMessage Error should be serializable");
+            let err_msg = GameMessage::Error(format!("{:?}", e)).to_json();
             {
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(err_msg)).await;
             }
-            todo!(); // send to player
             return;
         }
     };
     match res {
         PlayOutcome::Flag(flag) => {
-            let flag_msg =
-                serde_json::to_string(&GameMessage::PlayOutcome(PlayOutcome::Flag(flag)))
-                    .expect("GameMessage PlayOutcome Flag should be serializable");
+            let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).to_json();
             {
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(flag_msg)).await;
             }
         }
         default => {
-            let outcome_msg = serde_json::to_string(&GameMessage::PlayOutcome(default))
-                .expect("GameMessage PlayOutcome non-Flag should be serializable");
+            let outcome_msg = GameMessage::PlayOutcome(default).to_json();
             let score = minesweeper.player_score(player.player_id).unwrap();
             let dead = minesweeper.player_dead(player.player_id).unwrap();
             let player_state = ClientPlayer {
@@ -325,9 +319,7 @@ async fn handle_message(
                 dead,
                 score,
             };
-            let player_state_message =
-                serde_json::to_string(&GameMessage::PlayerUpdate(player_state))
-                    .expect("GameMessage PlayerUpdate should be serializable");
+            let player_state_message = GameMessage::PlayerUpdate(player_state).to_json();
             let _ = broadcast.send(outcome_msg);
             let _ = broadcast.send(player_state_message);
         }
@@ -451,7 +443,10 @@ pub async fn websocket(
                     Some(Ok(Message::Text(msg))) if msg == "Play" => {
                         let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
                         match resp {
-                            Ok(tx) => {game_sender = Some(tx);},
+                            Ok(tx) => {
+                                game_sender = Some(tx);
+                                break;
+                            },
                             Err(e) => {log::error!("Error playing game: {}", e)},
                         }
 
@@ -472,8 +467,7 @@ pub async fn websocket(
         return;
     };
 
-    // Spawn a task that takes messages from the websocket, prepends the user
-    // name, and sends them to all broadcast subscribers.
+    // Spawn a task that takes messages from the websocket and sends them to the game handler
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
             if game_sender.send(text).await.is_err() {

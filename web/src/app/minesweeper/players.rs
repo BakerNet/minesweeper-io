@@ -9,7 +9,7 @@ use serde::Serialize;
 #[cfg(feature = "ssr")]
 use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
-use crate::backend::game_manager::GameManager;
+use crate::backend::{game_manager::GameManager, users::AuthSession};
 
 #[component]
 pub fn Players() -> impl IntoView {
@@ -39,9 +39,11 @@ pub fn Players() -> impl IntoView {
 #[component]
 pub fn ActivePlayers() -> impl IntoView {
     let game = expect_context::<FrontendGame>();
-    let (player, players) = { (game.player_id, game.players.clone()) };
+    let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
     let last_slot = *players.last().unwrap();
     let available_slots = move || last_slot().is_none() && player().is_none();
+    let show_start = move || game.game_info.is_owner && !started();
+
     view! {
         <Show when=available_slots fallback=move || view! { <h4>Scoreboard</h4> }>
             <JoinForm />
@@ -55,11 +57,14 @@ pub fn ActivePlayers() -> impl IntoView {
             {players
                 .iter()
                 .enumerate()
-                .map(move |(n, player)| {
-                    view! { <ActivePlayer player_num=n player=*player/> }
+                .map(move |(n, &player)| {
+                    view! { <ActivePlayer player_num=n player=player/> }
                 })
                 .collect_view()}
         </table>
+        <Show when=show_start fallback=move || () >
+            <StartForm />
+        </Show>
         <A href="..">Hide</A>
     }
 }
@@ -193,6 +198,48 @@ fn JoinForm() -> impl IntoView {
         </form>}.into_view()
         } else {
         view! {<div>Joining...</div>}.into_view()
+        }
+        }
+    }
+}
+
+#[server(StartGame, "/api")]
+async fn start_game(game_id: String) -> Result<(), ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+    let game_manager = use_context::<GameManager>()
+        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+
+    let user = match auth_session.user {
+        Some(user) => user,
+        None => {
+            return Err(ServerFnError::ServerError("Not logged in".to_string()));
+        }
+    };
+
+    game_manager
+        .start_game(&game_id, &user)
+        .await
+        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+    Ok(())
+}
+
+#[component]
+fn StartForm() -> impl IntoView {
+    let game = expect_context::<FrontendGame>();
+    let start_game = create_server_action::<StartGame>();
+    let (game_id, _) = create_signal(game.game_info.game_id);
+
+    let show = move || !start_game.pending().get();
+
+    view! {
+        {move || if show() {
+        view! {<ActionForm action=start_game >
+        <input type="hidden" name="game_id" value=game_id />
+        <button type="submit">"Start Game"</button>
+        </ActionForm>}.into_view()
+        } else {
+        view! {<div>Starting...</div>}.into_view()
         }
         }
     }
