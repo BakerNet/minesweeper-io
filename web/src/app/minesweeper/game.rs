@@ -20,10 +20,7 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
         send,
         close,
         ..
-    } = use_websocket(&format!(
-        "ws://localhost:3000/api/websocket/game/{}",
-        &game_info.game_id
-    ));
+    } = use_websocket(&format!("/api/websocket/game/{}", &game_info.game_id));
 
     let (game, read_signals) = FrontendGame::new(
         game_info.clone(),

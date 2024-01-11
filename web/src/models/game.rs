@@ -54,8 +54,8 @@ impl Game {
         .await
     }
 
-    pub async fn start_game(db: &SqlitePool, game_id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query("update users set is_started = 1 where id = ?")
+    pub async fn start_game(db: &SqlitePool, game_id: &str) -> Result<(), sqlx::Error> {
+        sqlx::query("update games set is_started = 1 where game_id = ?")
             .bind(game_id)
             .execute(db)
             .await
@@ -64,10 +64,10 @@ impl Game {
 
     pub async fn complete_game(
         db: &SqlitePool,
-        game_id: i64,
+        game_id: &str,
         final_board: Vec<Vec<PlayerCell>>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("update users set is_completed = 1, final_board = ? where id = ?")
+        sqlx::query("update games set is_completed = 1, final_board = ? where game_id = ?")
             .bind(Json(final_board))
             .bind(game_id)
             .execute(db)

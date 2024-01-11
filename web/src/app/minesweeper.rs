@@ -91,8 +91,8 @@ pub fn Game() -> impl IntoView {
     }
 }
 
-#[server(StartGame, "/api")]
-async fn start_game() -> Result<(), ServerFnError> {
+#[server(NewGame, "/api")]
+async fn new_game() -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
@@ -129,12 +129,12 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn StartGame<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
+pub fn JoinOrCreateGame<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
 where
     S: PartialEq + Clone + 'static,
 {
     let join_game = create_server_action::<JoinGame>();
-    let new_game = create_server_action::<StartGame>();
+    let new_game = create_server_action::<NewGame>();
 
     view! {
         <div id="StartGame">

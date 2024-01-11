@@ -31,13 +31,9 @@ fn main() {
     let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
-        let header = (0..cols)
-            .map(|x| format!("|{}", x / 10))
-            .collect::<String>();
+        let header = (0..cols).fold(String::new(), |acc, x| acc + &format!("|{}", x / 10));
         println!("{}", &format!("XX{}|", header));
-        let header = (0..cols)
-            .map(|x| format!("|{}", x % 10))
-            .collect::<String>();
+        let header = (0..cols).fold(String::new(), |acc, x| acc + &format!("|{}", x % 10));
         println!("{}", underline(&format!("XX{}|", header)));
         for (r_num, row) in curr_board.iter().enumerate() {
             print!("{}", underline(&format!("{:0>2}", r_num)));

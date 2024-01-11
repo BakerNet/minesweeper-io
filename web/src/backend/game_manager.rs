@@ -12,6 +12,7 @@ use axum::{
 use futures::{sink::SinkExt, stream::SplitSink, StreamExt};
 use http::StatusCode;
 use minesweeper_lib::{
+    cell::PlayerCell,
     client::{ClientPlayer, Play},
     game::{Minesweeper, PlayOutcome},
 };
@@ -63,6 +64,7 @@ struct GameHandle {
     game_events: mpsc::Sender<GameEvent>,
     players: Vec<PlayerHandle>,
     max_players: u8,
+    owner: i64,
 }
 
 #[derive(Clone, Debug)]
@@ -103,10 +105,11 @@ impl GameManager {
             game_events: ch_tx,
             players: Vec::with_capacity(max_players as usize),
             max_players,
+            owner: user.id,
         };
         games.insert(game_id.to_string(), handle);
-        let db_clone = self.db.clone();
-        tokio::spawn(async move { handle_game(game, db_clone, bc_tx, mp_rx, ch_rx).await });
+        let self_clone = self.clone();
+        tokio::spawn(async move { handle_game(game, self_clone, bc_tx, mp_rx, ch_rx).await });
         Ok(())
     }
 
@@ -187,6 +190,30 @@ impl GameManager {
         Ok(handle.from_client.clone())
     }
     // TODO - reconnect
+
+    pub async fn start_game(&self, game_id: &str, user: &User) -> Result<()> {
+        let mut games = self.games.write().await;
+        if !games.contains_key(game_id) {
+            bail!("Game with id {game_id} doesn't exist")
+        }
+        let handle = games.get_mut(game_id).unwrap();
+        if handle.owner != user.id {
+            bail!("Game attempted to be started by non-owner")
+        }
+        Game::start_game(&self.db, game_id).await?;
+        handle.game_events.send(GameEvent::Start).await?;
+        Ok(())
+    }
+
+    async fn complete_game(&self, game_id: &str, final_board: Vec<Vec<PlayerCell>>) -> Result<()> {
+        let mut games = self.games.write().await;
+        if !games.contains_key(game_id) {
+            bail!("Game with id {game_id} doesn't exist")
+        }
+        Game::complete_game(&self.db, game_id, final_board).await?;
+        games.remove(game_id).unwrap();
+        Ok(())
+    }
 }
 
 async fn handle_game_event(
@@ -194,6 +221,7 @@ async fn handle_game_event(
     player_handles: &mut [Option<PlayerHandle>],
     minesweeper: &mut Minesweeper,
     broadcast: &mut broadcast::Sender<String>,
+    started: &mut bool,
 ) {
     match event {
         GameEvent::Player(player) => {
@@ -233,20 +261,34 @@ async fn handle_game_event(
                 let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
             }
         }
-        GameEvent::Start => todo!(),
+        GameEvent::Start => {
+            *started = true;
+        }
     }
 }
 
 #[allow(unused)]
 async fn handle_message(
     msg: &str,
-    player_handles: &mut [Option<PlayerHandle>],
+    player_handles: &[Option<PlayerHandle>],
     minesweeper: &mut Minesweeper,
     broadcast: &mut broadcast::Sender<String>,
+    started: bool,
 ) {
+    if !started {
+        return;
+    }
     let play = match serde_json::from_str::<Play>(msg) {
         Ok(play) => play,
         Err(_) => return,
+    };
+    if play.player > player_handles.len() {
+        return;
+    }
+    let player = if let Some(player) = &player_handles[play.player] {
+        player
+    } else {
+        return;
     };
     let outcome = minesweeper.play(play.player, play.action, play.point);
     let res = match outcome {
@@ -254,31 +296,47 @@ async fn handle_message(
         Err(e) => {
             let err_msg = serde_json::to_string(&GameMessage::Error(format!("{:?}", e)))
                 .expect("GameMessage Error should be serializable");
+            {
+                let mut player_sender = player.ws_sender.lock().await;
+                let _ = player_sender.send(Message::Text(err_msg)).await;
+            }
             todo!(); // send to player
             return;
         }
     };
     match res {
         PlayOutcome::Flag(flag) => {
-            let flag_message =
+            let flag_msg =
                 serde_json::to_string(&GameMessage::PlayOutcome(PlayOutcome::Flag(flag)))
                     .expect("GameMessage PlayOutcome Flag should be serializable");
-            todo!(); // send to player
+            {
+                let mut player_sender = player.ws_sender.lock().await;
+                let _ = player_sender.send(Message::Text(flag_msg)).await;
+            }
         }
         default => {
-            let outcome_message = serde_json::to_string(&GameMessage::PlayOutcome(default))
+            let outcome_msg = serde_json::to_string(&GameMessage::PlayOutcome(default))
                 .expect("GameMessage PlayOutcome non-Flag should be serializable");
-            // let player_state_message =
-            //     serde_json::to_string(&GameMessage::PlayerUpdate(player_state))
-            //         .expect("GameMessage PlayerUpdate should be serializable");
-            todo!(); // send to broadcast
+            let score = minesweeper.player_score(player.player_id).unwrap();
+            let dead = minesweeper.player_dead(player.player_id).unwrap();
+            let player_state = ClientPlayer {
+                player_id: player.player_id,
+                username: player.display_name.clone(),
+                dead,
+                score,
+            };
+            let player_state_message =
+                serde_json::to_string(&GameMessage::PlayerUpdate(player_state))
+                    .expect("GameMessage PlayerUpdate should be serializable");
+            let _ = broadcast.send(outcome_msg);
+            let _ = broadcast.send(player_state_message);
         }
     }
 }
 
 async fn handle_game(
     game: Game,
-    _db: SqlitePool,
+    game_manager: GameManager,
     broadcaster: broadcast::Sender<String>,
     receiver: mpsc::Receiver<String>,
     game_events: mpsc::Receiver<GameEvent>,
@@ -297,16 +355,20 @@ async fn handle_game(
         game.max_players as usize,
     )
     .unwrap();
+    let mut started = game.is_started; // should always be false
 
     loop {
         tokio::select! {
             Some(msg) = receiver.recv() => {
                 log::debug!("Message received: {}", msg);
-                // todo!();
+                handle_message(&msg, &player_handles, &mut minesweeper, &mut broadcaster, started).await;
+                if minesweeper.is_over() {
+                    break;
+                }
             },
-            Some(handle) = game_events.recv() => {
-                log::debug!("Client update received: {:?}", handle);
-                handle_game_event(handle, &mut player_handles, &mut minesweeper, &mut broadcaster).await;
+            Some(event) = game_events.recv() => {
+                log::debug!("Game update received: {:?}", event);
+                handle_game_event(event, &mut player_handles, &mut minesweeper, &mut broadcaster, &mut started).await;
             }
             () = &mut timeout => {
                 log::debug!("Game timeout reached {}", game.game_id);
@@ -315,7 +377,10 @@ async fn handle_game(
         }
     }
 
-    todo!()
+    let _ = game_manager
+        .complete_game(&game.game_id, minesweeper.viewer_board())
+        .await
+        .map_err(|e| log::error!("Error completing game: {e}"));
 }
 
 pub async fn websocket_handler(
