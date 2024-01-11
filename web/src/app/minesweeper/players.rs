@@ -17,7 +17,7 @@ pub fn Players() -> impl IntoView {
 
     let player_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactivePlayers game_info/> },
-        false => view! { <ActivePlayers /> },
+        false => view! { <ActivePlayers/> },
     };
 
     view! {
@@ -46,7 +46,7 @@ pub fn ActivePlayers() -> impl IntoView {
 
     view! {
         <Show when=available_slots fallback=move || view! { <h4>Scoreboard</h4> }>
-            <JoinForm />
+            <JoinForm/>
         </Show>
         <table>
             <tr>
@@ -62,8 +62,8 @@ pub fn ActivePlayers() -> impl IntoView {
                 })
                 .collect_view()}
         </table>
-        <Show when=show_start fallback=move || () >
-            <StartForm />
+        <Show when=show_start fallback=move || ()>
+            <StartForm/>
         </Show>
         <A href="..">Hide</A>
     }
@@ -189,17 +189,21 @@ fn JoinForm() -> impl IntoView {
     };
 
     view! {
-        {move || if show() {
-        view! {<form on:submit=move |ev| {
-        ev.prevent_default();
-        join_game();
-        }>
-        <button type="submit">"Join Game"</button>
-        </form>}.into_view()
-        } else {
-        view! {<div>Joining...</div>}.into_view()
-        }
-        }
+        {move || {
+            if show() {
+                view! {
+                    <form on:submit=move |ev| {
+                        ev.prevent_default();
+                        join_game();
+                    }>
+                        <button type="submit">"Join Game"</button>
+                    </form>
+                }
+                    .into_view()
+            } else {
+                view! { <div>Joining...</div> }.into_view()
+            }
+        }}
     }
 }
 
@@ -233,14 +237,18 @@ fn StartForm() -> impl IntoView {
     let show = move || !start_game.pending().get();
 
     view! {
-        {move || if show() {
-        view! {<ActionForm action=start_game >
-        <input type="hidden" name="game_id" value=game_id />
-        <button type="submit">"Start Game"</button>
-        </ActionForm>}.into_view()
-        } else {
-        view! {<div>Starting...</div>}.into_view()
-        }
-        }
+        {move || {
+            if show() {
+                view! {
+                    <ActionForm action=start_game>
+                        <input type="hidden" name="game_id" value=game_id/>
+                        <button type="submit">"Start Game"</button>
+                    </ActionForm>
+                }
+                    .into_view()
+            } else {
+                view! { <div>Starting...</div> }.into_view()
+            }
+        }}
     }
 }
