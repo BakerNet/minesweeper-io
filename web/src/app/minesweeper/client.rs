@@ -202,13 +202,17 @@ impl FrontendGame {
             }
             GameMessage::Error(e) => Err(anyhow!(e)),
             GameMessage::GameState(gs) => {
+                let old_board = game.player_board();
                 game.set_state(gs);
                 game.player_board()
                     .iter()
+                    .zip(old_board.iter())
                     .enumerate()
-                    .for_each(|(row, vec)| {
-                        vec.iter().enumerate().for_each(|(col, cell)| {
-                            (self.cell_signals[row][col])(*cell);
+                    .for_each(|(row, (new, old))| {
+                        new.iter().enumerate().for_each(|(col, cell)| {
+                            if *cell != old[col] {
+                                (self.cell_signals[row][col])(*cell);
+                            }
                         })
                     });
                 Ok(())

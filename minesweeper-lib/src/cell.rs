@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::board::BoardPoint;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerCell {
     Hidden,
     Flag,
@@ -36,7 +36,7 @@ impl fmt::Debug for PlayerCell {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RevealedCell {
     pub cell_point: BoardPoint,
     pub player: usize,
@@ -49,7 +49,7 @@ pub struct CellState {
     pub player: Option<usize>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Eq, PartialOrd)]
 pub enum Cell {
     Empty(u8),
     Bomb,
