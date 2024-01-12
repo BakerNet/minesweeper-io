@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::cell::PlayerCell;
 
+use crate::components::button::Button;
 use client::FrontendGame;
 use game::{ActiveGame, InactiveGame};
 
@@ -137,12 +138,7 @@ where
     let new_game = create_server_action::<NewGame>();
 
     view! {
-        <div id="StartGame">
-            <ActionForm action=join_game>
-                <label for="game_id">Game ID:</label>
-                <input type="text" name="game_id"/>
-                <button type="submit">"Join Game"</button>
-            </ActionForm>
+        <div class="space-y-4">
             <Transition fallback=move || {
                 view! {}
             }>
@@ -151,12 +147,34 @@ where
                     .map(|_| {
                         view! {
                             <ActionForm action=new_game>
-                                <button type="submit">"New Game"</button>
+                                <Button btn_type="submit" class="w-full max-w-xs h-12">
+                                    "Create New Game"
+                                </Button>
                             </ActionForm>
                         }
                     })}
 
             </Transition>
+            <ActionForm action=join_game>
+                <div class="flex flex-col space-y-2">
+                    <label
+                        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-primary-foreground dark:text-secondary-foreground"
+                        for="game_id"
+                    >
+                        "Join Existing Game:"
+                    </label>
+                    <div class="flex space-x-2">
+                        <input
+                            // todo - move to component
+                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1"
+                            type="text"
+                            placeholder="Enter Game ID"
+                            name="game_id"
+                        />
+                        <Button btn_type="submit">"Join"</Button>
+                    </div>
+                </div>
+            </ActionForm>
         </div>
     }
 }

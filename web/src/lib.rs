@@ -3,6 +3,7 @@ use leptos::*;
 use regex::Regex;
 
 pub mod app;
+pub mod components;
 pub mod models;
 
 #[cfg(feature = "ssr")]

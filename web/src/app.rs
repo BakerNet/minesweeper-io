@@ -60,7 +60,7 @@ pub fn App() -> impl IntoView {
             outside_errors.insert_with_default_key(AppError::NotFound);
             view! { <ErrorTemplate outside_errors/> }.into_view()
         }>
-            <main>
+            <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user/>
                 <Routes>
                     <Route path="/" view=move || view! { <HomePage user/> }/>
