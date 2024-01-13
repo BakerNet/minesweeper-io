@@ -147,14 +147,14 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
         PlayerCell::Flag => view! {
             <span>
-                <Flag />
+                <Flag/>
             </span>
         },
         PlayerCell::Hidden => view! { <span>""</span> },
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Bomb => view! {
                 <span>
-                    <Mine />
+                    <Mine/>
                 </span>
             },
             Cell::Empty(_) => view! { <span>{format!("{:?}", cell)}</span> },

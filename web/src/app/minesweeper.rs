@@ -139,22 +139,48 @@ where
 
     view! {
         <div class="space-y-4">
-            <Transition fallback=move || {
+            <Suspense fallback=move || {
                 view! {}
             }>
-                {user()
-                    .flatten()
-                    .map(|_| {
-                        view! {
-                            <ActionForm action=new_game>
-                                <Button btn_type="submit" class="w-full max-w-xs h-12">
-                                    "Create New Game"
-                                </Button>
-                            </ActionForm>
-                        }
-                    })}
+                {move || {
+                    user
+                        .get()
+                        .flatten()
+                        .map(|_| {
+                            view! {
+                                <ActionForm action=new_game>
+                                    <Button btn_type="submit" class="w-full max-w-xs h-12">
+                                        "Create New Game"
+                                    </Button>
+                                </ActionForm>
+                            }
+                        })
+                        .unwrap_or(
+                            view! {
+                                <div class="w-full max-w-xs">
+                                    <span class="w-full inline-flex items-center justify-center text-md font-medium text-gray-800 dark:text-gray-200">
+                                        <span>
+                                            <A
+                                                href="/auth/login"
+                                                class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
+                                            >
+                                                "Log in "
+                                            </A>
+                                            " to Create Game"
+                                        </span>
+                                    </span>
+                                </div>
+                            }
+                                .into_view(),
+                        )
+                }}
+                <div class="w-full max-w-xs h-6">
+                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                        <span>"-- or --"</span>
+                    </span>
+                </div>
 
-            </Transition>
+            </Suspense>
             <ActionForm action=join_game>
                 <div class="flex flex-col space-y-2">
                     <label
