@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::cell::PlayerCell;
 
-use crate::components::button::Button;
+use crate::components::{button::Button, input::TextInput};
 use client::FrontendGame;
 use game::{ActiveGame, InactiveGame};
 
@@ -111,7 +111,7 @@ async fn new_game() -> Result<(), ServerFnError> {
         .new_game(&user, &id, 50, 50, 500, 8)
         .await
         .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
-    leptos_axum::redirect(&format!("/game/{}", id));
+    leptos_axum::redirect(&format!("/game/{}/players", id));
     Ok(())
 }
 
@@ -125,7 +125,7 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
             game_id
         )));
     }
-    leptos_axum::redirect(&format!("/game/{}", game_id));
+    leptos_axum::redirect(&format!("/game/{}/players", game_id));
     Ok(())
 }
 
@@ -148,7 +148,7 @@ where
                         .flatten()
                         .map(|_| {
                             view! {
-                                <ActionForm action=new_game>
+                                <ActionForm action=new_game class="w-full max-w-xs h-12">
                                     <Button btn_type="submit" class="w-full max-w-xs h-12">
                                         "Create New Game"
                                     </Button>
@@ -190,13 +190,7 @@ where
                         "Join Existing Game:"
                     </label>
                     <div class="flex space-x-2">
-                        <input
-                            // todo - move to component
-                            class="flex h-10 w-full border border-blue-950 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1"
-                            type="text"
-                            placeholder="Enter Game ID"
-                            name="game_id"
-                        />
+                        <TextInput placeholder="Enter Game ID" name="game_id" />
                         <Button btn_type="submit">"Join"</Button>
                     </div>
                 </div>

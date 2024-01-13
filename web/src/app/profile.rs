@@ -4,7 +4,10 @@ use leptos::*;
 use leptos_router::*;
 
 use super::{auth::LogOut, FrontendUser};
-use crate::{no_prefix_serverfnerror, validate_display_name};
+use crate::{
+    components::{button::Button, input::TextInput},
+    no_prefix_serverfnerror, validate_display_name,
+};
 
 cfg_if! { if #[cfg(feature="ssr")] {
     use axum_login::AuthUser;
@@ -19,9 +22,14 @@ pub fn Profile(
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
     view! {
-        <div>
-            <LogOut logout/>
+        <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
             <SetDisplayName user user_updated/>
+                <div class="w-full max-w-xs h-6">
+                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                    <hr class="w-full"/>
+                    </span>
+                </div>
+            <LogOut logout/>
         </div>
     }
 }
@@ -74,24 +82,24 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
         _ => {}
     });
 
+    let curr_name = FrontendUser::display_name_or_anon(&user.display_name);
+
     view! {
-        <div>
-            <span>{FrontendUser::display_name_or_anon(&user.display_name)}</span>
+        <div class="flex flex-col space-y-2 w-full max-w-xs">
+            <span class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">{curr_name.clone()}</span>
             {move || {
                 name_err
                     .get()
                     .map(|s| {
                         view! {
-                            <div>
-                                <span class="text-red-600">{s}</span>
-                            </div>
+                                <span class="text-sm font-medium leading-none text-red-500">{s}</span>
                         }
                     })
             }}
 
-            <ActionForm action=set_display_name on:submit=move |e| on_submit(e.into())>
-                <input type="text" name="display_name" placeholder=user.display_name/>
-                <input type="submit" value="Set display name"/>
+            <ActionForm action=set_display_name on:submit=move |e| on_submit(e.into()) class="flex space-x-2">
+                <TextInput name="display_name" placeholder_owned=curr_name />
+                <Button btn_type="submit">"Set display name"</Button>
             </ActionForm>
         </div>
     }

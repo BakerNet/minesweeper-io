@@ -9,7 +9,6 @@ use super::cell::{ActiveRow, InactiveRow};
 use super::client::FrontendGame;
 use super::GameInfo;
 
-// TODO - get active games working
 #[component]
 pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     let (error, set_error) = create_signal::<Option<String>>(None);
@@ -55,12 +54,12 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     });
 
     view! {
-        <div class="Game">
+        <div class="text-center">
             <Outlet/>
-            <div class="text-red-600" style:height="24px">
+            <div class="text-red-600 h-8">
                 {error}
             </div>
-            <div class="select-none overflow-x-scroll">
+            <div class="select-none overflow-x-auto mb-12">
                 {read_signals
                     .into_iter()
                     .enumerate()
@@ -79,9 +78,9 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     };
 
     view! {
-        <div class="Game">
+        <div class="text-center">
             <Outlet/>
-            <div class="select-none overflow-x-scroll">
+            <div class="select-none overflow-x-auto mb-12">
                 {board
                     .into_iter()
                     .enumerate()

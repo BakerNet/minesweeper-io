@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::FrontendUser;
 
+use crate::components::button::Button;
 #[cfg(feature = "ssr")]
 use crate::{
     backend::{
@@ -70,10 +71,22 @@ pub fn Login(
     login: Action<LogIn, Result<String, ServerFnError>>,
     target: OAuthTarget,
 ) -> impl IntoView {
-    let (target_str, target_readable) = match target {
-        OAuthTarget::GOOGLE => ("GOOGLE", "Log in with Google"),
-        OAuthTarget::REDDIT => ("REDDIT", "Log in with Reddit"),
-        OAuthTarget::GITHUB => ("GITHUB", "Log in with Github"),
+    let (target_str, target_readable, target_colors) = match target {
+        OAuthTarget::GOOGLE => (
+            "GOOGLE",
+            "Log in with Google",
+            "bg-blue-400 text-white hover:bg-blue-600",
+        ),
+        OAuthTarget::REDDIT => (
+            "REDDIT",
+            "Log in with Reddit",
+            "bg-orange-600 text-white hover:bg-orange-800",
+        ),
+        OAuthTarget::GITHUB => (
+            "GITHUB",
+            "Log in with Github",
+            "bg-zinc-800 text-white hover:bg-zinc-900",
+        ),
     };
 
     create_effect(move |_| {
@@ -87,9 +100,9 @@ pub fn Login(
     });
 
     view! {
-        <ActionForm action=login>
+        <ActionForm action=login class="w-full max-w-xs h-8">
             <input type="hidden" name="target" value=target_str/>
-            <input type="submit" value=target_readable/>
+            <Button btn_type="submit" colors=target_colors class="w-full w-max-xs h-8">{target_readable}</Button>
         </ActionForm>
     }
 }
@@ -113,8 +126,8 @@ pub async fn logout() -> Result<(), ServerFnError> {
 #[component]
 pub fn LogOut(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoView {
     view! {
-        <ActionForm action=logout>
-            <input type="submit" value="Log out"/>
+        <ActionForm action=logout class="w-full max-w-xs h-12">
+            <Button btn_type="submit" class="w-full max-w-xs h-12" colors="bg-red-400 text-black hover:bg-red-500/90">"Log out"</Button>
         </ActionForm>
     }
 }

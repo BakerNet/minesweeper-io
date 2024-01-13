@@ -10,6 +10,7 @@ use serde::Serialize;
 use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
+use crate::components::button::Button;
 
 pub fn player_class(player: usize) -> String {
     String::from(match player {
@@ -30,6 +31,15 @@ pub fn player_class(player: usize) -> String {
 }
 
 #[component]
+pub fn ShowPlayers() -> impl IntoView {
+    view! {
+        <div class="flex flex-col items-center my-8">
+            <A href="players" class="text-lg text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">"Show Scoreboard"</A>
+        </div>
+    }
+}
+
+#[component]
 pub fn Players() -> impl IntoView {
     let game_info = expect_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
 
@@ -39,6 +49,7 @@ pub fn Players() -> impl IntoView {
     };
 
     view! {
+        <div class="flex flex-col items-center my-8 space-y-4">
         <Suspense fallback=move || ()>
             {game_info
                 .get()
@@ -51,6 +62,7 @@ pub fn Players() -> impl IntoView {
                 })}
 
         </Suspense>
+        </div>
     }
 }
 
@@ -63,15 +75,16 @@ pub fn ActivePlayers() -> impl IntoView {
     let show_start = move || game.game_info.is_owner && !started();
 
     view! {
-        <Show when=available_slots fallback=move || view! { <h4>Scoreboard</h4> }>
-            <JoinForm/>
-        </Show>
-        <table>
+        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
+        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
+        <thead>
             <tr>
-                <th>Player</th>
-                <th>Username</th>
-                <th>Score</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Player</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Username</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Score</th>
             </tr>
+        </thead>
+        <tbody>
             {players
                 .iter()
                 .enumerate()
@@ -79,11 +92,15 @@ pub fn ActivePlayers() -> impl IntoView {
                     view! { <ActivePlayer player_num=n player=player/> }
                 })
                 .collect_view()}
+        </tbody>
         </table>
+        <Show when=available_slots fallback=move || ()>
+            <JoinForm/>
+        </Show>
         <Show when=show_start fallback=move || ()>
             <StartForm/>
         </Show>
-        <A href="..">Hide</A>
+        <A href=".." class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">Hide</A>
     }
 }
 
@@ -119,12 +136,16 @@ pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
         })
     });
     view! {
-        <table>
+        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
+        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
+        <thead>
             <tr>
-                <th>Player</th>
-                <th>Username</th>
-                <th>Score</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Player</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Username</th>
+                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Score</th>
             </tr>
+        </thead>
+        <tbody>
             <Transition fallback=move || {
                 view! {}
             }>
@@ -142,8 +163,9 @@ pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
                 }}
 
             </Transition>
+        </tbody>
         </table>
-        <A href="..">Hide</A>
+        <A href=".." class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">Hide</A>
     }
 }
 
@@ -151,27 +173,33 @@ pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
 fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
     let items = move || {
         if let Some(player) = player() {
-            (
-                player_class(player.player_id),
-                player.username,
-                player.score,
-            )
+            let mut class = player_class(player.player_id);
+            if class != "" {
+                class += " text-black";
+            } else {
+                class = "text-slate-600 dark:text-slate-400".to_string();
+            }
+            (class, player.username, player.score)
         } else {
-            (String::from(""), String::from("--------"), 0)
+            (
+                String::from("text-slate-600 dark:text-slate-400"),
+                String::from("--------"),
+                0,
+            )
         }
     };
     view! {
         <tr class=move || items().0>
-            <td>{player_num}</td>
-            <td>{move || items().1}</td>
-            <td>{move || items().2}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().1}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().2}</td>
         </tr>
     }
 }
 
 #[component]
 fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
-    let (class, username, score) = if let Some(player) = &player {
+    let (mut player_class, username, score) = if let Some(player) = &player {
         (
             player_class(player.player_id),
             player.username.clone(),
@@ -180,11 +208,17 @@ fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoV
     } else {
         (String::from(""), String::from("--------"), 0)
     };
+    if player_class != "" {
+        player_class += " text-black";
+    } else {
+        player_class = "text-slate-600 dark:text-slate-400".to_string();
+    }
+
     view! {
-        <tr class=class>
-            <td>{player_num}</td>
-            <td>{username}</td>
-            <td>{score}</td>
+        <tr class=player_class>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{username}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{score}</td>
         </tr>
     }
 }
@@ -213,8 +247,8 @@ fn JoinForm() -> impl IntoView {
                     <form on:submit=move |ev| {
                         ev.prevent_default();
                         join_game();
-                    }>
-                        <button type="submit">"Join Game"</button>
+                    } class="w-full max-w-xs h-8">
+                        <Button btn_type="submit" class="w-full w-max-xs h-8">"Join Game"</Button>
                     </form>
                 }
                     .into_view()
@@ -258,9 +292,9 @@ fn StartForm() -> impl IntoView {
         {move || {
             if show() {
                 view! {
-                    <ActionForm action=start_game>
+                    <ActionForm action=start_game class="w-full max-w-xs h-8">
                         <input type="hidden" name="game_id" value=game_id/>
-                        <button type="submit">"Start Game"</button>
+                        <Button btn_type="submit" class="w-full w-max-xs h-8" colors="bg-green-700 hover:bg-green-800/90 text-white">"Start Game"</Button>
                     </ActionForm>
                 }
                     .into_view()

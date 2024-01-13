@@ -19,6 +19,8 @@ use leptos_meta::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
 
+use crate::app::minesweeper::players::ShowPlayers;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FrontendUser {
     pub display_name: Option<String>,
@@ -90,12 +92,7 @@ pub fn App() -> impl IntoView {
 
                     <Route path="/game/:id" view=|| view! { <Game/> }>
                         <Route path="players" view=|| view! { <Players/> }/>
-                        <Route
-                            path=""
-                            view=|| {
-                                view! { <A href="players">"Join Game / Scoreboard"</A> }
-                            }
-                        />
+                        <Route path="" view=|| view!{ <ShowPlayers /> } />
 
                     </Route>
                 </Routes>
