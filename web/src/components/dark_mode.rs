@@ -5,10 +5,7 @@ pub fn DarkModeToggle() -> impl IntoView {
     view! {
         <button
             type="button"
-            aria-pressed="false"
-            data-state="off"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground border border-input bg-transparent hover:bg-accent hover:text-accent-foreground h-10 px-3 text-gray-900 dark:text-gray-200"
-            aria-label="Toggle dark mode"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
             // todo
             on:click=move |_| {}
         >

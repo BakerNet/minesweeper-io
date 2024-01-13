@@ -1,4 +1,4 @@
-use super::FrontendGame;
+use super::{players::player_class, FrontendGame};
 
 use leptos::*;
 use minesweeper_lib::{
@@ -10,7 +10,7 @@ use web_sys::MouseEvent;
 #[component]
 pub fn ActiveRow(row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoView {
     view! {
-        <div class="row">
+        <div class="whitespace-nowrap">
             {cells
                 .into_iter()
                 .enumerate()
@@ -23,7 +23,7 @@ pub fn ActiveRow(row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoVie
 #[component]
 pub fn InactiveRow(row: usize, cells: Vec<PlayerCell>) -> impl IntoView {
     view! {
-        <div class="row">
+        <div class="whitespace-nowrap">
             {cells
                 .into_iter()
                 .enumerate()
@@ -33,30 +33,45 @@ pub fn InactiveRow(row: usize, cells: Vec<PlayerCell>) -> impl IntoView {
     }
 }
 
-fn cell_class(cell: PlayerCell) -> String {
+pub fn number_class(num: usize) -> String {
+    String::from(match num {
+        1 => "text-blue-600",
+        2 => "text-green-600",
+        3 => "text-red-600",
+        4 => "text-blue-950",
+        5 => "text-rose-900",
+        6 => "text-teal-600",
+        7 => "text-neutral-950",
+        8 => "text-neutral-600",
+        _ => "",
+    })
+}
+
+fn cell_contents_class(cell: PlayerCell) -> String {
     match cell {
-        PlayerCell::Flag => String::from("flag"),
-        PlayerCell::Hidden => String::from("hidden"),
+        PlayerCell::Flag => String::from("bg-neutral-500"),
+        PlayerCell::Hidden => String::from("bg-neutral-500"),
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => String::from("bomb"),
-            Cell::Empty(x) => format!("rev-{}", x),
+            Cell::Bomb => String::from("bg-red-600"),
+            Cell::Empty(x) => number_class(x as usize),
         },
     }
 }
 
-fn player_class(cell: PlayerCell) -> String {
+fn cell_player_class(cell: PlayerCell) -> String {
     match cell {
         PlayerCell::Flag => String::from(""),
         PlayerCell::Hidden => String::from(""),
-        PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => format!("p-{}", rc.player),
-            Cell::Empty(_) => format!("p-{}", rc.player),
-        },
+        PlayerCell::Revealed(rc) => player_class(rc.player),
     }
 }
 
+pub fn cell_class(content_class: &str, player_class: &str) -> String {
+    format!("inline-block text-center border border-solid border-black font-bold align-top h-8 w-8 text-2xl {} {}", content_class, player_class)
+}
+
 #[component]
-pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let game = expect_context::<FrontendGame>();
     let (game, _) = create_signal(game);
@@ -93,7 +108,7 @@ pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
     };
     let class = move || {
         let item = cell();
-        format!("cell s-32p {} {}", cell_class(item), player_class(item))
+        cell_class(&cell_contents_class(item), &cell_player_class(item))
     };
 
     view! {
@@ -114,9 +129,9 @@ pub fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
 }
 
 #[component]
-pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
+fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
     let id = format!("{}_{}", row, col);
-    let class = format!("cell s-30p {} {}", cell_class(cell), player_class(cell));
+    let class = cell_class(&cell_contents_class(cell), &cell_player_class(cell));
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
@@ -130,14 +145,14 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
         PlayerCell::Flag => view! {
             <span>
-                <img src="/images/Flag.svg"/>
+                <img class="object-cover h-full w-full" src="/images/Flag.svg"/>
             </span>
         },
         PlayerCell::Hidden => view! { <span>""</span> },
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Bomb => view! {
                 <span>
-                    <img src="/images/Mine.svg"/>
+                    <img class="object-cover h-full w-full" src="/images/Mine.svg"/>
                 </span>
             },
             Cell::Empty(_) => view! { <span>{format!("{:?}", cell)}</span> },

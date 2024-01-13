@@ -1,4 +1,4 @@
-mod cell;
+pub mod cell;
 pub mod client;
 mod game;
 pub mod players;
@@ -83,7 +83,7 @@ pub fn Game() -> impl IntoView {
                 .map(|game_info| {
                     view! {
                         <ErrorBoundary fallback=|_| {
-                            view! { <div class="error">"Game not found"</div> }
+                            view! { <div class="text-red-600">"Game not found"</div> }
                         }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
                     }
                 })}
@@ -158,7 +158,7 @@ where
             <ActionForm action=join_game>
                 <div class="flex flex-col space-y-2">
                     <label
-                        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-primary-foreground dark:text-secondary-foreground"
+                        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
                         for="game_id"
                     >
                         "Join Existing Game:"
@@ -166,7 +166,7 @@ where
                     <div class="flex space-x-2">
                         <input
                             // todo - move to component
-                            class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1"
+                            class="flex h-10 w-full border border-blue-950 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1"
                             type="text"
                             placeholder="Enter Game ID"
                             name="game_id"

@@ -11,6 +11,24 @@ use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
 
+pub fn player_class(player: usize) -> String {
+    String::from(match player {
+        0 => "bg-cyan-200",
+        1 => "bg-indigo-200",
+        2 => "bg-fuschia-200",
+        3 => "bg-orange-200",
+        4 => "bg-lime-200",
+        5 => "bg-teal-200",
+        6 => "bg-blue-200",
+        7 => "bg-purple-200",
+        8 => "bg-rose-200",
+        9 => "bg-yellow-200",
+        10 => "bg-emerald-200",
+        11 => "bg-sky-200",
+        _ => "",
+    })
+}
+
 #[component]
 pub fn Players() -> impl IntoView {
     let game_info = expect_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
@@ -27,7 +45,7 @@ pub fn Players() -> impl IntoView {
                 .map(|game_info| {
                     view! {
                         <ErrorBoundary fallback=|_| {
-                            view! { <div class="error">"Unable to load players"</div> }
+                            view! { <div class="text-red-600">"Unable to load players"</div> }
                         }>{move || { game_info.clone().map(player_view) }}</ErrorBoundary>
                     }
                 })}
@@ -134,7 +152,7 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
     let items = move || {
         if let Some(player) = player() {
             (
-                format!("p-{}", player.player_id),
+                player_class(player.player_id),
                 player.username,
                 player.score,
             )

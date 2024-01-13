@@ -83,7 +83,7 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
                     .map(|s| {
                         view! {
                             <div>
-                                <span class="error">{s}</span>
+                                <span class="text-red-600">{s}</span>
                             </div>
                         }
                     })

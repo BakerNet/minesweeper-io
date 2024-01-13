@@ -3,15 +3,7 @@ const colors = require("tailwindcss/colors");
 module.exports = {
   content: ["./src/**/*.rs"],
   theme: {
-    extend: {
-      colors: {
-        primary: "gray",
-        "primary-foreground": "black",
-        "secondary-foreground": "white",
-        secondary: "white",
-        brand: "navy",
-      },
-    },
+    extend: {},
   },
   plugins: [],
 };
