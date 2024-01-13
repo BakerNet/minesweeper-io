@@ -34,7 +34,12 @@ pub fn player_class(player: usize) -> String {
 pub fn ShowPlayers() -> impl IntoView {
     view! {
         <div class="flex flex-col items-center my-8">
-            <A href="players" class="text-lg text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">"Show Scoreboard"</A>
+            <A
+                href="players"
+                class="text-lg text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
+            >
+                "Show Scoreboard"
+            </A>
         </div>
     }
 }
@@ -50,18 +55,18 @@ pub fn Players() -> impl IntoView {
 
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-        <Suspense fallback=move || ()>
-            {game_info
-                .get()
-                .map(|game_info| {
-                    view! {
-                        <ErrorBoundary fallback=|_| {
-                            view! { <div class="text-red-600">"Unable to load players"</div> }
-                        }>{move || { game_info.clone().map(player_view) }}</ErrorBoundary>
-                    }
-                })}
+            <Suspense fallback=move || ()>
+                {game_info
+                    .get()
+                    .map(|game_info| {
+                        view! {
+                            <ErrorBoundary fallback=|_| {
+                                view! { <div class="text-red-600">"Unable to load players"</div> }
+                            }>{move || { game_info.clone().map(player_view) }}</ErrorBoundary>
+                        }
+                    })}
 
-        </Suspense>
+            </Suspense>
         </div>
     }
 }
@@ -77,22 +82,28 @@ pub fn ActivePlayers() -> impl IntoView {
     view! {
         <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
-        <thead>
-            <tr>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Player</th>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Username</th>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Score</th>
-            </tr>
-        </thead>
-        <tbody>
-            {players
-                .iter()
-                .enumerate()
-                .map(move |(n, &player)| {
-                    view! { <ActivePlayer player_num=n player=player/> }
-                })
-                .collect_view()}
-        </tbody>
+            <thead>
+                <tr>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Player
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Username
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Score
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                {players
+                    .iter()
+                    .enumerate()
+                    .map(move |(n, &player)| {
+                        view! { <ActivePlayer player_num=n player=player/> }
+                    })
+                    .collect_view()}
+            </tbody>
         </table>
         <Show when=available_slots fallback=move || ()>
             <JoinForm/>
@@ -100,7 +111,12 @@ pub fn ActivePlayers() -> impl IntoView {
         <Show when=show_start fallback=move || ()>
             <StartForm/>
         </Show>
-        <A href=".." class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">Hide</A>
+        <A
+            href=".."
+            class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
+        >
+            Hide
+        </A>
     }
 }
 
@@ -138,34 +154,45 @@ pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
     view! {
         <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
-        <thead>
-            <tr>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Player</th>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Username</th>
-                <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">Score</th>
-            </tr>
-        </thead>
-        <tbody>
-            <Transition fallback=move || {
-                view! {}
-            }>
-                {move || {
-                    let players = players.get().flatten()?;
-                    Some(
-                        players
-                            .iter()
-                            .enumerate()
-                            .map(|(i, player)| {
-                                view! { <InactivePlayer player_num=i player=player.clone()/> }
-                            })
-                            .collect_view(),
-                    )
-                }}
+            <thead>
+                <tr>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Player
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Username
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Score
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <Transition fallback=move || {
+                    view! {}
+                }>
+                    {move || {
+                        let players = players.get().flatten()?;
+                        Some(
+                            players
+                                .iter()
+                                .enumerate()
+                                .map(|(i, player)| {
+                                    view! { <InactivePlayer player_num=i player=player.clone()/> }
+                                })
+                                .collect_view(),
+                        )
+                    }}
 
-            </Transition>
-        </tbody>
+                </Transition>
+            </tbody>
         </table>
-        <A href=".." class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500">Hide</A>
+        <A
+            href=".."
+            class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
+        >
+            Hide
+        </A>
     }
 }
 
@@ -244,11 +271,16 @@ fn JoinForm() -> impl IntoView {
         {move || {
             if show() {
                 view! {
-                    <form on:submit=move |ev| {
-                        ev.prevent_default();
-                        join_game();
-                    } class="w-full max-w-xs h-8">
-                        <Button btn_type="submit" class="w-full w-max-xs h-8">"Join Game"</Button>
+                    <form
+                        on:submit=move |ev| {
+                            ev.prevent_default();
+                            join_game();
+                        }
+                        class="w-full max-w-xs h-8"
+                    >
+                        <Button btn_type="submit" class="w-full w-max-xs h-8">
+                            "Join Game"
+                        </Button>
                     </form>
                 }
                     .into_view()
@@ -294,7 +326,13 @@ fn StartForm() -> impl IntoView {
                 view! {
                     <ActionForm action=start_game class="w-full max-w-xs h-8">
                         <input type="hidden" name="game_id" value=game_id/>
-                        <Button btn_type="submit" class="w-full w-max-xs h-8" colors="bg-green-700 hover:bg-green-800/90 text-white">"Start Game"</Button>
+                        <Button
+                            btn_type="submit"
+                            class="w-full w-max-xs h-8"
+                            colors="bg-green-700 hover:bg-green-800/90 text-white"
+                        >
+                            "Start Game"
+                        </Button>
                     </ActionForm>
                 }
                     .into_view()

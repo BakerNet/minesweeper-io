@@ -56,9 +56,7 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <Outlet/>
-            <div class="text-red-600 h-8">
-                {error}
-            </div>
+            <div class="text-red-600 h-8">{error}</div>
             <div class="select-none overflow-x-auto mb-12">
                 {read_signals
                     .into_iter()

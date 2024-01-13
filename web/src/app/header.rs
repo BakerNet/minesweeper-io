@@ -26,7 +26,6 @@ fn logo() -> impl IntoView {
             <span class=cell_class_2>e</span>
             <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_flag>
-                // todo - make component
                 <Flag/>
             </span>
             <span class=cell_class_1.clone()>e</span>

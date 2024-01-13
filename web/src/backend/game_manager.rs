@@ -256,6 +256,7 @@ async fn handle_game_event(
                 let viewer_msg = GameMessage::GameState(viewer_board).to_json();
                 log::debug!("Sending viewer_msg {:?}", viewer_msg);
                 let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
+                // todo - also send players state on viewer join
             }
         }
         GameEvent::Start => {
@@ -369,6 +370,8 @@ async fn handle_game(
         }
     }
 
+    // todo - complete games on startup as well
+    // todo -record scores for players
     let _ = game_manager
         .complete_game(&game.game_id, minesweeper.viewer_board())
         .await

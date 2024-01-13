@@ -92,7 +92,7 @@ pub fn App() -> impl IntoView {
 
                     <Route path="/game/:id" view=|| view! { <Game/> }>
                         <Route path="players" view=|| view! { <Players/> }/>
-                        <Route path="" view=|| view!{ <ShowPlayers /> } />
+                        <Route path="" view=|| view! { <ShowPlayers/> }/>
 
                     </Route>
                 </Routes>

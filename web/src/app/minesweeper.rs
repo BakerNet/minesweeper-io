@@ -61,8 +61,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
 
 #[component]
 pub fn Game() -> impl IntoView {
-    // TODO - game_id should be parameter, and there should be a parent component that renders
-    // Games based on id param (with Suspense)
     let params = use_params_map();
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
     let game_info = create_resource(game_id, get_game);
@@ -143,8 +141,7 @@ where
                 view! {}
             }>
                 {move || {
-                    user
-                        .get()
+                    user.get()
                         .flatten()
                         .map(|_| {
                             view! {
@@ -190,7 +187,7 @@ where
                         "Join Existing Game:"
                     </label>
                     <div class="flex space-x-2">
-                        <TextInput placeholder="Enter Game ID" name="game_id" />
+                        <TextInput placeholder="Enter Game ID" name="game_id"/>
                         <Button btn_type="submit">"Join"</Button>
                     </div>
                 </div>

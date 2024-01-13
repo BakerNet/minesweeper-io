@@ -102,7 +102,9 @@ pub fn Login(
     view! {
         <ActionForm action=login class="w-full max-w-xs h-8">
             <input type="hidden" name="target" value=target_str/>
-            <Button btn_type="submit" colors=target_colors class="w-full w-max-xs h-8">{target_readable}</Button>
+            <Button btn_type="submit" colors=target_colors class="w-full w-max-xs h-8">
+                {target_readable}
+            </Button>
         </ActionForm>
     }
 }
@@ -127,7 +129,13 @@ pub async fn logout() -> Result<(), ServerFnError> {
 pub fn LogOut(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoView {
     view! {
         <ActionForm action=logout class="w-full max-w-xs h-12">
-            <Button btn_type="submit" class="w-full max-w-xs h-12" colors="bg-red-400 text-black hover:bg-red-500/90">"Log out"</Button>
+            <Button
+                btn_type="submit"
+                class="w-full max-w-xs h-12"
+                colors="bg-red-400 text-black hover:bg-red-500/90"
+            >
+                "Log out"
+            </Button>
         </ActionForm>
     }
 }
