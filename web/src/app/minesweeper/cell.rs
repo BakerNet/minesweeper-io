@@ -1,3 +1,5 @@
+use crate::components::icons::{Flag, Mine};
+
 use super::{players::player_class, FrontendGame};
 
 use leptos::*;
@@ -145,14 +147,14 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
         PlayerCell::Flag => view! {
             <span>
-                <img class="object-cover h-full w-full" src="/images/Flag.svg"/>
+                <Flag />
             </span>
         },
         PlayerCell::Hidden => view! { <span>""</span> },
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Bomb => view! {
                 <span>
-                    <img class="object-cover h-full w-full" src="/images/Mine.svg"/>
+                    <Mine />
                 </span>
             },
             Cell::Empty(_) => view! { <span>{format!("{:?}", cell)}</span> },

@@ -173,7 +173,7 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
 fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     let (class, username, score) = if let Some(player) = &player {
         (
-            format!("p-{}", player.player_id),
+            player_class(player.player_id),
             player.username.clone(),
             player.score,
         )

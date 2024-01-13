@@ -3,7 +3,7 @@ use leptos_router::*;
 
 use crate::{
     app::minesweeper::cell::{cell_class, number_class},
-    components::dark_mode::DarkModeToggle,
+    components::{dark_mode::DarkModeToggle, icons::Flag},
 };
 
 use super::FrontendUser;
@@ -26,8 +26,7 @@ fn logo() -> impl IntoView {
             <span class=cell_class_2>e</span>
             <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_flag>
-                // todo - make component
-                <img class="object-cover h-full w-full" src="/images/Flag.svg"/>
+                <Flag/>
             </span>
             <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_1>r</span>
