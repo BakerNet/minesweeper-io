@@ -24,7 +24,7 @@ use tower::ServiceBuilder;
 use tower_sessions::{Session, SqliteStore};
 
 use super::{auth, fileserv::file_and_error_handler, game_manager, users};
-use crate::{app, app::auth::OAuthTarget};
+use crate::{app, app::auth::OAuthTarget, models::game::Game};
 
 use super::{auth::REDIRECT_URL, game_manager::GameManager, users::AuthSession};
 
@@ -140,6 +140,8 @@ impl App {
 
         let db = SqlitePool::connect(&db_url).await?;
         sqlx::migrate!().run(&db).await?;
+        // Close out any dangling games from before restart
+        Game::set_all_games_completed(&db).await?;
 
         let session_store = SqliteStore::new(db.clone());
         session_store

@@ -1,5 +1,5 @@
 #![cfg(feature = "ssr")]
-use minesweeper_lib::cell::PlayerCell;
+use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, FromRow, SqlitePool};
 
@@ -16,7 +16,7 @@ pub struct Game {
     pub is_completed: bool,
     pub is_started: bool,
     #[sqlx(json)]
-    pub final_board: Option<Vec<Vec<PlayerCell>>>,
+    pub final_board: Option<Vec<Vec<PlayerCell>>>, // todo - remove final from name
 }
 
 impl Game {
@@ -62,6 +62,19 @@ impl Game {
             .map(|_| ())
     }
 
+    pub async fn save_board(
+        db: &SqlitePool,
+        game_id: &str,
+        board: Vec<Vec<PlayerCell>>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("update games set final_board = ? where game_id = ?")
+            .bind(Json(board))
+            .bind(game_id)
+            .execute(db)
+            .await
+            .map(|_| ())
+    }
+
     pub async fn complete_game(
         db: &SqlitePool,
         game_id: &str,
@@ -70,6 +83,13 @@ impl Game {
         sqlx::query("update games set is_completed = 1, final_board = ? where game_id = ?")
             .bind(Json(final_board))
             .bind(game_id)
+            .execute(db)
+            .await
+            .map(|_| ())
+    }
+
+    pub async fn set_all_games_completed(db: &SqlitePool) -> Result<(), sqlx::Error> {
+        sqlx::query("update games set is_completed = 1")
             .execute(db)
             .await
             .map(|_| ())
@@ -169,5 +189,24 @@ impl Player {
             .execute(db)
             .await
             .map(|_| ())
+    }
+
+    pub async fn update_players(
+        db: &SqlitePool,
+        game_id: &str,
+        players: Vec<ClientPlayer>,
+    ) -> Result<(), sqlx::Error> {
+        let mut transaction = db.begin().await?;
+        for p in players {
+            sqlx::query("update players set dead = ?, score = ? where game_id = ? and player = ?")
+                .bind(p.dead)
+                .bind(p.score as i64)
+                .bind(game_id)
+                .bind(p.player_id as u8)
+                .execute(&mut *transaction)
+                .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
     }
 }

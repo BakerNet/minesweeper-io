@@ -196,7 +196,7 @@ impl FrontendGame {
                 Ok(())
             }
             GameMessage::PlayerUpdate(pu) => {
-                game.players[pu.player_id] = Some(pu.clone());
+                game.add_or_update_player(pu.player_id, Some(pu.score), Some(pu.dead));
                 self.player_signals[pu.player_id](Some(pu));
                 Ok(())
             }
@@ -220,7 +220,7 @@ impl FrontendGame {
             GameMessage::PlayersState(ps) => {
                 ps.into_iter().for_each(|cp| {
                     if let Some(cp) = cp {
-                        game.players[cp.player_id] = Some(cp.clone());
+                        game.add_or_update_player(cp.player_id, Some(cp.score), Some(cp.dead));
                         log::debug!("Sending player signal {:?}", cp);
                         self.player_signals[cp.player_id](Some(cp));
                     }

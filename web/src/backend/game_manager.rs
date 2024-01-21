@@ -20,7 +20,7 @@ use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
     sync::{broadcast, mpsc, Mutex, RwLock},
-    time::{sleep, Duration},
+    time::{interval, sleep, Duration},
 };
 
 use crate::{
@@ -205,6 +205,15 @@ impl GameManager {
         Ok(())
     }
 
+    async fn save_game(&self, game_id: &str, board: Vec<Vec<PlayerCell>>) -> Result<()> {
+        let games = self.games.read().await;
+        if !games.contains_key(game_id) {
+            bail!("Game with id {game_id} doesn't exist")
+        }
+        Game::save_board(&self.db, game_id, board).await?;
+        Ok(())
+    }
+
     async fn complete_game(&self, game_id: &str, final_board: Vec<Vec<PlayerCell>>) -> Result<()> {
         let mut games = self.games.write().await;
         if !games.contains_key(game_id) {
@@ -214,6 +223,53 @@ impl GameManager {
         games.remove(game_id).unwrap();
         Ok(())
     }
+
+    async fn update_players(&self, game_id: &str, players: Vec<ClientPlayer>) -> Result<()> {
+        let games = self.games.read().await;
+        if !games.contains_key(game_id) {
+            bail!("Game with id {game_id} doesn't exist")
+        }
+        Player::update_players(&self.db, game_id, players).await?;
+        Ok(())
+    }
+}
+
+fn handles_to_client_players(
+    player_handles: &[Option<PlayerHandle>],
+    minesweeper: &Minesweeper,
+) -> Vec<Option<ClientPlayer>> {
+    player_handles
+        .iter()
+        .map(|item| {
+            item.as_ref().map(|player| ClientPlayer {
+                player_id: player.player_id,
+                username: player.display_name.clone(),
+                dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
+                score: minesweeper.player_score(player.player_id).unwrap_or(0),
+            })
+        })
+        .collect()
+}
+
+async fn save_game_state(
+    game_manager: &GameManager,
+    game_id: &str,
+    player_handles: &[Option<PlayerHandle>],
+    minesweeper: &Minesweeper,
+) {
+    let players = handles_to_client_players(player_handles, minesweeper)
+        .into_iter()
+        .filter_map(|p| p)
+        .collect();
+    log::debug!("Saving game - players: {:?}", &players);
+    let _ = game_manager
+        .update_players(game_id, players)
+        .await
+        .map_err(|e| log::error!("Error updating players: {e}"));
+    let _ = game_manager
+        .save_game(game_id, minesweeper.viewer_board())
+        .await
+        .map_err(|e| log::error!("Error saving game: {e}"));
 }
 
 async fn handle_game_event(
@@ -234,17 +290,7 @@ async fn handle_game_event(
                 let _ = player_sender.send(Message::Text(player_msg)).await;
             }
 
-            let players = player_handles
-                .iter()
-                .map(|item| {
-                    item.as_ref().map(|player| ClientPlayer {
-                        player_id: player.player_id,
-                        username: player.display_name.clone(),
-                        dead: false,
-                        score: 0,
-                    })
-                })
-                .collect();
+            let players = handles_to_client_players(player_handles, minesweeper);
             let players_msg = GameMessage::PlayersState(players).to_json();
             log::debug!("Sending players_msg {:?}", players_msg);
             let _ = broadcast.send(players_msg);
@@ -256,7 +302,9 @@ async fn handle_game_event(
                 let viewer_msg = GameMessage::GameState(viewer_board).to_json();
                 log::debug!("Sending viewer_msg {:?}", viewer_msg);
                 let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
-                // todo - also send players state on viewer join
+                let players = handles_to_client_players(player_handles, minesweeper);
+                let players_msg = GameMessage::PlayersState(players).to_json();
+                let _ = viewer_sender.send(Message::Text(players_msg)).await;
             }
         }
         GameEvent::Start => {
@@ -339,6 +387,7 @@ async fn handle_game(
     let mut broadcaster = broadcaster;
     let timeout = sleep(Duration::from_secs(60 * 60)); // timeout after 1 hour
     tokio::pin!(timeout);
+    let mut save_interval = interval(Duration::from_secs(60 * 1)); // save every minute
 
     let mut player_handles = vec![None; game.max_players as usize];
     let mut minesweeper = Minesweeper::init_game(
@@ -349,12 +398,14 @@ async fn handle_game(
     )
     .unwrap();
     let mut started = game.is_started; // should always be false
+    let mut needs_save = false;
 
     loop {
         tokio::select! {
             Some(msg) = receiver.recv() => {
                 log::debug!("Message received: {}", msg);
                 handle_message(&msg, &player_handles, &mut minesweeper, &mut broadcaster, started).await;
+                needs_save = true;
                 if minesweeper.is_over() {
                     break;
                 }
@@ -363,6 +414,13 @@ async fn handle_game(
                 log::debug!("Game update received: {:?}", event);
                 handle_game_event(event, &mut player_handles, &mut minesweeper, &mut broadcaster, &mut started).await;
             }
+            _ = save_interval.tick() => {
+                log::debug!("Checking for game save");
+                if needs_save {
+                    save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
+                    needs_save = false;
+                }
+            },
             () = &mut timeout => {
                 log::debug!("Game timeout reached {}", game.game_id);
                 break;
@@ -370,8 +428,9 @@ async fn handle_game(
         }
     }
 
-    // todo - complete games on startup as well
-    // todo -record scores for players
+    if needs_save {
+        save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
+    }
     let _ = game_manager
         .complete_game(&game.game_id, minesweeper.viewer_board())
         .await

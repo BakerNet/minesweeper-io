@@ -48,6 +48,7 @@ pub fn ShowPlayers() -> impl IntoView {
 pub fn Players() -> impl IntoView {
     let game_info = expect_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
 
+    // TODO - ass indicator for dead players
     let player_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactivePlayers game_info/> },
         false => view! { <ActivePlayers/> },
