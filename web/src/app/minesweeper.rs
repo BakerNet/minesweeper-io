@@ -35,13 +35,13 @@ pub struct GameInfo {
 #[server(GetGame, "/api")]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
     let game = game_manager
         .get_game(&game_id)
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     let is_owner = if let Some(user) = auth_session.user {
         user.id == game.owner
     } else {
@@ -93,14 +93,14 @@ pub fn Game() -> impl IntoView {
 #[server(NewGame, "/api")]
 async fn new_game() -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
 
     let user = match auth_session.user {
         Some(user) => user,
         None => {
-            return Err(ServerFnError::ServerError("Not logged in".to_string()));
+            return Err(ServerFnError::new("Not logged in".to_string()));
         }
     };
 
@@ -108,7 +108,7 @@ async fn new_game() -> Result<(), ServerFnError> {
     game_manager
         .new_game(&user, &id, 50, 50, 500, 8)
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     leptos_axum::redirect(&format!("/game/{}/players", id));
     Ok(())
 }
@@ -116,9 +116,9 @@ async fn new_game() -> Result<(), ServerFnError> {
 #[server(JoinGame, "/api")]
 async fn join_game(game_id: String) -> Result<(), ServerFnError> {
     let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
     if !game_manager.game_exists(&game_id).await {
-        return Err(ServerFnError::ServerError(format!(
+        return Err(ServerFnError::new(format!(
             "Game with game_id {} does not exist",
             game_id
         )));

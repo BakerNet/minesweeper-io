@@ -37,13 +37,11 @@ pub fn Profile(
 #[server(SetDisplayName, "/api")]
 async fn set_display_name(display_name: String) -> Result<String, ServerFnError> {
     if !validate_display_name(&display_name) {
-        return Err(ServerFnError::ServerError(
-            "Display name not valid".to_string(),
-        ));
+        return Err(ServerFnError::new("Display name not valid".to_string()));
     }
     let user = get_user()
         .await?
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find user".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find user".to_string()))?;
     if let Some(name) = &user.display_name {
         if name == &display_name {
             return Ok(display_name);
@@ -55,7 +53,7 @@ async fn set_display_name(display_name: String) -> Result<String, ServerFnError>
         .update_user_display_name(user.id(), &display_name)
         .await
         .map(|_| display_name)
-        .map_err(|_| ServerFnError::ServerError("Unable to update display name".to_string()))
+        .map_err(|_| ServerFnError::new("Unable to update display name".to_string()))
 }
 
 #[component]

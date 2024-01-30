@@ -27,14 +27,14 @@ pub enum OAuthTarget {
 #[cfg(feature = "ssr")]
 pub async fn get_user() -> Result<Option<User>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     Ok(auth_session.user)
 }
 
 #[server(GetUser, "/api")]
 pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     Ok(auth_session.user.map(|u| FrontendUser {
         display_name: u.display_name,
     }))
@@ -43,9 +43,9 @@ pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> 
 #[server(LogIn, "/api")]
 pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let session = use_context::<Session>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find session".to_string()))?;
     let (auth_url, csrf_state) = auth_session.backend.authorize_url(target);
 
     session
@@ -112,16 +112,14 @@ pub fn Login(
 #[server(LogOut, "/api")]
 pub async fn logout() -> Result<(), ServerFnError> {
     let mut auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
 
     match auth_session.logout().await {
         Ok(_) => {
             leptos_axum::redirect("/");
             Ok(())
         }
-        Err(_) => Err(ServerFnError::ServerError(
-            "Problem logging out".to_string(),
-        )),
+        Err(_) => Err(ServerFnError::new("Problem logging out".to_string())),
     }
 }
 

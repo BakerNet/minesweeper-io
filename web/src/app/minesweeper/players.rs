@@ -124,11 +124,11 @@ pub fn ActivePlayers() -> impl IntoView {
 #[server(GetPlayers, "/api")]
 pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnError> {
     let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
     let players = game_manager
         .get_players(&game_id)
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok(players
         .iter()
         .map(|p| ClientPlayer {
@@ -295,21 +295,21 @@ fn JoinForm() -> impl IntoView {
 #[server(StartGame, "/api")]
 async fn start_game(game_id: String) -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
-        .ok_or_else(|| ServerFnError::ServerError("Unable to find auth session".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::ServerError("No game manager".to_string()))?;
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
 
     let user = match auth_session.user {
         Some(user) => user,
         None => {
-            return Err(ServerFnError::ServerError("Not logged in".to_string()));
+            return Err(ServerFnError::new("Not logged in".to_string()));
         }
     };
 
     game_manager
         .start_game(&game_id, &user)
         .await
-        .map_err(|e| ServerFnError::ServerError(e.to_string()))?;
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok(())
 }
 

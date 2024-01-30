@@ -2,7 +2,7 @@ use anyhow::Result;
 use axum::{
     body::Body,
     error_handling::HandleErrorLayer,
-    extract::{FromRef, Path, RawQuery, State},
+    extract::{FromRef, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
@@ -12,7 +12,7 @@ use axum_login::{
     tower_sessions::{cookie::SameSite, Expiry, SessionManagerLayer},
     AuthManagerLayerBuilder,
 };
-use http::{HeaderMap, Request};
+use http::Request;
 use leptos::*;
 use leptos_axum::*;
 use leptos_router::*;
@@ -88,15 +88,9 @@ async fn server_fn_handler(
     State(app_state): State<AppState>,
     auth_session: AuthSession,
     session: Session,
-    path: Path<String>,
-    headers: HeaderMap,
-    raw_query: RawQuery,
     request: http::Request<Body>,
 ) -> impl IntoResponse {
     handle_server_fns_with_context(
-        path,
-        headers,
-        raw_query,
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
