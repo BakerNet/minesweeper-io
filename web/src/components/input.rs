@@ -13,12 +13,5 @@ pub fn TextInput(
         placeholder_owned
     };
     let class = format!("flex h-10 w-full border border-blue-950 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1 {}", class);
-    view! {
-        <input
-            class=class
-            type="text"
-            placeholder=placeholder
-            name=name
-        />
-    }
+    view! { <input class=class type="text" placeholder=placeholder name=name/> }
 }

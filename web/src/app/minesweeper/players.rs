@@ -11,12 +11,13 @@ use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
 use crate::components::button::Button;
+use crate::components::icons::Mine;
 
 pub fn player_class(player: usize) -> String {
     String::from(match player {
         0 => "bg-cyan-200",
         1 => "bg-indigo-200",
-        2 => "bg-fuschia-200",
+        2 => "bg-fuchsia-200",
         3 => "bg-orange-200",
         4 => "bg-lime-200",
         5 => "bg-teal-200",
@@ -48,7 +49,6 @@ pub fn ShowPlayers() -> impl IntoView {
 pub fn Players() -> impl IntoView {
     let game_info = expect_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
 
-    // TODO - ass indicator for dead players
     let player_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactivePlayers game_info/> },
         false => view! { <ActivePlayers/> },
@@ -207,11 +207,12 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
             } else {
                 class = "text-slate-600 dark:text-slate-400".to_string();
             }
-            (class, player.username, player.score)
+            (class, player.username, player.dead, player.score)
         } else {
             (
                 String::from("text-slate-600 dark:text-slate-400"),
                 String::from("--------"),
+                false,
                 0,
             )
         }
@@ -219,22 +220,38 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
     view! {
         <tr class=move || items().0>
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().1}</td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().2}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                {move || items().1}
+                {move || {
+                    if items().2 {
+                        view! {
+                            <span class="inline-block align-text-top bg-red-600 h-4 w-4">
+                                <Mine/>
+                            </span>
+                        }
+                            .into_view()
+                    } else {
+                        ().into_view()
+                    }
+                }}
+
+            </td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().3}</td>
         </tr>
     }
 }
 
 #[component]
 fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
-    let (mut player_class, username, score) = if let Some(player) = &player {
+    let (mut player_class, username, is_dead, score) = if let Some(player) = &player {
         (
             player_class(player.player_id),
             player.username.clone(),
+            player.dead,
             player.score,
         )
     } else {
-        (String::from(""), String::from("--------"), 0)
+        (String::from(""), String::from("--------"), false, 0)
     };
     if player_class != "" {
         player_class += " text-black";
@@ -245,7 +262,20 @@ fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoV
     view! {
         <tr class=player_class>
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{username}</td>
+            <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                {username}
+                {if is_dead {
+                    view! {
+                        <span class="inline-block align-text-top bg-red-600 h-4 w-4">
+                            <Mine/>
+                        </span>
+                    }
+                        .into_view()
+                } else {
+                    ().into_view()
+                }}
+
+            </td>
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{score}</td>
         </tr>
     }
@@ -277,6 +307,7 @@ fn JoinForm() -> impl IntoView {
                             ev.prevent_default();
                             join_game();
                         }
+
                         class="w-full max-w-xs h-8"
                     >
                         <Button btn_type="submit" class="w-full w-max-xs h-8">

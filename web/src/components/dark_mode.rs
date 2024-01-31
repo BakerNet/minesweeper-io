@@ -1,14 +1,24 @@
 use leptos::*;
+use leptos_use::{use_color_mode, ColorMode, UseColorModeReturn};
 
 #[component]
 pub fn DarkModeToggle() -> impl IntoView {
+    let UseColorModeReturn { mode, set_mode, .. } = use_color_mode();
     view! {
         <button
             type="button"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
             // todo
-            on:click=move |_| {}
+            on:click=move |_| {
+                match mode() {
+                    ColorMode::Dark => set_mode(ColorMode::Light),
+                    ColorMode::Light => set_mode(ColorMode::Dark),
+                    ColorMode::Auto => {}
+                    ColorMode::Custom(_) => {}
+                }
+            }
         >
+
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"

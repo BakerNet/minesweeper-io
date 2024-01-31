@@ -503,6 +503,7 @@ pub async fn websocket(
             recvd = receiver.next() => {
                 match recvd {
                     Some(Ok(Message::Text(msg))) if msg == "Play" => {
+                        log::debug!("Trying to Play");
                         let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
                         match resp {
                             Ok(tx) => {

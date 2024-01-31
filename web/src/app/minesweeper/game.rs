@@ -57,12 +57,16 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
         <div class="text-center">
             <Outlet/>
             <div class="text-red-600 h-8">{error}</div>
-            <div class="select-none overflow-x-auto mb-12">
-                {read_signals
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(row, vec)| view! { <ActiveRow row=row cells=vec/> })
-                    .collect_view()}
+            <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
+                <div class="w-fit border-solid border border-black">
+                    <div class="w-fit border-groove border-24">
+                        {read_signals
+                            .into_iter()
+                            .enumerate()
+                            .map(move |(row, vec)| view! { <ActiveRow row=row cells=vec/> })
+                            .collect_view()}
+                    </div>
+                </div>
             </div>
         </div>
     }
@@ -78,12 +82,16 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <Outlet/>
-            <div class="select-none overflow-x-auto mb-12">
-                {board
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
-                    .collect_view()}
+            <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
+                <div class="w-fit border-solid border border-black">
+                    <div class="w-fit border-groove border-24">
+                        {board
+                            .into_iter()
+                            .enumerate()
+                            .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
+                            .collect_view()}
+                    </div>
+                </div>
             </div>
         </div>
     }
