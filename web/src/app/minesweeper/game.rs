@@ -10,6 +10,17 @@ use super::client::FrontendGame;
 use super::GameInfo;
 
 #[component]
+fn GameBorder(children: Children) -> impl IntoView {
+    view! {
+        <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
+            <div class="w-fit border-solid border border-black mx-auto">
+                <div class="w-fit border-groove border-24">{children()}</div>
+            </div>
+        </div>
+    }
+}
+
+#[component]
 pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
     let (error, set_error) = create_signal::<Option<String>>(None);
 
@@ -57,17 +68,13 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
         <div class="text-center">
             <Outlet/>
             <div class="text-red-600 h-8">{error}</div>
-            <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
-                <div class="w-fit border-solid border border-black mx-auto">
-                    <div class="w-fit border-groove border-24">
-                        {read_signals
-                            .into_iter()
-                            .enumerate()
-                            .map(move |(row, vec)| view! { <ActiveRow row=row cells=vec/> })
-                            .collect_view()}
-                    </div>
-                </div>
-            </div>
+            <GameBorder>
+                {read_signals
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(row, vec)| view! { <ActiveRow row=row cells=vec/> })
+                    .collect_view()}
+            </GameBorder>
         </div>
     }
 }
@@ -82,17 +89,13 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <Outlet/>
-            <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
-                <div class="w-fit border-solid border border-black mx-auto">
-                    <div class="w-fit border-groove border-24">
-                        {board
-                            .into_iter()
-                            .enumerate()
-                            .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
-                            .collect_view()}
-                    </div>
-                </div>
-            </div>
+            <GameBorder>
+                {board
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
+                    .collect_view()}
+            </GameBorder>
         </div>
     }
 }

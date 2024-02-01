@@ -73,7 +73,7 @@ pub fn Players() -> impl IntoView {
 }
 
 #[component]
-pub fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
+fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
 where
     F: Fn() -> IV,
     IV: IntoView,
@@ -107,7 +107,7 @@ where
 }
 
 #[component]
-pub fn ActivePlayers() -> impl IntoView {
+fn ActivePlayers() -> impl IntoView {
     let game = expect_context::<FrontendGame>();
     let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
     let last_slot = *players.last().unwrap();
@@ -156,7 +156,7 @@ pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnE
 }
 
 #[component]
-pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
+fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
     let (game_info, _) = create_signal((game_info.max_players, game_info.game_id));
     let players = create_resource(game_info, |game_info| async move {
         let players = get_players(game_info.1.clone()).await.ok();
