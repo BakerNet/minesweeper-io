@@ -73,13 +73,11 @@ pub fn Players() -> impl IntoView {
 }
 
 #[component]
-pub fn ActivePlayers() -> impl IntoView {
-    let game = expect_context::<FrontendGame>();
-    let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
-    let last_slot = *players.last().unwrap();
-    let available_slots = move || last_slot().is_none() && player().is_none();
-    let show_start = move || game.game_info.is_owner && !started();
-
+pub fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
+where
+    F: Fn() -> IV,
+    IV: IntoView,
+{
     view! {
         <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
@@ -96,28 +94,45 @@ pub fn ActivePlayers() -> impl IntoView {
                     </th>
                 </tr>
             </thead>
-            <tbody>
-                {players
-                    .iter()
-                    .enumerate()
-                    .map(move |(n, &player)| {
-                        view! { <ActivePlayer player_num=n player=player/> }
-                    })
-                    .collect_view()}
-            </tbody>
+            <tbody>{children()}</tbody>
         </table>
-        <Show when=available_slots fallback=move || ()>
-            <JoinForm/>
-        </Show>
-        <Show when=show_start fallback=move || ()>
-            <StartForm/>
-        </Show>
+        {buttons()}
         <A
             href=".."
             class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
         >
             Hide
         </A>
+    }
+}
+
+#[component]
+pub fn ActivePlayers() -> impl IntoView {
+    let game = expect_context::<FrontendGame>();
+    let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
+    let last_slot = *players.last().unwrap();
+    let available_slots = move || last_slot().is_none() && player().is_none();
+    let show_start = move || game.game_info.is_owner && !started();
+
+    view! {
+        <Scoreboard buttons=move || {
+            view! {
+                <Show when=available_slots fallback=move || ()>
+                    <JoinForm/>
+                </Show>
+                <Show when=show_start fallback=move || ()>
+                    <StartForm/>
+                </Show>
+            }
+        }>
+            {players
+                .iter()
+                .enumerate()
+                .map(move |(n, &player)| {
+                    view! { <ActivePlayer player_num=n player=player/> }
+                })
+                .collect_view()}
+        </Scoreboard>
     }
 }
 
@@ -153,96 +168,39 @@ pub fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
         })
     });
     view! {
-        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
-        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
-            <thead>
-                <tr>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Player
-                    </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Username
-                    </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Score
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                <Transition fallback=move || {
-                    view! {}
-                }>
-                    {move || {
-                        let players = players.get().flatten()?;
-                        Some(
-                            players
-                                .iter()
-                                .enumerate()
-                                .map(|(i, player)| {
-                                    view! { <InactivePlayer player_num=i player=player.clone()/> }
-                                })
-                                .collect_view(),
-                        )
-                    }}
+        <Scoreboard buttons=move || ()>
+            <Transition fallback=move || {
+                view! {}
+            }>
+                {move || {
+                    let players = players.get().flatten()?;
+                    Some(
+                        players
+                            .iter()
+                            .enumerate()
+                            .map(|(i, player)| {
+                                view! { <PlayerRow player_num=i player=player.clone()/> }
+                            })
+                            .collect_view(),
+                    )
+                }}
 
-                </Transition>
-            </tbody>
-        </table>
-        <A
-            href=".."
-            class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
-        >
-            Hide
-        </A>
+            </Transition>
+        </Scoreboard>
     }
 }
 
 #[component]
 fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
-    let items = move || {
-        if let Some(player) = player() {
-            let mut class = player_class(player.player_id);
-            if class != "" {
-                class += " text-black";
-            } else {
-                class = "text-slate-600 dark:text-slate-400".to_string();
-            }
-            (class, player.username, player.dead, player.score)
-        } else {
-            (
-                String::from("text-slate-600 dark:text-slate-400"),
-                String::from("--------"),
-                false,
-                0,
-            )
-        }
-    };
     view! {
-        <tr class=move || items().0>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">
-                {move || items().1}
-                {move || {
-                    if items().2 {
-                        view! {
-                            <span class="inline-block align-text-top bg-red-600 h-4 w-4">
-                                <Mine/>
-                            </span>
-                        }
-                            .into_view()
-                    } else {
-                        ().into_view()
-                    }
-                }}
-
-            </td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{move || items().3}</td>
-        </tr>
+        {move || {
+            view! { <PlayerRow player_num=player_num player=player()/> }
+        }}
     }
 }
 
 #[component]
-fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
+fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     let (mut player_class, username, is_dead, score) = if let Some(player) = &player {
         (
             player_class(player.player_id),
@@ -259,7 +217,6 @@ fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoV
         player_class = "text-slate-600 dark:text-slate-400".to_string();
     }
 
-    // todo - unify components
     view! {
         <tr class=player_class>
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
