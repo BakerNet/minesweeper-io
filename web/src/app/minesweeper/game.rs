@@ -58,7 +58,7 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
             <Outlet/>
             <div class="text-red-600 h-8">{error}</div>
             <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
-                <div class="w-fit border-solid border border-black">
+                <div class="w-fit border-solid border border-black mx-auto">
                     <div class="w-fit border-groove border-24">
                         {read_signals
                             .into_iter()
@@ -83,7 +83,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         <div class="text-center">
             <Outlet/>
             <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
-                <div class="w-fit border-solid border border-black">
+                <div class="w-fit border-solid border border-black mx-auto">
                     <div class="w-fit border-groove border-24">
                         {board
                             .into_iter()

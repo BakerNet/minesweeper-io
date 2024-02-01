@@ -141,6 +141,20 @@ impl Player {
         .await
     }
 
+    pub async fn get_player(
+        db: &SqlitePool,
+        game_id: &str,
+        user: &User,
+    ) -> Result<Option<PlayerUser>, sqlx::Error> {
+        sqlx::query_as(
+            "select players.*, users.username, users.display_name from players inner join users on players.user = users.id where players.game_id = ? and players.user = ?",
+        )
+        .bind(game_id)
+        .bind(user.id)
+        .fetch_optional(db)
+        .await
+    }
+
     pub async fn add_player(
         db: &SqlitePool,
         game_id: &str,

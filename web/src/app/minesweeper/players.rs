@@ -259,6 +259,7 @@ fn InactivePlayer(player_num: usize, player: Option<ClientPlayer>) -> impl IntoV
         player_class = "text-slate-600 dark:text-slate-400".to_string();
     }
 
+    // todo - unify components
     view! {
         <tr class=player_class>
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>

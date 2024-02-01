@@ -58,13 +58,18 @@ impl FrontendGame {
         send: Rc<dyn Fn(&str)>,
         close: Rc<dyn Fn()>,
     ) -> (Self, Vec<Vec<ReadSignal<PlayerCell>>>) {
+        let board = match &game_info.final_board {
+            None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
+            Some(b) => b.to_owned(),
+        };
+
         let mut read_signals: Vec<Vec<ReadSignal<PlayerCell>>> = Vec::new();
         let mut write_signals: Vec<Vec<WriteSignal<PlayerCell>>> = Vec::new();
-        (0..game_info.rows).for_each(|_| {
+        board.iter().for_each(|cells| {
             let mut read_row = Vec::new();
             let mut write_row = Vec::new();
-            (0..game_info.cols).for_each(|_| {
-                let (rs, ws) = create_signal(PlayerCell::Hidden);
+            cells.iter().for_each(|cell| {
+                let (rs, ws) = create_signal(cell.clone());
                 read_row.push(rs);
                 write_row.push(ws);
             });

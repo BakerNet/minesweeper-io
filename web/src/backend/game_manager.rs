@@ -162,17 +162,27 @@ impl GameManager {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get_mut(game_id).unwrap();
-        let player_id = handle.players.len();
-        if player_id >= handle.max_players as usize {
-            bail!("Game already has max players")
-        }
-        Player::add_player(&self.db, game_id, user, player_id as u8).await?;
-        handle.players.push(PlayerHandle {
-            id: user.id,
-            player_id,
-            display_name: FrontendUser::display_name_or_anon(&user.display_name),
-            ws_sender: ws_sender.clone(),
-        });
+        let found = handle.players.iter_mut().find(|p| p.id == user.id);
+        let player_id = match found {
+            None => {
+                let player_id = handle.players.len();
+                if player_id >= handle.max_players as usize {
+                    bail!("Game already has max players")
+                }
+                Player::add_player(&self.db, game_id, user, player_id as u8).await?;
+                handle.players.push(PlayerHandle {
+                    id: user.id,
+                    player_id,
+                    display_name: FrontendUser::display_name_or_anon(&user.display_name),
+                    ws_sender: ws_sender.clone(),
+                });
+                player_id
+            }
+            Some(p) => {
+                p.ws_sender = ws_sender.clone();
+                p.player_id
+            }
+        };
         {
             let mut send = ws_sender.lock().await;
             let msg = GameMessage::PlayerId(player_id);
@@ -189,7 +199,6 @@ impl GameManager {
             .await?;
         Ok(handle.from_client.clone())
     }
-    // TODO - reconnect
 
     pub async fn start_game(&self, game_id: &str, user: &User) -> Result<()> {
         let mut games = self.games.write().await;
@@ -231,6 +240,15 @@ impl GameManager {
         }
         Player::update_players(&self.db, game_id, players).await?;
         Ok(())
+    }
+
+    async fn was_playing(&self, game_id: &str, user: &User) -> bool {
+        let games = self.games.read().await;
+        if !games.contains_key(game_id) {
+            return false;
+        }
+        let handle = games.get(game_id).unwrap();
+        handle.players.iter().find(|p| p.id == user.id).is_some()
     }
 }
 
@@ -469,7 +487,7 @@ pub async fn websocket(
     let mut rx = game_manager
         .join_game(&game_id, sender_clone)
         .await
-        .unwrap();
+        .expect(&format!("Failed to join game ({}) from websocket", game_id));
 
     let sender_clone = sender.clone();
     // Spawn the first task that will receive broadcast messages and send text
@@ -497,29 +515,43 @@ pub async fn websocket(
     };
 
     let mut game_sender = None;
-    loop {
-        tokio::select! {
-            _ = (&mut send_task) => break,
-            recvd = receiver.next() => {
-                match recvd {
-                    Some(Ok(Message::Text(msg))) if msg == "Play" => {
-                        log::debug!("Trying to Play");
-                        let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
-                        match resp {
-                            Ok(tx) => {
-                                game_sender = Some(tx);
-                                break;
-                            },
-                            Err(e) => {log::error!("Error playing game: {}", e)},
-                        }
+    if game_manager.was_playing(&game_id, &user).await {
+        let resp = game_manager
+            .play_game(&game_id, &user, sender.clone())
+            .await;
+        match resp {
+            Ok(tx) => {
+                game_sender = Some(tx);
+            }
+            Err(e) => {
+                log::error!("Error playing game: {}", e)
+            }
+        }
+    } else {
+        loop {
+            tokio::select! {
+                _ = (&mut send_task) => break,
+                recvd = receiver.next() => {
+                    match recvd {
+                        Some(Ok(Message::Text(msg))) if msg == "Play" => {
+                            log::debug!("Trying to Play");
+                            let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
+                            match resp {
+                                Ok(tx) => {
+                                    game_sender = Some(tx);
+                                    break;
+                                },
+                                Err(e) => {log::error!("Error playing game: {}", e)},
+                            }
 
+                        }
+                        Some(msg) => {
+                            log::debug!("Non Play message: {:?}", msg);
+                        },
+                        _ => break,
                     }
-                    Some(msg) => {
-                        log::debug!("Non Play message: {:?}", msg);
-                    },
-                    _ => break,
-                }
-            },
+                },
+            }
         }
     }
 
