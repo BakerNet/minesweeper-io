@@ -10,3 +10,5 @@ target
 
 # db should be bind mounted
 *.db
+
+.minesweeper-up
