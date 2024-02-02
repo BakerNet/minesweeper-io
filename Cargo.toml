@@ -22,3 +22,12 @@ minesweeper-web = { path = "./web", version = "0.1.0" }
 codegen-units = 1
 lto = true
 opt-level = 'z'
+
+# Defines a size-optimized profile for the WASM bundle in release mode
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+

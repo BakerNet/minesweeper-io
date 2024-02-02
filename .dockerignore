@@ -1,0 +1,12 @@
+.git
+.gitignore
+.idea*
+.vscode
+node_modules
+Dockerfile
+
+# built files
+target
+
+# db should be bind mounted
+*.db

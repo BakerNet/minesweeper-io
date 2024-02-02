@@ -8,7 +8,6 @@ pub fn DarkModeToggle() -> impl IntoView {
         <button
             type="button"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
-            // todo
             on:click=move |_| {
                 match mode() {
                     ColorMode::Dark => set_mode(ColorMode::Light),
