@@ -31,8 +31,7 @@ COPY --from=builder /app/target/release/minesweeper-web /app/
 COPY --from=builder /app/target/site /app/site
 # Copy Cargo.toml if it’s needed at runtime
 COPY --from=builder /app/Cargo.toml /app/
-# Copy .env
-COPY --from=builder /app/.env /app/
+
 WORKDIR /app
 
 # Set any required env variables and
