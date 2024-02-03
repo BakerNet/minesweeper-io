@@ -1,9 +1,6 @@
 # Get started with a build env with Rust nightly
 FROM rustlang/rust:nightly-bullseye as builder
 
-# If you’re using stable, use this instead
-# FROM rust:1.74-bullseye as builder
-
 # Install cargo-binstall, which makes it easier to install other
 # cargo extensions like cargo-leptos
 RUN wget https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz
@@ -44,6 +41,5 @@ ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_SITE_ROOT="site"
 EXPOSE 8080
 
-# -- NB: update binary name from "minesweeper-web" to match your app name in Cargo.toml --
 # Run the server
-CMD ["/app/minesweeper-web"]
+CMD ["/bin/bash", "-c", "touch /app/db/mines.db && /app/minesweeper-web"]
