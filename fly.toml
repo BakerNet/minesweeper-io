@@ -24,3 +24,7 @@ primary_region = 'lax'
 [mounts]
   source="mines_db"
   destination="/app/db"
+
+[env]
+  DATABASE_URL="sqlite:db/mines.db"
+  # rest of env is in secrets
