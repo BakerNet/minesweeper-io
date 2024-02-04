@@ -64,6 +64,8 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
         }
     });
 
+    // TODO - game lifecycle UI (started indicators, ended indicators, countdown / starting alerts, etc.)
+
     view! {
         <div class="text-center">
             <Outlet/>

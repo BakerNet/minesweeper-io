@@ -21,6 +21,7 @@ pub fn Profile(
     user: FrontendUser,
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
+    // TODO - add game hisory
     view! {
         <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
             <SetDisplayName user user_updated/>

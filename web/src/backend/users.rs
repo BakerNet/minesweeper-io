@@ -164,7 +164,7 @@ impl AuthnBackend for Backend {
                     .json::<GoogleUserInfo>()
                     .await
                     .map_err(Self::Error::Reqwest)?;
-                (token_res, user_info.email)
+                (token_res, format!("GOOGLE:{}", user_info.email))
             }
             OAuthTarget::REDDIT => {
                 // Process authorization code, expecting a token response back.
@@ -193,7 +193,7 @@ impl AuthnBackend for Backend {
                     .json::<RedditUserInfo>()
                     .await
                     .map_err(Self::Error::Reqwest)?;
-                (token_res, user_info.name)
+                (token_res, format!("REDDIT:{}", user_info.name))
             }
             OAuthTarget::GITHUB => {
                 // Process authorization code, expecting a token response back.
@@ -222,10 +222,11 @@ impl AuthnBackend for Backend {
                     .json::<GithubUserInfo>()
                     .await
                     .map_err(Self::Error::Reqwest)?;
-                (token_res, user_info.login)
+                (token_res, format!("GITHUB:{}", user_info.login))
             }
         };
 
+        let username = username;
         // Persist user in our database so we can use `get_user`.
         let user = User::add_user(&self.db, &username, token_res.access_token().secret())
             .await

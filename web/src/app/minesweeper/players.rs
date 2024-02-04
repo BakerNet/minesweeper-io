@@ -6,7 +6,6 @@ use leptos_router::*;
 use minesweeper_lib::client::ClientPlayer;
 use serde::Serialize;
 
-#[cfg(feature = "ssr")]
 use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
@@ -109,22 +108,36 @@ where
 #[component]
 fn ActivePlayers() -> impl IntoView {
     let game = expect_context::<FrontendGame>();
+    let user = expect_context::<Resource<(usize, usize, String), Option<FrontendUser>>>();
+
     let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
     let last_slot = *players.last().unwrap();
     let available_slots = move || last_slot().is_none() && player().is_none();
     let show_start = move || game.game_info.is_owner && !started();
 
+    let buttons = move || {
+        view! {
+            <Suspense fallback=move || ()>
+                {user
+                    .get()
+                    .flatten()
+                    .map(|_| {
+                        view! {
+                            <Show when=available_slots fallback=move || ()>
+                                <PlayForm/>
+                            </Show>
+                        }
+                    })}
+
+            </Suspense>
+            <Show when=show_start fallback=move || ()>
+                <StartForm/>
+            </Show>
+        }
+    };
+
     view! {
-        <Scoreboard buttons=move || {
-            view! {
-                <Show when=available_slots fallback=move || ()>
-                    <JoinForm/>
-                </Show>
-                <Show when=show_start fallback=move || ()>
-                    <StartForm/>
-                </Show>
-            }
-        }>
+        <Scoreboard buttons>
             {players
                 .iter()
                 .enumerate()
@@ -246,7 +259,7 @@ pub struct PlayForm {
 }
 
 #[component]
-fn JoinForm() -> impl IntoView {
+fn PlayForm() -> impl IntoView {
     let game = expect_context::<FrontendGame>();
     let (game, _) = create_signal(game);
     let (show, set_show) = create_signal(true);
@@ -269,7 +282,7 @@ fn JoinForm() -> impl IntoView {
                         class="w-full max-w-xs h-8"
                     >
                         <Button btn_type="submit" class="w-full w-max-xs h-8">
-                            "Join Game"
+                            "Play Game"
                         </Button>
                     </form>
                 }

@@ -342,6 +342,8 @@ impl Minesweeper {
                 self.board[i].0 = new;
             }
         });
+
+        // TODO - implement replanting mines to keep num_mines intact
     }
 }
 

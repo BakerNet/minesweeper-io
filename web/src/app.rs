@@ -46,6 +46,7 @@ pub fn App() -> impl IntoView {
         move || (login.version().get(), logout.version().get(), user_update()),
         move |_| async { get_frontend_user().await.ok().flatten() },
     );
+    provide_context(user);
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
