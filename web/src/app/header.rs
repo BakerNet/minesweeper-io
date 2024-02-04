@@ -40,7 +40,7 @@ where
     S: PartialEq + Clone + 'static,
 {
     view! {
-        <header class="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+        <header class="flex flex-wrap space-y-2 items-center justify-between px-4 py-2 border-b border-gray-800">
             <A href="/" class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
             </A>
