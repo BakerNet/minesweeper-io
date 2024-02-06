@@ -27,11 +27,13 @@ pub struct FrontendUser {
 }
 
 impl FrontendUser {
-    pub fn display_name_or_anon(display_name: &Option<String>) -> String {
+    pub fn display_name_or_anon(display_name: &Option<String>, is_user: bool) -> String {
         if let Some(name) = display_name {
             name.to_owned()
-        } else {
+        } else if is_user {
             "Anonymous".to_string()
+        } else {
+            "Guest".to_string()
         }
     }
 }
@@ -79,7 +81,7 @@ pub fn App() -> impl IntoView {
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user/>
                 <Routes>
-                    <Route path="/" view=move || view! { <HomePage user/> }/>
+                    <Route path="/" view=move || view! { <HomePage/> }/>
                     <Route path="/auth/login" view=move || view! { <LoginPage login/> }/>
                     <Route
                         path="/profile"

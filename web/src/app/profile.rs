@@ -81,7 +81,7 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
         _ => {}
     });
 
-    let curr_name = FrontendUser::display_name_or_anon(&user.display_name);
+    let curr_name = FrontendUser::display_name_or_anon(&user.display_name, true);
 
     view! {
         <div class="flex flex-col space-y-2 w-full max-w-xs">

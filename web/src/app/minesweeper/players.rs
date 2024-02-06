@@ -6,6 +6,7 @@ use leptos_router::*;
 use minesweeper_lib::client::ClientPlayer;
 use serde::Serialize;
 
+#[cfg(feature = "ssr")]
 use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
@@ -108,28 +109,28 @@ where
 #[component]
 fn ActivePlayers() -> impl IntoView {
     let game = expect_context::<FrontendGame>();
-    let user = expect_context::<Resource<(usize, usize, String), Option<FrontendUser>>>();
 
-    let (player, players, started) = { (game.player_id, game.players.clone(), game.started) };
+    let (player, players, loaded, started) = {
+        (
+            game.player_id,
+            game.players.clone(),
+            game.players_loaded,
+            game.started,
+        )
+    };
     let last_slot = *players.last().unwrap();
-    let available_slots = move || last_slot().is_none() && player().is_none();
-    let show_start = move || game.game_info.is_owner && !started();
+    let available_slots = move || loaded() && last_slot().is_none() && player().is_none();
+    let show_start = move || {
+        loaded()
+            && (game.game_info.is_owner || (!game.game_info.has_owner && player().is_some()))
+            && !started()
+    };
 
     let buttons = move || {
         view! {
-            <Suspense fallback=move || ()>
-                {user
-                    .get()
-                    .flatten()
-                    .map(|_| {
-                        view! {
-                            <Show when=available_slots fallback=move || ()>
-                                <PlayForm/>
-                            </Show>
-                        }
-                    })}
-
-            </Suspense>
+            <Show when=available_slots fallback=move || ()>
+                <PlayForm/>
+            </Show>
             <Show when=show_start fallback=move || ()>
                 <StartForm/>
             </Show>
@@ -161,7 +162,7 @@ pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnE
         .iter()
         .map(|p| ClientPlayer {
             player_id: p.player as usize,
-            username: FrontendUser::display_name_or_anon(&p.display_name),
+            username: FrontendUser::display_name_or_anon(&p.display_name, p.user.is_some()),
             dead: p.dead,
             score: p.score as usize,
         })
@@ -301,15 +302,8 @@ async fn start_game(game_id: String) -> Result<(), ServerFnError> {
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
 
-    let user = match auth_session.user {
-        Some(user) => user,
-        None => {
-            return Err(ServerFnError::new("Not logged in".to_string()));
-        }
-    };
-
     game_manager
-        .start_game(&game_id, &user)
+        .start_game(&game_id, &auth_session.user)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
     Ok(())

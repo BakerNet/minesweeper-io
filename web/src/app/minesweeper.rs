@@ -18,11 +18,10 @@ use crate::backend::{game_manager::GameManager, users::AuthSession};
 #[cfg(feature = "ssr")]
 use nanoid::nanoid;
 
-use super::FrontendUser;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInfo {
     game_id: String,
+    has_owner: bool,
     is_owner: bool,
     rows: usize,
     cols: usize,
@@ -43,12 +42,16 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
     let is_owner = if let Some(user) = auth_session.user {
-        user.id == game.owner
+        match game.owner {
+            None => false,
+            Some(owner) => user.id == owner,
+        }
     } else {
         false
     };
     Ok(GameInfo {
         game_id: game.game_id,
+        has_owner: game.owner.is_some(),
         is_owner,
         rows: game.rows as usize,
         cols: game.cols as usize,
@@ -97,16 +100,9 @@ async fn new_game() -> Result<(), ServerFnError> {
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
 
-    let user = match auth_session.user {
-        Some(user) => user,
-        None => {
-            return Err(ServerFnError::new("Not logged in".to_string()));
-        }
-    };
-
     let id = nanoid!(12);
     game_manager
-        .new_game(&user, &id, 50, 50, 500, 8)
+        .new_game(auth_session.user, &id, 50, 50, 500, 8)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
     leptos_axum::redirect(&format!("/game/{}/players", id));
@@ -128,56 +124,23 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn JoinOrCreateGame<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
-where
-    S: PartialEq + Clone + 'static,
-{
+pub fn JoinOrCreateGame() -> impl IntoView {
     let join_game = create_server_action::<JoinGame>();
     let new_game = create_server_action::<NewGame>();
 
     view! {
         <div class="space-y-4">
-            <Suspense fallback=move || {
-                view! {}
-            }>
-                {move || {
-                    user.get()
-                        .flatten()
-                        .map(|_| {
-                            view! {
-                                <ActionForm action=new_game class="w-full max-w-xs h-12">
-                                    <Button btn_type="submit" class="w-full max-w-xs h-12">
-                                        "Create New Game"
-                                    </Button>
-                                </ActionForm>
-                            }
-                        })
-                        .unwrap_or(
-                            view! {
-                                <div class="w-full max-w-xs">
-                                    <span class="w-full inline-flex items-center justify-center text-md font-medium text-gray-800 dark:text-gray-200">
-                                        <span>
-                                            <A
-                                                href="/auth/login"
-                                                class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
-                                            >
-                                                "Log in "
-                                            </A>
-                                            " to Create Game"
-                                        </span>
-                                    </span>
-                                </div>
-                            }
-                                .into_view(),
-                        )
-                }}
-                <div class="w-full max-w-xs h-6">
-                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                        <span>"-- or --"</span>
-                    </span>
-                </div>
+            <ActionForm action=new_game class="w-full max-w-xs h-12">
+                <Button btn_type="submit" class="w-full max-w-xs h-12">
+                    "Create New Game"
+                </Button>
+            </ActionForm>
+            <div class="w-full max-w-xs h-6">
+                <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                    <span>"-- or --"</span>
+                </span>
+            </div>
 
-            </Suspense>
             <ActionForm action=join_game>
                 <div class="flex flex-col space-y-2">
                     <label

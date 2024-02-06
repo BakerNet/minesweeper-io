@@ -39,7 +39,7 @@ pub fn router() -> Router<AppState> {
 
 #[derive(Clone, Debug)]
 struct PlayerHandle {
-    id: i64,
+    user_id: Option<i64>,
     player_id: usize,
     display_name: String,
     ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
@@ -64,7 +64,7 @@ struct GameHandle {
     game_events: mpsc::Sender<GameEvent>,
     players: Vec<PlayerHandle>,
     max_players: u8,
-    owner: i64,
+    owner: Option<i64>,
 }
 
 #[derive(Clone, Debug)]
@@ -83,7 +83,7 @@ impl GameManager {
 
     pub async fn new_game(
         &self,
-        user: &User,
+        user: Option<User>,
         game_id: &str,
         rows: i64,
         cols: i64,
@@ -95,7 +95,7 @@ impl GameManager {
             bail!("Game with id {game_id} already exists")
         }
         let game =
-            Game::create_game(&self.db, game_id, user, rows, cols, num_mines, max_players).await?;
+            Game::create_game(&self.db, game_id, &user, rows, cols, num_mines, max_players).await?;
         let (bc_tx, _bc_rx) = broadcast::channel(100);
         let (mp_tx, mp_rx) = mpsc::channel(100);
         let (ch_tx, ch_rx) = mpsc::channel(100);
@@ -105,7 +105,7 @@ impl GameManager {
             game_events: ch_tx,
             players: Vec::with_capacity(max_players as usize),
             max_players,
-            owner: user.id,
+            owner: user.map(|u| u.id),
         };
         games.insert(game_id.to_string(), handle);
         let self_clone = self.clone();
@@ -154,7 +154,7 @@ impl GameManager {
     pub async fn play_game(
         &self,
         game_id: &str,
-        user: &User,
+        user: &Option<User>,
         ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> Result<mpsc::Sender<String>> {
         let mut games = self.games.write().await;
@@ -162,18 +162,23 @@ impl GameManager {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get_mut(game_id).unwrap();
-        let found = handle.players.iter_mut().find(|p| p.id == user.id);
+        let user_id = user.as_ref().map(|u| u.id);
+        let display_name = user.as_ref().map(|u| u.display_name.clone()).flatten();
+        let found = handle
+            .players
+            .iter_mut()
+            .find(|p| user_id.is_some() && p.user_id == user_id);
         let player_id = match found {
             None => {
                 let player_id = handle.players.len();
                 if player_id >= handle.max_players as usize {
                     bail!("Game already has max players")
                 }
-                Player::add_player(&self.db, game_id, user, player_id as u8).await?;
+                Player::add_player(&self.db, game_id, &user, player_id as u8).await?;
                 handle.players.push(PlayerHandle {
-                    id: user.id,
+                    user_id,
                     player_id,
-                    display_name: FrontendUser::display_name_or_anon(&user.display_name),
+                    display_name: FrontendUser::display_name_or_anon(&display_name, user.is_some()),
                     ws_sender: ws_sender.clone(),
                 });
                 player_id
@@ -191,23 +196,32 @@ impl GameManager {
         handle
             .game_events
             .send(GameEvent::Player(PlayerHandle {
-                id: user.id,
+                user_id,
                 player_id,
-                display_name: FrontendUser::display_name_or_anon(&user.display_name),
+                display_name: FrontendUser::display_name_or_anon(&display_name, user.is_some()),
                 ws_sender: ws_sender.clone(),
             }))
             .await?;
         Ok(handle.from_client.clone())
     }
 
-    pub async fn start_game(&self, game_id: &str, user: &User) -> Result<()> {
+    pub async fn start_game(&self, game_id: &str, user: &Option<User>) -> Result<()> {
         let mut games = self.games.write().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get_mut(game_id).unwrap();
-        if handle.owner != user.id {
-            bail!("Game attempted to be started by non-owner")
+        if let Some(owner) = handle.owner {
+            match user {
+                None => {
+                    bail!("Owned game attempted to be started by guest")
+                }
+                Some(user) => {
+                    if owner != user.id {
+                        bail!("Owned game attempted to be started by non-owner")
+                    }
+                }
+            }
         }
         Game::start_game(&self.db, game_id).await?;
         handle.game_events.send(GameEvent::Start).await?;
@@ -242,13 +256,21 @@ impl GameManager {
         Ok(())
     }
 
-    async fn was_playing(&self, game_id: &str, user: &User) -> bool {
+    async fn was_playing(&self, game_id: &str, user: &Option<User>) -> bool {
+        if user.is_none() {
+            return false;
+        }
         let games = self.games.read().await;
         if !games.contains_key(game_id) {
             return false;
         }
         let handle = games.get(game_id).unwrap();
-        handle.players.iter().find(|p| p.id == user.id).is_some()
+        let user_id = user.as_ref().map(|u| u.id);
+        handle
+            .players
+            .iter()
+            .find(|p| p.user_id == user_id)
+            .is_some()
     }
 }
 
@@ -506,13 +528,6 @@ pub async fn websocket(
             }
         }
     });
-
-    let user = if let Some(user) = user {
-        user
-    } else {
-        let _ = send_task.await;
-        return;
-    };
 
     let mut game_sender = None;
     if game_manager.was_playing(&game_id, &user).await {

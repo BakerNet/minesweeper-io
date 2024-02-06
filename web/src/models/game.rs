@@ -8,7 +8,7 @@ use super::user::User;
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct Game {
     pub game_id: String,
-    pub owner: i64, // User.id
+    pub owner: Option<i64>, // User.id
     pub rows: i64,
     pub cols: i64,
     pub num_mines: i64,
@@ -30,12 +30,13 @@ impl Game {
     pub async fn create_game(
         db: &SqlitePool,
         game_id: &str,
-        owner: &User,
+        owner: &Option<User>,
         rows: i64,
         cols: i64,
         num_mines: i64,
         max_players: u8,
     ) -> Result<Game, sqlx::Error> {
+        let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
             r#"
             insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
@@ -44,7 +45,7 @@ impl Game {
             "#,
         )
         .bind(game_id)
-        .bind(owner.id)
+        .bind(id)
         .bind(rows)
         .bind(cols)
         .bind(num_mines)
@@ -99,7 +100,7 @@ impl Game {
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct Player {
     pub game_id: String,
-    pub user: i64, // User.id
+    pub user: Option<i64>, // User.id
     pub player: u8,
     pub dead: bool,
     pub score: i64,
@@ -108,8 +109,7 @@ pub struct Player {
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct PlayerUser {
     pub game_id: String,
-    pub user: i64, // User.id
-    pub username: String,
+    pub user: Option<i64>, // User.id
     pub dead: bool,
     pub score: i64,
     pub display_name: Option<String>,
@@ -134,14 +134,14 @@ impl Player {
         game_id: &str,
     ) -> Result<Vec<PlayerUser>, sqlx::Error> {
         sqlx::query_as(
-            "select players.*, users.username, users.display_name from players inner join users on players.user = users.id where players.game_id = ? ",
+            "select players.*, users.display_name from players left join users on players.user = users.id where players.game_id = ?",
         )
         .bind(game_id)
         .fetch_all(db)
         .await
     }
 
-    pub async fn get_player(
+    pub async fn get_player_from_user(
         db: &SqlitePool,
         game_id: &str,
         user: &User,
@@ -158,9 +158,10 @@ impl Player {
     pub async fn add_player(
         db: &SqlitePool,
         game_id: &str,
-        user: &User,
+        user: &Option<User>,
         player: u8,
     ) -> Result<(), sqlx::Error> {
+        let id = user.as_ref().map(|u| u.id);
         sqlx::query(
             r#"
             insert into players (game_id, user, player)
@@ -168,7 +169,7 @@ impl Player {
             "#,
         )
         .bind(game_id)
-        .bind(user.id)
+        .bind(id)
         .bind(player)
         .execute(db)
         .await

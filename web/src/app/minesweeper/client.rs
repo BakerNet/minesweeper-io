@@ -36,6 +36,7 @@ pub struct FrontendGame {
     pub game_info: GameInfo,
     pub player_id: ReadSignal<Option<usize>>,
     pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    pub players_loaded: ReadSignal<bool>,
     pub skip_mouseup: ReadSignal<usize>,
     pub set_skip_mouseup: WriteSignal<usize>,
     pub err_signal: WriteSignal<Option<String>>,
@@ -44,6 +45,7 @@ pub struct FrontendGame {
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_player_id: WriteSignal<Option<usize>>,
     player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
+    set_players_loaded: WriteSignal<bool>,
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
     game: Rc<RefCell<MinesweeperClient>>,
@@ -83,6 +85,7 @@ impl FrontendGame {
             players.push(rs);
             player_signals.push(ws);
         });
+        let (players_loaded, set_players_loaded) = create_signal(false);
         let (player_id, set_player_id) = create_signal::<Option<usize>>(None);
         let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
@@ -97,6 +100,8 @@ impl FrontendGame {
                 set_player_id,
                 players,
                 player_signals,
+                players_loaded,
+                set_players_loaded,
                 skip_mouseup,
                 set_skip_mouseup,
                 err_signal,
@@ -230,6 +235,7 @@ impl FrontendGame {
                         self.player_signals[cp.player_id](Some(cp));
                     }
                 });
+                (self.set_players_loaded)(true);
                 Ok(())
             }
             GameMessage::GameStarted => {
