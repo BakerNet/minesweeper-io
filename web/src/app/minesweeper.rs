@@ -79,15 +79,17 @@ pub fn Game() -> impl IntoView {
         <Suspense fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
-            {game_info
-                .get()
-                .map(|game_info| {
-                    view! {
-                        <ErrorBoundary fallback=|_| {
-                            view! { <div class="text-red-600">"Game not found"</div> }
-                        }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
-                    }
-                })}
+            {move || {
+                game_info
+                    .get()
+                    .map(|game_info| {
+                        view! {
+                            <ErrorBoundary fallback=|_| {
+                                view! { <div class="text-red-600">"Game not found"</div> }
+                            }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
+                        }
+                    })
+            }}
 
         </Suspense>
     }

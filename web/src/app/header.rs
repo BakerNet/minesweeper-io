@@ -74,9 +74,7 @@ where
                     view! {}
                 }>
                     <span class="text-lg text-gray-900 dark:text-gray-200">
-                        {user
-                            .get()
-                            .map(user_info)}
+                        {user.get().map(user_info)}
 
                     </span>
                 </Transition>
