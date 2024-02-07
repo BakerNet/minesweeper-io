@@ -103,7 +103,7 @@ impl FrontendGame {
             let mut read_row = Vec::new();
             let mut write_row = Vec::new();
             cells.iter().for_each(|cell| {
-                let (rs, ws) = create_signal(cell.clone());
+                let (rs, ws) = create_signal(*cell);
                 read_row.push(rs);
                 write_row.push(ws);
             });

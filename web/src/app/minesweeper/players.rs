@@ -186,7 +186,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     } else {
         (String::from(""), String::from("--------"), false, 0)
     };
-    if player_class != "" {
+    if !player_class.is_empty() {
         player_class += " text-black";
     } else {
         player_class = "text-slate-600 dark:text-slate-400".to_string();

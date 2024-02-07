@@ -226,7 +226,6 @@ impl AuthnBackend for Backend {
             }
         };
 
-        let username = username;
         // Persist user in our database so we can use `get_user`.
         let user = User::add_user(&self.db, &username, token_res.access_token().secret())
             .await

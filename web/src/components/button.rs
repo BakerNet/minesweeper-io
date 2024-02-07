@@ -7,7 +7,7 @@ pub fn Button(
     #[prop(optional)] colors: &'static str,
     children: Children,
 ) -> impl IntoView {
-    let colors = if colors.len() > 0 {
+    let colors = if !colors.is_empty() {
         colors
     } else {
         "bg-neutral-500 text-neutral-50 hover:bg-neutral-600/90 "

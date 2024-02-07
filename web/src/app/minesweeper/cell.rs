@@ -18,7 +18,7 @@ pub fn ActiveRow<F>(
     handle_action: F,
 ) -> impl IntoView
 where
-    F: Fn(PlayAction, usize, usize) -> () + Copy + 'static,
+    F: Fn(PlayAction, usize, usize) + Copy + 'static,
 {
     view! {
         <div class="whitespace-nowrap">
@@ -102,7 +102,7 @@ fn ActiveCell<F>(
     handle_action: F,
 ) -> impl IntoView
 where
-    F: Fn(PlayAction, usize, usize) -> () + Copy + 'static,
+    F: Fn(PlayAction, usize, usize) + Copy + 'static,
 {
     let id = format!("{}_{}", row, col);
 

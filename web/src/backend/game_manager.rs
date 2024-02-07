@@ -163,7 +163,7 @@ impl GameManager {
         }
         let handle = games.get_mut(game_id).unwrap();
         let user_id = user.as_ref().map(|u| u.id);
-        let display_name = user.as_ref().map(|u| u.display_name.clone()).flatten();
+        let display_name = user.as_ref().and_then(|u| u.display_name.clone());
         let found = handle
             .players
             .iter_mut()
@@ -174,7 +174,7 @@ impl GameManager {
                 if player_id >= handle.max_players as usize {
                     bail!("Game already has max players")
                 }
-                Player::add_player(&self.db, game_id, &user, player_id as u8).await?;
+                Player::add_player(&self.db, game_id, user, player_id as u8).await?;
                 handle.players.push(PlayerHandle {
                     user_id,
                     player_id,
@@ -269,8 +269,7 @@ impl GameManager {
         handle
             .players
             .iter()
-            .find(|p| p.user_id == user_id)
-            .is_some()
+            .any(|p| p.user_id == user_id)
     }
 }
 
@@ -299,7 +298,7 @@ async fn save_game_state(
 ) {
     let players = handles_to_client_players(player_handles, minesweeper)
         .into_iter()
-        .filter_map(|p| p)
+        .flatten()
         .collect();
     log::debug!("Saving game - players: {:?}", &players);
     let _ = game_manager
@@ -427,7 +426,7 @@ async fn handle_game(
     let mut broadcaster = broadcaster;
     let timeout = sleep(Duration::from_secs(60 * 60)); // timeout after 1 hour
     tokio::pin!(timeout);
-    let mut save_interval = interval(Duration::from_secs(60 * 1)); // save every minute
+    let mut save_interval = interval(Duration::from_secs(60)); // save every minute
 
     let mut player_handles = vec![None; game.max_players as usize];
     let mut minesweeper = Minesweeper::init_game(
@@ -509,7 +508,7 @@ pub async fn websocket(
     let mut rx = game_manager
         .join_game(&game_id, sender_clone)
         .await
-        .expect(&format!("Failed to join game ({}) from websocket", game_id));
+        .unwrap_or_else(|_| panic!("Failed to join game ({}) from websocket", game_id));
 
     let sender_clone = sender.clone();
     // Spawn the first task that will receive broadcast messages and send text

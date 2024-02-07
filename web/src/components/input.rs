@@ -7,7 +7,7 @@ pub fn TextInput(
     #[prop(optional)] placeholder_owned: String,
     name: &'static str,
 ) -> impl IntoView {
-    let placeholder = if placeholder.len() > 0 {
+    let placeholder = if !placeholder.is_empty() {
         placeholder.to_owned()
     } else {
         placeholder_owned

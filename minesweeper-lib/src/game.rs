@@ -585,7 +585,7 @@ mod test {
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point.clone());
+        let res = game.play(0, Action::Reveal, cell_point);
         assert!(matches!(res.unwrap(), PlayOutcome::Failure(_)));
     }
 
@@ -596,7 +596,7 @@ mod test {
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 0, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point.clone()).unwrap();
+        let res = game.play(0, Action::Reveal, cell_point).unwrap();
         assert!(matches!(res.clone(), PlayOutcome::Success(_)));
         assert_eq!(res.len(), 1);
     }
@@ -608,11 +608,11 @@ mod test {
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let res = game.play(0, Action::Flag, cell_point.clone()).unwrap();
+        let res = game.play(0, Action::Flag, cell_point).unwrap();
         assert!(matches!(res, PlayOutcome::Flag(_)));
 
-        let res = game.play(0, Action::Reveal, cell_point.clone());
-        assert!(matches!(res, Err(_)));
+        let res = game.play(0, Action::Reveal, cell_point);
+        assert!(res.is_err());
     }
 
     #[test]
@@ -622,11 +622,11 @@ mod test {
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let _ = game.play(0, Action::Flag, cell_point.clone()).unwrap();
-        let res = game.play(0, Action::Flag, cell_point.clone()).unwrap();
+        let _ = game.play(0, Action::Flag, cell_point).unwrap();
+        let res = game.play(0, Action::Flag, cell_point).unwrap();
         assert!(matches!(res, PlayOutcome::Flag(_)));
 
-        let res = game.play(0, Action::Reveal, cell_point.clone()).unwrap();
+        let res = game.play(0, Action::Reveal, cell_point).unwrap();
         assert!(matches!(res, PlayOutcome::Failure(_)));
     }
 
@@ -672,7 +672,7 @@ mod test {
         point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
 
         let res = game.play(0, Action::RevealAdjacent, BoardPoint { row: 2, col: 2 });
-        assert!(matches!(res, Err(_)));
+        assert!(res.is_err());
     }
 
     #[test]
@@ -684,7 +684,7 @@ mod test {
         num_bombs(&game, 2);
 
         let cell_point = BoardPoint { row: 0, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point.clone());
+        let res = game.play(0, Action::Reveal, cell_point);
         assert!(matches!(res.unwrap(), PlayOutcome::Success(_)));
         assert_eq!(game.players[0].score, 5);
     }
