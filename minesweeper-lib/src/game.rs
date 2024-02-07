@@ -196,7 +196,7 @@ impl Minesweeper {
             return Ok(PlayOutcome::Failure(RevealedCell {
                 cell_point: c,
                 player,
-                contents: self.board[cell_point].0,
+                contents: self.board[c].0,
             }));
         }
         let combined_outcome = unflagged_neighbors.iter().fold(
