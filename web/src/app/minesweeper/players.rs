@@ -1,4 +1,4 @@
-use super::{client::FrontendGame, GameInfo};
+use super::{client::PlayersContext, GameInfo};
 
 use anyhow::Result;
 use leptos::*;
@@ -6,8 +6,6 @@ use leptos_router::*;
 use minesweeper_lib::client::ClientPlayer;
 use serde::Serialize;
 
-#[cfg(feature = "ssr")]
-use crate::app::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
 use crate::components::button::Button;
@@ -108,21 +106,21 @@ where
 
 #[component]
 fn ActivePlayers() -> impl IntoView {
-    let game = expect_context::<FrontendGame>();
+    let players_ctx = expect_context::<PlayersContext>();
 
-    let (player, players, loaded, started) = {
+    let (player_id, players, loaded, started) = {
         (
-            game.player_id,
-            game.players.clone(),
-            game.players_loaded,
-            game.started,
+            players_ctx.player_id,
+            players_ctx.players.clone(),
+            players_ctx.players_loaded,
+            players_ctx.started,
         )
     };
     let last_slot = *players.last().unwrap();
-    let available_slots = move || loaded() && last_slot().is_none() && player().is_none();
+    let available_slots = move || loaded() && last_slot().is_none() && player_id().is_none();
     let show_start = move || {
         loaded()
-            && (game.game_info.is_owner || (!game.game_info.has_owner && player().is_some()))
+            && (players_ctx.is_owner || (!players_ctx.has_owner && player_id().is_some()))
             && !started()
     };
 
@@ -150,56 +148,19 @@ fn ActivePlayers() -> impl IntoView {
     }
 }
 
-#[server(GetPlayers, "/api")]
-pub async fn get_players(game_id: String) -> Result<Vec<ClientPlayer>, ServerFnError> {
-    let game_manager = use_context::<GameManager>()
-        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
-    let players = game_manager
-        .get_players(&game_id)
-        .await
-        .map_err(|e| ServerFnError::new(e.to_string()))?;
-    Ok(players
-        .iter()
-        .map(|p| ClientPlayer {
-            player_id: p.player as usize,
-            username: FrontendUser::display_name_or_anon(&p.display_name, p.user.is_some()),
-            dead: p.dead,
-            score: p.score as usize,
-        })
-        .collect())
-}
-
 #[component]
 fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
-    let (game_info, _) = create_signal((game_info.max_players, game_info.game_id));
-    let players = create_resource(game_info, |game_info| async move {
-        let players = get_players(game_info.1.clone()).await.ok();
-        players.map(|pv| {
-            let mut players = vec![None; game_info.0 as usize];
-            pv.iter()
-                .for_each(|p| players[p.player_id] = Some(p.clone()));
-            players
-        })
-    });
     view! {
         <Scoreboard buttons=move || ()>
-            <Transition fallback=move || {
-                view! {}
-            }>
-                {move || {
-                    let players = players.get().flatten()?;
-                    Some(
-                        players
-                            .iter()
-                            .enumerate()
-                            .map(|(i, player)| {
-                                view! { <PlayerRow player_num=i player=player.clone()/> }
-                            })
-                            .collect_view(),
-                    )
-                }}
+            {game_info
+                .players
+                .iter()
+                .enumerate()
+                .map(|(i, player)| {
+                    view! { <PlayerRow player_num=i player=player.clone()/> }
+                })
+                .collect_view()}
 
-            </Transition>
         </Scoreboard>
     }
 }
@@ -261,12 +222,12 @@ pub struct PlayForm {
 
 #[component]
 fn PlayForm() -> impl IntoView {
-    let game = expect_context::<FrontendGame>();
-    let (game, _) = create_signal(game);
+    let players_ctx = expect_context::<PlayersContext>();
+    let (trigger_join, _) = create_signal(players_ctx.join_trigger);
     let (show, set_show) = create_signal(true);
 
     let join_game = move || {
-        game().send("Play");
+        trigger_join().notify();
         set_show(false);
     };
 
@@ -311,9 +272,9 @@ async fn start_game(game_id: String) -> Result<(), ServerFnError> {
 
 #[component]
 fn StartForm() -> impl IntoView {
-    let game = expect_context::<FrontendGame>();
+    let players_ctx = expect_context::<PlayersContext>();
     let start_game = create_server_action::<StartGame>();
-    let (game_id, _) = create_signal(game.game_info.game_id);
+    let (game_id, _) = create_signal((*players_ctx.game_id.borrow()).clone());
 
     let show = move || !start_game.pending().get();
 

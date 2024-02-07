@@ -1,9 +1,12 @@
 use leptos::*;
 use leptos_router::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+use minesweeper_lib::game::Action as PlayAction;
 use std::rc::Rc;
 
 use minesweeper_lib::cell::PlayerCell;
+
+use crate::app::minesweeper::client::PlayersContext;
 
 use super::cell::{ActiveRow, InactiveRow};
 use super::client::FrontendGame;
@@ -38,32 +41,46 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
         Rc::new(send.clone()),
         Rc::new(close.clone()),
     );
+    let (game_signal, _) = create_signal(game.clone());
 
-    provide_context::<FrontendGame>(game.clone());
+    provide_context::<PlayersContext>(PlayersContext::from(&game));
 
-    let game_clone = game.clone();
     create_effect(move |_| {
         log::debug!("before ready_state");
         if ready_state() == ConnectionReadyState::Open {
             log::debug!("after ready_state");
-            game_clone.send(&game_info.game_id);
+            game_signal().send(&game_info.game_id);
         }
     });
 
-    let game_clone = game.clone();
     create_effect(move |_| {
         log::debug!("before message");
         if let Some(msg) = message() {
             log::debug!("after message {}", msg);
-            let res = game_clone.handle_message(&msg);
+            let res = game_signal().handle_message(&msg);
             if let Err(e) = res {
-                (game_clone.err_signal)(Some(format!("{:?}", e)))
+                (game_signal().err_signal)(Some(format!("{:?}", e)))
             } else {
-                (game_clone.err_signal)(None)
+                (game_signal().err_signal)(None)
             }
         }
     });
 
+    create_effect(move |last| {
+        game_signal().join_trigger.track();
+        if last.is_some() {
+            game_signal().send("Play");
+        }
+    });
+
+    let handle_action = move |pa: PlayAction, row: usize, col: usize| {
+        let res = match pa {
+            PlayAction::Reveal => game_signal().try_reveal(row, col),
+            PlayAction::Flag => game_signal().try_flag(row, col),
+            PlayAction::RevealAdjacent => game_signal().try_reveal_adjacent(row, col),
+        };
+        res.unwrap_or_else(|e| (game_signal().err_signal)(Some(format!("{:?}", e))));
+    };
     // TODO - game lifecycle UI (started indicators, ended indicators, countdown / starting alerts, etc.)
 
     view! {
@@ -74,7 +91,17 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
                 {read_signals
                     .into_iter()
                     .enumerate()
-                    .map(move |(row, vec)| view! { <ActiveRow row=row cells=vec/> })
+                    .map(move |(row, vec)| {
+                        view! {
+                            <ActiveRow
+                                row=row
+                                cells=vec
+                                skip_mouseup=game.skip_mouseup
+                                set_skip_mouseup=game.set_skip_mouseup
+                                handle_action
+                            />
+                        }
+                    })
                     .collect_view()}
             </GameBorder>
         </div>

@@ -32,14 +32,46 @@ impl GameMessage {
 }
 
 #[derive(Clone)]
+pub struct PlayersContext {
+    pub game_id: Rc<RefCell<String>>,
+    pub is_owner: bool,
+    pub has_owner: bool,
+    pub player_id: ReadSignal<Option<usize>>,
+    pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    pub players_loaded: ReadSignal<bool>,
+    pub join_trigger: Trigger,
+    pub started: ReadSignal<bool>,
+    pub completed: ReadSignal<bool>,
+}
+
+impl PlayersContext {
+    pub fn from(frontend_game: &FrontendGame) -> Self {
+        PlayersContext {
+            game_id: frontend_game.game_id.clone(),
+            is_owner: frontend_game.is_owner,
+            has_owner: frontend_game.has_owner,
+            player_id: frontend_game.player_id,
+            players: frontend_game.players.clone(),
+            players_loaded: frontend_game.players_loaded,
+            join_trigger: frontend_game.join_trigger,
+            started: frontend_game.started,
+            completed: frontend_game.completed,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct FrontendGame {
-    pub game_info: GameInfo,
+    pub game_id: Rc<RefCell<String>>,
+    pub is_owner: bool,
+    pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
     pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
     pub players_loaded: ReadSignal<bool>,
     pub skip_mouseup: ReadSignal<usize>,
     pub set_skip_mouseup: WriteSignal<usize>,
     pub err_signal: WriteSignal<Option<String>>,
+    pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
@@ -80,21 +112,24 @@ impl FrontendGame {
         });
         let mut players: Vec<ReadSignal<Option<ClientPlayer>>> = Vec::new();
         let mut player_signals: Vec<WriteSignal<Option<ClientPlayer>>> = Vec::new();
-        (0..game_info.max_players).for_each(|_| {
-            let (rs, ws) = create_signal(None);
+        game_info.players.iter().for_each(|p| {
+            let (rs, ws) = create_signal(p.clone());
             players.push(rs);
             player_signals.push(ws);
         });
         let (players_loaded, set_players_loaded) = create_signal(false);
         let (player_id, set_player_id) = create_signal::<Option<usize>>(None);
         let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
+        let join_trigger = create_trigger();
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
         let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
         let rows = game_info.rows;
         let cols = game_info.cols;
         (
             FrontendGame {
-                game_info,
+                game_id: Rc::new(RefCell::new(game_info.game_id)),
+                is_owner: game_info.is_owner,
+                has_owner: game_info.has_owner,
                 cell_signals: write_signals,
                 player_id,
                 set_player_id,
@@ -105,6 +140,7 @@ impl FrontendGame {
                 skip_mouseup,
                 set_skip_mouseup,
                 err_signal,
+                join_trigger,
                 started,
                 set_started,
                 completed,

@@ -1,6 +1,6 @@
 use crate::components::icons::{Flag, Mine};
 
-use super::{players::player_class, FrontendGame};
+use super::players::player_class;
 
 use leptos::*;
 use minesweeper_lib::{
@@ -10,13 +10,33 @@ use minesweeper_lib::{
 use web_sys::MouseEvent;
 
 #[component]
-pub fn ActiveRow(row: usize, cells: Vec<ReadSignal<PlayerCell>>) -> impl IntoView {
+pub fn ActiveRow<F>(
+    row: usize,
+    cells: Vec<ReadSignal<PlayerCell>>,
+    skip_mouseup: ReadSignal<usize>,
+    set_skip_mouseup: WriteSignal<usize>,
+    handle_action: F,
+) -> impl IntoView
+where
+    F: Fn(PlayAction, usize, usize) -> () + Copy + 'static,
+{
     view! {
         <div class="whitespace-nowrap">
             {cells
                 .into_iter()
                 .enumerate()
-                .map(move |(col, cell)| view! { <ActiveCell row=row col=col cell=cell/> })
+                .map(move |(col, cell)| {
+                    view! {
+                        <ActiveCell
+                            row=row
+                            col=col
+                            cell=cell
+                            skip_mouseup
+                            set_skip_mouseup
+                            handle_action
+                        />
+                    }
+                })
                 .collect_view()}
         </div>
     }
@@ -73,39 +93,38 @@ pub fn cell_class(content_class: &str, player_class: &str) -> String {
 }
 
 #[component]
-fn ActiveCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+fn ActiveCell<F>(
+    row: usize,
+    col: usize,
+    cell: ReadSignal<PlayerCell>,
+    skip_mouseup: ReadSignal<usize>,
+    set_skip_mouseup: WriteSignal<usize>,
+    handle_action: F,
+) -> impl IntoView
+where
+    F: Fn(PlayAction, usize, usize) -> () + Copy + 'static,
+{
     let id = format!("{}_{}", row, col);
-    let game = expect_context::<FrontendGame>();
-    let (game, _) = create_signal(game);
 
-    let handle_action = move |pa: PlayAction| {
-        let res = match pa {
-            PlayAction::Reveal => game().try_reveal(row, col),
-            PlayAction::Flag => game().try_flag(row, col),
-            PlayAction::RevealAdjacent => game().try_reveal_adjacent(row, col),
-        };
-        res.unwrap_or_else(|e| (game().err_signal)(Some(format!("{:?}", e))));
-    };
     let handle_mousedown = move |ev: MouseEvent| {
-        let set_skip_signal = { game().set_skip_mouseup };
+        let set_skip_signal = { set_skip_mouseup };
         if ev.button() == 2 {
-            handle_action(PlayAction::Flag);
+            handle_action(PlayAction::Flag, row, col);
         }
         if ev.buttons() == 3 {
             set_skip_signal.set(2);
-            handle_action(PlayAction::RevealAdjacent);
+            handle_action(PlayAction::RevealAdjacent, row, col);
         }
     };
     let handle_mouseup = move |ev: MouseEvent| {
         leptos_dom::log!("handle_mouseup");
-        let (skip_mouseup, set_skip_mouseup) = { (game().skip_mouseup, game().set_skip_mouseup) };
         leptos_dom::log!("{}", skip_mouseup.get());
         if skip_mouseup.get() > 0 {
             set_skip_mouseup.set(skip_mouseup() - 1);
             return;
         }
         if ev.button() == 0 {
-            handle_action(PlayAction::Reveal);
+            handle_action(PlayAction::Reveal, row, col);
         }
     };
     let class = move || {

@@ -7,12 +7,13 @@ use leptos::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
 
-use minesweeper_lib::cell::PlayerCell;
+use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
 
 use crate::components::{button::Button, input::TextInput};
-use client::FrontendGame;
 use game::{ActiveGame, InactiveGame};
 
+#[cfg(feature = "ssr")]
+use super::FrontendUser;
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
 #[cfg(feature = "ssr")]
@@ -29,6 +30,7 @@ pub struct GameInfo {
     is_started: bool,
     is_completed: bool,
     final_board: Option<Vec<Vec<PlayerCell>>>,
+    players: Vec<Option<ClientPlayer>>,
 }
 
 #[server(GetGame, "/api")]
@@ -49,6 +51,22 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         false
     };
+    let players = game_manager
+        .get_players(&game_id)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let players = players
+        .iter()
+        .map(|p| ClientPlayer {
+            player_id: p.player as usize,
+            username: FrontendUser::display_name_or_anon(&p.display_name, p.user.is_some()),
+            dead: p.dead,
+            score: p.score as usize,
+        })
+        .fold(vec![None; game.max_players as usize], |mut acc, p| {
+            acc[p.player_id] = Some(p.clone());
+            acc
+        });
     Ok(GameInfo {
         game_id: game.game_id,
         has_owner: game.owner.is_some(),
@@ -59,6 +77,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         is_started: game.is_started,
         is_completed: game.is_completed,
         final_board: game.final_board,
+        players,
     })
 }
 
