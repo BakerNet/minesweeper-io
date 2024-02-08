@@ -147,11 +147,25 @@ impl Player {
         user: &User,
     ) -> Result<Option<PlayerUser>, sqlx::Error> {
         sqlx::query_as(
-            "select players.*, users.username, users.display_name from players inner join users on players.user = users.id where players.game_id = ? and players.user = ?",
+            "select players.*, users.display_name from players inner join users on players.user = users.id where players.game_id = ? and players.user = ?",
         )
         .bind(game_id)
         .bind(user.id)
         .fetch_optional(db)
+        .await
+    }
+
+    pub async fn get_player_games_for_user(
+        db: &SqlitePool,
+        user: &User,
+        limit: i64,
+    ) -> Result<Vec<PlayerUser>, sqlx::Error> {
+        sqlx::query_as(
+            "select players.*, users.display_name from players left join users on players.user = users.id where players.user = ? limit ?",
+        )
+        .bind(user.id)
+        .bind(limit)
+        .fetch_all(db)
         .await
     }
 

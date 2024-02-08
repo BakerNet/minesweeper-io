@@ -2,17 +2,19 @@ use cfg_if::cfg_if;
 
 use leptos::*;
 use leptos_router::*;
+use serde::{Deserialize, Serialize};
 
 use super::{auth::LogOut, FrontendUser};
 use crate::{
-    components::{button::Button, input::TextInput},
+    app::minesweeper::players::player_class,
+    components::{button::Button, icons::Mine, input::TextInput},
     no_prefix_serverfnerror, validate_display_name,
 };
 
 cfg_if! { if #[cfg(feature="ssr")] {
     use axum_login::AuthUser;
     use super::auth::get_user;
-    use crate::backend::users::AuthSession;
+    use crate::backend::{users::AuthSession, game_manager::GameManager};
 }}
 
 #[component]
@@ -31,6 +33,12 @@ pub fn Profile(
                 </span>
             </div>
             <LogOut logout/>
+            <div class="w-full max-w-xs h-6">
+                <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                    <hr class="w-full"/>
+                </span>
+            </div>
+            <GameHistory/>
         </div>
     }
 }
@@ -107,5 +115,108 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
                 <Button btn_type="submit">"Set display name"</Button>
             </ActionForm>
         </div>
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerGame {
+    game_id: String,
+    player_id: u8,
+    dead: bool,
+    score: i64,
+}
+
+#[server(GetPlayerGames, "/api")]
+async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
+    let user = auth_session.user.ok_or(ServerFnError::new(
+        "Cannot find player games when not logged in".to_string(),
+    ))?;
+    let game_manager = use_context::<GameManager>()
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
+
+    let games = game_manager
+        .get_player_games_for_user(&user)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    Ok(games
+        .into_iter()
+        .map(|pu| PlayerGame {
+            game_id: pu.game_id,
+            player_id: pu.player,
+            dead: pu.dead,
+            score: pu.score,
+        })
+        .collect())
+}
+
+#[component]
+fn GameHistory() -> impl IntoView {
+    let player_games = create_resource(|| (), move |_| async { get_player_games().await });
+
+    let game_view = move |game: PlayerGame| {
+        let player_class = player_class(game.player_id as usize) + " text-black";
+        view! {
+            <tr class=player_class>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                    <A
+                        class="text-sky-800 hover:text-sky-500 font-medium"
+                        href=format!("/game/{}/players", game.game_id)
+                    >
+                        {game.game_id}
+                    </A>
+                </td>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                    {if game.dead {
+                        view! {
+                            <span class="inline-block align-text-top bg-red-600 h-4 w-4">
+                                <Mine/>
+                            </span>
+                        }
+                            .into_view()
+                    } else {
+                        ().into_view()
+                    }}
+
+                </td>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.score}</td>
+            </tr>
+        }
+    };
+    view! {
+        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Game History</h4>
+        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
+            <thead>
+                <tr>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Game
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Status
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Score
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <Suspense fallback=move || ()>
+
+                    {move || {
+                        player_games
+                            .get()
+                            .map(|games| {
+                                games
+                                    .map(move |games| {
+                                        games.into_iter().map(game_view).collect_view()
+                                    })
+                            })
+                    }}
+
+                </Suspense>
+            </tbody>
+        </table>
     }
 }

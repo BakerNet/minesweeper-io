@@ -129,6 +129,12 @@ impl GameManager {
             .map_err(|e| e.into())
     }
 
+    pub async fn get_player_games_for_user(&self, user: &User) -> Result<Vec<PlayerUser>> {
+        Player::get_player_games_for_user(&self.db, user, 100)
+            .await
+            .map_err(|e| e.into())
+    }
+
     pub async fn game_is_active(&self, game_id: &str) -> bool {
         let games = self.games.read().await;
         games.contains_key(game_id)
@@ -266,10 +272,7 @@ impl GameManager {
         }
         let handle = games.get(game_id).unwrap();
         let user_id = user.as_ref().map(|u| u.id);
-        handle
-            .players
-            .iter()
-            .any(|p| p.user_id == user_id)
+        handle.players.iter().any(|p| p.user_id == user_id)
     }
 }
 
