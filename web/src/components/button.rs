@@ -1,5 +1,6 @@
 use leptos::*;
 
+// TODO - just make button class method (like input_class)
 #[component]
 pub fn Button(
     #[prop(optional)] class: &'static str,

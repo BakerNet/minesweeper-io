@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::{auth::LogOut, FrontendUser};
 use crate::{
     app::minesweeper::players::player_class,
-    components::{button::Button, icons::Mine, input::TextInput},
+    components::{button::Button, icons::Mine, input::input_class},
     no_prefix_serverfnerror, validate_display_name,
 };
 
@@ -110,7 +110,13 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
                 on:submit=move |e| on_submit(e.into())
                 class="flex space-x-2"
             >
-                <TextInput name="display_name" placeholder_owned=curr_name/>
+                <input
+                    class=input_class("")
+                    type="text"
+                    id="set_display_name_display_name"
+                    name="display_name"
+                    placeholder=curr_name
+                />
                 <Button btn_type="submit">"Set display name"</Button>
             </ActionForm>
         </div>

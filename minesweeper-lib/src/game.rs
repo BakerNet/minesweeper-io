@@ -9,13 +9,20 @@ use serde::{Deserialize, Serialize};
 
 pub struct Minesweeper {
     num_mines: usize,
+    with_replant: bool,
     available: HashSet<BoardPoint>,
     players: Vec<Player>,
     board: Board<(Cell, CellState)>,
 }
 
 impl Minesweeper {
-    fn new(rows: usize, cols: usize, num_mines: usize, max_players: usize) -> Result<Self> {
+    fn new(
+        rows: usize,
+        cols: usize,
+        num_mines: usize,
+        max_players: usize,
+        with_replant: bool,
+    ) -> Result<Self> {
         let total = rows * cols;
         if num_mines > total {
             bail!("Too many mines to create game");
@@ -23,6 +30,7 @@ impl Minesweeper {
         let board = Board::new(rows, cols, (Cell::default(), CellState::default()));
         let game = Minesweeper {
             num_mines,
+            with_replant,
             available: (0..total).map(|x| board.point_from_index(x)).collect(),
             players: vec![Player::default(); max_players],
             board,
@@ -35,8 +43,9 @@ impl Minesweeper {
         cols: usize,
         num_mines: usize,
         max_players: usize,
+        with_replant: bool,
     ) -> Result<Minesweeper> {
-        let mut game = Self::new(rows, cols, num_mines, max_players)?;
+        let mut game = Self::new(rows, cols, num_mines, max_players, with_replant)?;
         let mut take_available: Vec<BoardPoint> =
             game.available.iter().copied().collect::<Vec<_>>();
         take_available.shuffle(&mut thread_rng());
@@ -322,6 +331,13 @@ impl Minesweeper {
     }
 
     fn unplant(&mut self, cell_point: BoardPoint, rem_neighbors: bool) -> Vec<BoardPoint> {
+        let mut updated_revealed = HashSet::new();
+        let mut unplanted_bombs = if self.with_replant && rem_neighbors {
+            Some(Vec::with_capacity(9))
+        } else {
+            None
+        };
+
         let neighbors = self.board.neighbors(cell_point);
 
         let was_bomb = self.board[cell_point].0.is_bomb();
@@ -334,8 +350,6 @@ impl Minesweeper {
             self.board[cell_point].0 = self.board[cell_point].0.unplant(neighboring_bombs).unwrap();
         }
 
-        let mut updated_revealed = HashSet::new();
-
         neighbors.iter().copied().for_each(|i| {
             let new = if was_bomb {
                 if self.board[i].1.revealed {
@@ -347,13 +361,33 @@ impl Minesweeper {
             };
             if rem_neighbors && matches!(new, Cell::Bomb) {
                 updated_revealed.extend(self.unplant(i, false));
+                if let Some(unplanted_bombs) = &mut unplanted_bombs {
+                    unplanted_bombs.push(i);
+                }
             } else {
                 self.board[i].0 = new;
             }
         });
 
-        // TODO - implement replanting mines to keep num_mines intact
+        if let Some(unplanted_bombs) = unplanted_bombs {
+            self.replant(unplanted_bombs);
+        }
+
         updated_revealed.into_iter().collect()
+    }
+
+    fn replant(&mut self, unplanted_bombs: Vec<BoardPoint>) {
+        let to_replant = unplanted_bombs.len();
+        let mut unplanted_points = unplanted_bombs;
+        unplanted_points.shuffle(&mut thread_rng());
+        let mut take_available: Vec<BoardPoint> =
+            self.available.iter().copied().collect::<Vec<_>>();
+        take_available.shuffle(&mut thread_rng());
+        take_available.extend(unplanted_points);
+        let points_to_plant = &take_available[0..to_replant];
+        points_to_plant.iter().for_each(|x| {
+            self.plant(*x);
+        });
     }
 }
 
@@ -450,9 +484,12 @@ mod test {
     const POINT_1_2: BoardPoint = BoardPoint { row: 1, col: 2 };
     const POINT_2_1: BoardPoint = BoardPoint { row: 2, col: 1 };
     const POINT_2_2: BoardPoint = BoardPoint { row: 2, col: 2 };
+    const POINT_2_3: BoardPoint = BoardPoint { row: 2, col: 3 };
+    const POINT_3_2: BoardPoint = BoardPoint { row: 3, col: 2 };
+    const POINT_3_3: BoardPoint = BoardPoint { row: 3, col: 3 };
 
     fn set_up_game(plant_3_0: bool) -> Minesweeper {
-        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
 
         game.plant(POINT_0_0);
         game.plant(POINT_1_1);
@@ -460,6 +497,16 @@ mod test {
         if plant_3_0 {
             game.plant(POINT_2_1);
         }
+        game
+    }
+
+    fn set_up_game_with_replant() -> Minesweeper {
+        let mut game = Minesweeper::new(9, 9, 10, 1, true).unwrap();
+
+        game.plant(POINT_0_0);
+        game.plant(POINT_1_1);
+        game.plant(POINT_1_2);
+        game.plant(POINT_2_1);
         game
     }
 
@@ -490,13 +537,13 @@ mod test {
 
     #[test]
     fn create_and_init_game() {
-        let game = Minesweeper::init_game(9, 9, 10, 1).unwrap();
+        let game = Minesweeper::init_game(9, 9, 10, 1, false).unwrap();
         num_bombs(&game, 10);
     }
 
     #[test]
     fn plant_works() {
-        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
 
         game.plant(POINT_0_0);
 
@@ -745,7 +792,7 @@ mod test {
 
     #[test]
     fn oob_errors() {
-        let mut game = Minesweeper::new(9, 9, 10, 1).unwrap();
+        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
 
         let res = game.play(0, Action::Reveal, BoardPoint { col: 10, row: 0 });
         assert!(matches!(res, Err(..)));
@@ -771,5 +818,28 @@ mod test {
             .unwrap();
         assert!(matches!(res, PlayOutcome::Victory(..)));
         assert_eq!(game.players[0].score, 79);
+    }
+
+    #[test]
+    fn replant_works() {
+        let mut game = set_up_game_with_replant();
+        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        num_bombs(&game, 3);
+        assert_ne!(game.board[POINT_1_1].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_0_1].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_1_0].0, Cell::Bomb);
+        assert_eq!(game.board[POINT_1_2].0, Cell::Bomb);
+        assert_eq!(game.board[POINT_2_1].0, Cell::Bomb);
+
+        let mut game = set_up_game_with_replant();
+        let _ = game.play(0, Action::Reveal, POINT_2_2).unwrap();
+        num_bombs(&game, 4);
+        assert_ne!(game.board[POINT_1_1].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_2_1].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_1_2].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_3_2].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_3_3].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_2_3].0, Cell::Bomb);
+        assert_eq!(game.board[POINT_0_0].0, Cell::Bomb);
     }
 }

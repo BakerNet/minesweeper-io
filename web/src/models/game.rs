@@ -13,6 +13,7 @@ pub struct Game {
     pub cols: i64,
     pub num_mines: i64,
     pub max_players: u8,
+    pub classic: bool,
     pub is_completed: bool,
     pub is_started: bool,
     #[sqlx(json)]
@@ -35,12 +36,13 @@ impl Game {
         cols: i64,
         num_mines: i64,
         max_players: u8,
+        classic: bool,
     ) -> Result<Game, sqlx::Error> {
         let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
             r#"
-            insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
-            values (?, ?, ?, ?, ?, ?, ?)
+            insert into games (game_id, owner, rows, cols, num_mines, max_players, classic, final_board)
+            values (?, ?, ?, ?, ?, ?, ?, ?)
             returning *
             "#,
         )
@@ -50,6 +52,7 @@ impl Game {
         .bind(cols)
         .bind(num_mines)
         .bind(max_players)
+        .bind(classic)
         .bind(Json(None::<Vec<Vec<PlayerCell>>>))
         .fetch_one(db)
         .await
@@ -101,6 +104,7 @@ impl Game {
 pub struct Player {
     pub game_id: String,
     pub user: Option<i64>, // User.id
+    pub nickname: Option<String>,
     pub player: u8,
     pub dead: bool,
     pub score: i64,
@@ -110,6 +114,7 @@ pub struct Player {
 pub struct PlayerUser {
     pub game_id: String,
     pub user: Option<i64>, // User.id
+    pub nickname: Option<String>,
     pub dead: bool,
     pub score: i64,
     pub display_name: Option<String>,
@@ -122,6 +127,7 @@ impl PlayerUser {
             game_id: self.game_id.clone(),
             user: self.user,
             player: self.player,
+            nickname: self.nickname.clone(),
             dead: self.dead,
             score: self.score,
         }
@@ -173,17 +179,19 @@ impl Player {
         db: &SqlitePool,
         game_id: &str,
         user: &Option<User>,
+        nickname: &Option<String>,
         player: u8,
     ) -> Result<(), sqlx::Error> {
         let id = user.as_ref().map(|u| u.id);
         sqlx::query(
             r#"
-            insert into players (game_id, user, player)
-            values (?, ?, ?)
+            insert into players (game_id, user, nickname, player)
+            values (?, ?, ?, ?)
             "#,
         )
         .bind(game_id)
         .bind(id)
+        .bind(nickname)
         .bind(player)
         .execute(db)
         .await

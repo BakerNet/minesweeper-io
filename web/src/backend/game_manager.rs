@@ -89,13 +89,23 @@ impl GameManager {
         cols: i64,
         num_mines: i64,
         max_players: u8,
+        with_replant: bool,
     ) -> Result<()> {
         let mut games = self.games.write().await;
         if games.contains_key(game_id) {
             bail!("Game with id {game_id} already exists")
         }
-        let game =
-            Game::create_game(&self.db, game_id, &user, rows, cols, num_mines, max_players).await?;
+        let game = Game::create_game(
+            &self.db,
+            game_id,
+            &user,
+            rows,
+            cols,
+            num_mines,
+            max_players,
+            with_replant,
+        )
+        .await?;
         let (bc_tx, _bc_rx) = broadcast::channel(100);
         let (mp_tx, mp_rx) = mpsc::channel(100);
         let (ch_tx, ch_rx) = mpsc::channel(100);
@@ -180,7 +190,8 @@ impl GameManager {
                 if player_id >= handle.max_players as usize {
                     bail!("Game already has max players")
                 }
-                Player::add_player(&self.db, game_id, user, player_id as u8).await?;
+                // TODO - implement nicknames
+                Player::add_player(&self.db, game_id, user, &None, player_id as u8).await?;
                 handle.players.push(PlayerHandle {
                     user_id,
                     player_id,
@@ -437,6 +448,7 @@ async fn handle_game(
         game.cols as usize,
         game.num_mines as usize,
         game.max_players as usize,
+        game.classic,
     )
     .unwrap();
     let mut started = game.is_started; // should always be false

@@ -28,7 +28,7 @@ fn main() {
         rows = 16;
         mines = 99;
     }
-    let mut game = Minesweeper::init_game(rows, cols, mines, 1).unwrap();
+    let mut game = Minesweeper::init_game(rows, cols, mines, 1, true).unwrap();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
         let header = (0..cols).fold(String::new(), |acc, x| acc + &format!("|{}", x / 10));
