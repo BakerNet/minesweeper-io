@@ -26,7 +26,7 @@ use tokio::{
 use crate::{
     app::{minesweeper::client::GameMessage, FrontendUser},
     models::{
-        game::{Game, Player, PlayerUser},
+        game::{Game, GameParameters, Player, PlayerUser},
         user::User,
     },
 };
@@ -85,27 +85,14 @@ impl GameManager {
         &self,
         user: Option<User>,
         game_id: &str,
-        rows: i64,
-        cols: i64,
-        num_mines: i64,
-        max_players: u8,
-        with_replant: bool,
+        game_parameters: GameParameters,
     ) -> Result<()> {
         let mut games = self.games.write().await;
         if games.contains_key(game_id) {
             bail!("Game with id {game_id} already exists")
         }
-        let game = Game::create_game(
-            &self.db,
-            game_id,
-            &user,
-            rows,
-            cols,
-            num_mines,
-            max_players,
-            with_replant,
-        )
-        .await?;
+        let max_players = game_parameters.max_players;
+        let game = Game::create_game(&self.db, game_id, &user, game_parameters).await?;
         let (bc_tx, _bc_rx) = broadcast::channel(100);
         let (mp_tx, mp_rx) = mpsc::channel(100);
         let (ch_tx, ch_rx) = mpsc::channel(100);

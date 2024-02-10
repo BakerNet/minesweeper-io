@@ -15,7 +15,10 @@ use game::{ActiveGame, InactiveGame};
 #[cfg(feature = "ssr")]
 use super::FrontendUser;
 #[cfg(feature = "ssr")]
-use crate::backend::{game_manager::GameManager, users::AuthSession};
+use crate::{
+    backend::{game_manager::GameManager, users::AuthSession},
+    models::game::GameParameters,
+};
 #[cfg(feature = "ssr")]
 use nanoid::nanoid;
 
@@ -114,8 +117,8 @@ pub fn Game() -> impl IntoView {
     }
 }
 
-fn validate_num_bombs(rows: i64, cols: i64, num_bombs: i64) -> bool {
-    num_bombs > 0 && num_bombs <= rows * cols - 1
+fn validate_num_mines(rows: i64, cols: i64, num_mines: i64) -> bool {
+    num_mines > 0 && num_mines < rows * cols
 }
 
 fn validate_rows(rows: i64) -> bool {
@@ -134,14 +137,14 @@ fn validate_num_players(num_players: i64) -> bool {
 async fn new_game(
     rows: i64,
     cols: i64,
-    max_bombs: i64,
+    max_mines: i64,
     num_players: i64,
 ) -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
-    if !(validate_num_bombs(rows, cols, max_bombs)
+    if !(validate_num_mines(rows, cols, max_mines)
         && validate_rows(rows)
         && validate_cols(cols)
         && validate_num_players(num_players))
@@ -154,11 +157,13 @@ async fn new_game(
         .new_game(
             auth_session.user,
             &id,
-            rows,
-            cols,
-            max_bombs,
-            num_players as u8,
-            num_players == 1, // use classic mode (replant) for single player
+            GameParameters {
+                rows,
+                cols,
+                num_mines: max_mines,
+                max_players: num_players as u8,
+                classic: num_players == 1, // use classic mode (replant) for single player
+            },
         )
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
@@ -186,14 +191,14 @@ pub fn JoinOrCreateGame() -> impl IntoView {
     let new_game = create_server_action::<NewGame>();
     let (rows, set_rows) = create_signal(50);
     let (cols, set_cols) = create_signal(50);
-    let (max_bombs, set_max_bombs) = create_signal(500);
+    let (max_mines, set_max_mines) = create_signal(500);
     let (num_players, set_num_players) = create_signal(8);
     let (errors, set_errors) = create_signal(Vec::new());
 
     create_effect(move |_| {
         let rows = rows();
         let cols = cols();
-        let max_bombs = max_bombs();
+        let max_mines = max_mines();
         let num_players = num_players();
         let prev_errs = errors();
         let mut errs = Vec::new();
@@ -206,9 +211,9 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         if !validate_num_players(num_players) {
             errs.push(String::from("Invalid number of players.  Max 12"));
         }
-        if !validate_num_bombs(rows, cols, max_bombs) {
+        if !validate_num_mines(rows, cols, max_mines) {
             errs.push(String::from(
-                "Invalid number of bombs. Must be less than total number of tiles",
+                "Invalid number of mines. Must be less than total number of tiles",
             ));
         }
         if errs.len() == prev_errs.len()
@@ -290,24 +295,24 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     <div class="flex-1">
                         <label
                             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_max_bombs"
+                            for="new_game_max_mines"
                         >
-                            "Bombs:"
+                            "mines:"
                         </label>
                         <input
                             class=input_class("")
                             type="number"
-                            id="new_game_max_bombs"
-                            name="max_bombs"
+                            id="new_game_max_mines"
+                            name="max_mines"
                             min=0
                             max=10000
                             on:change=move |ev| {
-                                set_max_bombs(
+                                set_max_mines(
                                     event_target_value(&ev).parse::<i64>().unwrap_or_default(),
                                 );
                             }
 
-                            prop:value=max_bombs
+                            prop:value=max_mines
                         />
                     </div>
                     <div class="flex-1">

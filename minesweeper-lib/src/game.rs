@@ -370,18 +370,22 @@ impl Minesweeper {
         });
 
         if let Some(unplanted_bombs) = unplanted_bombs {
-            self.replant(unplanted_bombs);
+            self.replant(unplanted_bombs.len(), neighbors);
         }
 
         updated_revealed.into_iter().collect()
     }
 
-    fn replant(&mut self, unplanted_bombs: Vec<BoardPoint>) {
-        let to_replant = unplanted_bombs.len();
-        let mut unplanted_points = unplanted_bombs;
+    fn replant(&mut self, unplanted_bombs: usize, neighbors: Vec<BoardPoint>) {
+        let to_replant = unplanted_bombs;
+        let mut unplanted_points = neighbors;
         unplanted_points.shuffle(&mut thread_rng());
-        let mut take_available: Vec<BoardPoint> =
-            self.available.iter().copied().collect::<Vec<_>>();
+        let mut take_available: Vec<BoardPoint> = self
+            .available
+            .iter()
+            .filter(|&bp| !unplanted_points.contains(bp))
+            .copied()
+            .collect::<Vec<_>>();
         take_available.shuffle(&mut thread_rng());
         take_available.extend(unplanted_points);
         let points_to_plant = &take_available[0..to_replant];

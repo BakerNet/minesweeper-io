@@ -20,6 +20,14 @@ pub struct Game {
     pub final_board: Option<Vec<Vec<PlayerCell>>>, // todo - remove final from name
 }
 
+pub struct GameParameters {
+    pub rows: i64,
+    pub cols: i64,
+    pub num_mines: i64,
+    pub max_players: u8,
+    pub classic: bool,
+}
+
 impl Game {
     pub async fn get_game(db: &SqlitePool, game_id: &str) -> Result<Option<Game>, sqlx::Error> {
         sqlx::query_as("select * from games where game_id = ?")
@@ -32,11 +40,7 @@ impl Game {
         db: &SqlitePool,
         game_id: &str,
         owner: &Option<User>,
-        rows: i64,
-        cols: i64,
-        num_mines: i64,
-        max_players: u8,
-        classic: bool,
+        game_parameters: GameParameters,
     ) -> Result<Game, sqlx::Error> {
         let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
@@ -48,11 +52,11 @@ impl Game {
         )
         .bind(game_id)
         .bind(id)
-        .bind(rows)
-        .bind(cols)
-        .bind(num_mines)
-        .bind(max_players)
-        .bind(classic)
+        .bind(game_parameters.rows)
+        .bind(game_parameters.cols)
+        .bind(game_parameters.num_mines)
+        .bind(game_parameters.max_players)
+        .bind(game_parameters.classic)
         .bind(Json(None::<Vec<Vec<PlayerCell>>>))
         .fetch_one(db)
         .await
