@@ -82,9 +82,10 @@ fn cell_contents_class(cell: PlayerCell) -> String {
 
 fn cell_player_class(cell: PlayerCell) -> String {
     match cell {
-        PlayerCell::Flag => String::from(""),
-        PlayerCell::Hidden => String::from(""),
-        PlayerCell::Revealed(rc) => player_class(rc.player),
+        PlayerCell::Revealed(rc) if matches!(rc.contents, Cell::Empty(_)) => {
+            player_class(rc.player)
+        }
+        _ => String::from(""),
     }
 }
 
