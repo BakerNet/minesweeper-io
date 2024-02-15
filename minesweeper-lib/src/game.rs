@@ -332,8 +332,8 @@ impl Minesweeper {
 
     fn unplant(&mut self, cell_point: BoardPoint, rem_neighbors: bool) -> Vec<BoardPoint> {
         let mut updated_revealed = HashSet::new();
-        let mut unplanted_bombs = if self.with_replant && rem_neighbors {
-            Some(Vec::with_capacity(9))
+        let mut to_replant = if self.with_replant && rem_neighbors {
+            Some(0)
         } else {
             None
         };
@@ -347,7 +347,14 @@ impl Minesweeper {
                 .copied()
                 .fold(0, |acc, c| acc + bool_to_u8(self.board[c].0.is_bomb()));
 
+            // set value to number of neighboring bombs
             self.board[cell_point].0 = self.board[cell_point].0.unplant(neighboring_bombs).unwrap();
+
+            if rem_neighbors {
+                if let Some(unplanted_bombs) = &mut to_replant {
+                    *unplanted_bombs += 1;
+                }
+            }
         }
 
         neighbors.iter().copied().for_each(|i| {
@@ -361,35 +368,44 @@ impl Minesweeper {
             };
             if rem_neighbors && matches!(new, Cell::Bomb) {
                 updated_revealed.extend(self.unplant(i, false));
-                if let Some(unplanted_bombs) = &mut unplanted_bombs {
-                    unplanted_bombs.push(i);
+                if let Some(unplanted_bombs) = &mut to_replant {
+                    *unplanted_bombs += 1;
                 }
             } else {
                 self.board[i].0 = new;
             }
         });
 
-        if let Some(unplanted_bombs) = unplanted_bombs {
-            self.replant(unplanted_bombs.len(), neighbors);
+        if let Some(unplanted_bombs) = to_replant {
+            self.replant(unplanted_bombs, cell_point, neighbors);
         }
 
         updated_revealed.into_iter().collect()
     }
 
-    fn replant(&mut self, unplanted_bombs: usize, neighbors: Vec<BoardPoint>) {
-        let to_replant = unplanted_bombs;
-        let mut unplanted_points = neighbors;
-        unplanted_points.shuffle(&mut thread_rng());
+    fn replant(
+        &mut self,
+        unplanted_bombs: usize,
+        first_cell: BoardPoint,
+        neighbors: Vec<BoardPoint>,
+    ) {
+        if unplanted_bombs == 0 {
+            return;
+        }
         let mut take_available: Vec<BoardPoint> = self
             .available
             .iter()
-            .filter(|&bp| !unplanted_points.contains(bp))
+            .filter(|&bp| *bp != first_cell && !neighbors.contains(bp))
             .copied()
             .collect::<Vec<_>>();
-        take_available.shuffle(&mut thread_rng());
-        take_available.extend(unplanted_points);
-        let points_to_plant = &take_available[0..to_replant];
-        points_to_plant.iter().for_each(|x| {
+        let mut rng = thread_rng();
+        take_available.shuffle(&mut rng);
+        if unplanted_bombs > take_available.len() {
+            let mut unplanted_points = neighbors;
+            unplanted_points.shuffle(&mut rng);
+            take_available.extend(unplanted_points);
+        }
+        take_available.iter().take(unplanted_bombs).for_each(|x| {
             self.plant(*x);
         });
     }
@@ -828,7 +844,7 @@ mod test {
     fn replant_works() {
         let mut game = set_up_game_with_replant();
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
-        num_bombs(&game, 3);
+        num_bombs(&game, 4);
         assert_ne!(game.board[POINT_1_1].0, Cell::Bomb);
         assert_ne!(game.board[POINT_0_1].0, Cell::Bomb);
         assert_ne!(game.board[POINT_1_0].0, Cell::Bomb);

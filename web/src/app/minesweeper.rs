@@ -5,6 +5,7 @@ pub mod players;
 
 use leptos::*;
 use leptos_router::*;
+use leptos_use::{storage::use_local_storage, utils::JsonCodec};
 use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
@@ -137,17 +138,17 @@ fn validate_num_players(num_players: i64) -> bool {
 async fn new_game(
     rows: i64,
     cols: i64,
-    max_mines: i64,
-    num_players: i64,
+    num_mines: i64,
+    max_players: i64,
 ) -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
-    if !(validate_num_mines(rows, cols, max_mines)
+    if !(validate_num_mines(rows, cols, num_mines)
         && validate_rows(rows)
         && validate_cols(cols)
-        && validate_num_players(num_players))
+        && validate_num_players(max_players))
     {
         return Err(ServerFnError::new("Invalid input.".to_string()));
     }
@@ -160,9 +161,9 @@ async fn new_game(
             GameParameters {
                 rows,
                 cols,
-                num_mines: max_mines,
-                max_players: num_players as u8,
-                classic: num_players == 1, // use classic mode (replant) for single player
+                num_mines,
+                max_players: max_players as u8,
+                classic: max_players == 1, // use classic mode (replant) for single player
             },
         )
         .await
@@ -185,21 +186,53 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
     Ok(())
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GameSettings {
+    rows: i64,
+    cols: i64,
+    num_mines: i64,
+    max_players: i64,
+}
+
+impl Default for GameSettings {
+    fn default() -> Self {
+        Self {
+            rows: 50,
+            cols: 50,
+            num_mines: 500,
+            max_players: 8,
+        }
+    }
+}
+
 #[component]
 pub fn JoinOrCreateGame() -> impl IntoView {
     let join_game = create_server_action::<JoinGame>();
     let new_game = create_server_action::<NewGame>();
-    let (rows, set_rows) = create_signal(50);
-    let (cols, set_cols) = create_signal(50);
-    let (max_mines, set_max_mines) = create_signal(500);
-    let (num_players, set_num_players) = create_signal(8);
+
+    let (custom_settings, set_custom_settings, _) =
+        use_local_storage::<GameSettings, JsonCodec>("custom_game_settings");
+
+    let defaults = GameSettings::default();
+    let (rows, set_rows) = create_signal(defaults.rows);
+    let (cols, set_cols) = create_signal(defaults.cols);
+    let (num_mines, set_num_mines) = create_signal(defaults.num_mines);
+    let (max_players, set_max_players) = create_signal(defaults.max_players);
     let (errors, set_errors) = create_signal(Vec::new());
+
+    create_effect(move |_| {
+        let stored_settings = custom_settings();
+        set_rows(stored_settings.rows);
+        set_cols(stored_settings.cols);
+        set_num_mines(stored_settings.num_mines);
+        set_max_players(stored_settings.max_players);
+    });
 
     create_effect(move |_| {
         let rows = rows();
         let cols = cols();
-        let max_mines = max_mines();
-        let num_players = num_players();
+        let max_mines = num_mines();
+        let num_players = max_players();
         let prev_errs = errors();
         let mut errs = Vec::new();
         if !validate_rows(rows) {
@@ -237,6 +270,12 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                 action=new_game
                 class="w-full max-w-xs space-y-2"
                 on:submit=move |ev| {
+                    set_custom_settings(GameSettings {
+                        rows: rows(),
+                        cols: cols(),
+                        num_mines: num_mines(),
+                        max_players: max_players(),
+                    });
                     if !errors().is_empty() {
                         ev.prevent_default();
                     }
@@ -295,24 +334,24 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     <div class="flex-1">
                         <label
                             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_max_mines"
+                            for="new_game_num_mines"
                         >
-                            "mines:"
+                            "Mines:"
                         </label>
                         <input
                             class=input_class("")
                             type="number"
-                            id="new_game_max_mines"
-                            name="max_mines"
+                            id="new_game_num_mines"
+                            name="num_mines"
                             min=0
                             max=10000
                             on:change=move |ev| {
-                                set_max_mines(
+                                set_num_mines(
                                     event_target_value(&ev).parse::<i64>().unwrap_or_default(),
                                 );
                             }
 
-                            prop:value=max_mines
+                            prop:value=num_mines
                         />
                     </div>
                     <div class="flex-1">
@@ -320,22 +359,22 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
                             for="new_game_num_players"
                         >
-                            "Num Players:"
+                            "Max Players:"
                         </label>
                         <input
                             class=input_class("")
                             type="number"
-                            id="new_game_num_players"
-                            name="num_players"
+                            id="new_game_max_players"
+                            name="max_players"
                             min=0
                             max=12
                             on:change=move |ev| {
-                                set_num_players(
+                                set_max_players(
                                     event_target_value(&ev).parse::<i64>().unwrap_or_default(),
                                 );
                             }
 
-                            prop:value=num_players
+                            prop:value=max_players
                         />
                     </div>
                 </div>
