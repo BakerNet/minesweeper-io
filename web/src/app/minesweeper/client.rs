@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use anyhow::{anyhow, bail, Result};
 use leptos::*;
@@ -33,7 +33,7 @@ impl GameMessage {
 
 #[derive(Clone)]
 pub struct PlayersContext {
-    pub game_id: Rc<RefCell<String>>,
+    pub game_id: Rc<String>,
     pub is_owner: bool,
     pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
@@ -62,7 +62,7 @@ impl PlayersContext {
 
 #[derive(Clone)]
 pub struct FrontendGame {
-    pub game_id: Rc<RefCell<String>>,
+    pub game_id: Rc<String>,
     pub is_owner: bool,
     pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
@@ -127,7 +127,7 @@ impl FrontendGame {
         let cols = game_info.cols;
         (
             FrontendGame {
-                game_id: Rc::new(RefCell::new(game_info.game_id)),
+                game_id: Rc::new(game_info.game_id),
                 is_owner: game_info.is_owner,
                 has_owner: game_info.has_owner,
                 cell_signals: write_signals,
@@ -188,7 +188,7 @@ impl FrontendGame {
     pub fn try_flag(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
-        if let PlayerCell::Revealed(_) = game.borrow().board[BoardPoint { row, col }] {
+        if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
             bail!("Tried to flag revealed cell")
         }
         let play_json = serde_json::to_string(&Play {
@@ -203,7 +203,7 @@ impl FrontendGame {
     pub fn try_reveal_adjacent(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
-        if let PlayerCell::Revealed(_) = game.borrow().board[BoardPoint { row, col }] {
+        if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
         } else {
             bail!("Tried to reveal adjacent for hidden cell")
         }
@@ -236,7 +236,6 @@ impl FrontendGame {
                     self.update_cell(*point, *cell);
                     if game.game_over {
                         (self.set_completed)(true);
-                        self.close();
                     }
                 });
                 Ok(())

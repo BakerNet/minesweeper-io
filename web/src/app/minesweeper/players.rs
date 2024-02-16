@@ -1,4 +1,4 @@
-use super::{client::PlayersContext, GameInfo};
+use super::client::PlayersContext;
 
 use anyhow::Result;
 use leptos::*;
@@ -30,54 +30,12 @@ pub fn player_class(player: usize) -> String {
 }
 
 #[component]
-pub fn ShowPlayers() -> impl IntoView {
-    view! {
-        <div class="flex flex-col items-center my-8">
-            <A
-                href="players"
-                class="text-lg text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
-            >
-                "Show Scoreboard"
-            </A>
-        </div>
-    }
-}
-
-#[component]
-pub fn Players() -> impl IntoView {
-    let game_info = expect_context::<Resource<String, Result<GameInfo, ServerFnError>>>();
-
-    let player_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactivePlayers game_info/> },
-        false => view! { <ActivePlayers/> },
-    };
-
-    view! {
-        <div class="flex flex-col items-center my-8 space-y-4">
-            <Suspense fallback=move || ()>
-                {game_info
-                    .get()
-                    .map(|game_info| {
-                        view! {
-                            <ErrorBoundary fallback=|_| {
-                                view! { <div class="text-red-600">"Unable to load players"</div> }
-                            }>{move || { game_info.clone().map(player_view) }}</ErrorBoundary>
-                        }
-                    })}
-
-            </Suspense>
-        </div>
-    }
-}
-
-#[component]
 fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
 where
     F: Fn() -> IV,
     IV: IntoView,
 {
     view! {
-        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Scoreboard</h4>
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
             <thead>
                 <tr>
@@ -95,18 +53,13 @@ where
             <tbody>{children()}</tbody>
         </table>
         {buttons()}
-        <A
-            href=".."
-            class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
-        >
-            Hide
-        </A>
     }
 }
 
 #[component]
-fn ActivePlayers() -> impl IntoView {
+pub fn ActivePlayers() -> impl IntoView {
     let players_ctx = expect_context::<PlayersContext>();
+    let start_game = create_server_action::<StartGame>();
 
     let (player_id, players, loaded, started, join_trigger) = {
         (
@@ -134,43 +87,50 @@ fn ActivePlayers() -> impl IntoView {
     }
 
     let buttons = move || {
+        let game_id = players_ctx.game_id.clone();
         view! {
             <Show when=show_play fallback=move || ()>
                 <PlayForm/>
             </Show>
             <Show when=show_start fallback=move || ()>
-                <StartForm/>
+                <StartForm start_game game_id=game_id.to_string()/>
             </Show>
         }
     };
 
     view! {
-        <Scoreboard buttons>
-            {players
-                .iter()
-                .enumerate()
-                .map(move |(n, &player)| {
-                    view! { <ActivePlayer player_num=n player=player/> }
-                })
-                .collect_view()}
-        </Scoreboard>
+        <div class="flex flex-col items-center my-8 space-y-4">
+            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Players</h4>
+            <Scoreboard buttons>
+                {players
+                    .iter()
+                    .enumerate()
+                    .map(move |(n, &player)| {
+                        view! { <ActivePlayer player_num=n player=player/> }
+                    })
+                    .collect_view()}
+            </Scoreboard>
+        </div>
     }
 }
 
 #[component]
-fn InactivePlayers(game_info: GameInfo) -> impl IntoView {
+pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
     view! {
-        <Scoreboard buttons=move || ()>
-            {game_info
-                .players
-                .iter()
-                .enumerate()
-                .map(|(i, player)| {
-                    view! { <PlayerRow player_num=i player=player.clone()/> }
-                })
-                .collect_view()}
+        <div class="flex flex-col items-center my-8 space-y-4">
+            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Game Over</h4>
+            <Scoreboard buttons=move || ()>
 
-        </Scoreboard>
+                {players
+                    .iter()
+                    .enumerate()
+                    .map(|(i, player)| {
+                        view! { <PlayerRow player_num=i player=player.clone()/> }
+                    })
+                    .collect_view()}
+
+            </Scoreboard>
+        </div>
     }
 }
 
@@ -280,32 +240,20 @@ async fn start_game(game_id: String) -> Result<(), ServerFnError> {
 }
 
 #[component]
-fn StartForm() -> impl IntoView {
-    let players_ctx = expect_context::<PlayersContext>();
-    let start_game = create_server_action::<StartGame>();
-    let (game_id, _) = create_signal((*players_ctx.game_id.borrow()).clone());
-
-    let show = move || !start_game.pending().get();
-
+fn StartForm(
+    start_game: Action<StartGame, Result<(), ServerFnError>>,
+    game_id: String,
+) -> impl IntoView {
     view! {
-        {move || {
-            if show() {
-                view! {
-                    <ActionForm action=start_game class="w-full max-w-xs h-8">
-                        <input type="hidden" name="game_id" value=game_id/>
-                        <Button
-                            btn_type="submit"
-                            class="w-full w-max-xs h-8"
-                            colors="bg-green-700 hover:bg-green-800/90 text-white"
-                        >
-                            "Start Game"
-                        </Button>
-                    </ActionForm>
-                }
-                    .into_view()
-            } else {
-                view! { <div>Starting...</div> }.into_view()
-            }
-        }}
+        <ActionForm action=start_game class="w-full max-w-xs h-8">
+            <input type="hidden" name="game_id" value=game_id/>
+            <Button
+                btn_type="submit"
+                class="w-full w-max-xs h-8"
+                colors="bg-green-700 hover:bg-green-800/90 text-white"
+            >
+                "Start Game"
+            </Button>
+        </ActionForm>
     }
 }

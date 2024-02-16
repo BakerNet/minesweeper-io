@@ -11,15 +11,13 @@ use error_template::{AppError, ErrorTemplate};
 use header::Header;
 use home::HomePage;
 use login::LoginPage;
-use minesweeper::{players::Players, Game};
+use minesweeper::Game;
 use profile::Profile;
 
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
-
-use crate::app::minesweeper::players::ShowPlayers;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FrontendUser {
@@ -106,11 +104,7 @@ pub fn App() -> impl IntoView {
                         }
                     />
 
-                    <Route path="/game/:id" view=|| view! { <Game/> }>
-                        <Route path="players" view=|| view! { <Players/> }/>
-                        <Route path="" view=|| view! { <ShowPlayers/> }/>
-
-                    </Route>
+                    <Route path="/game/:id" view=|| view! { <Game/> }/>
                 </Routes>
             </main>
         </Router>

@@ -425,9 +425,9 @@ async fn handle_game(
     let mut receiver = receiver;
     let mut game_events = game_events;
     let mut broadcaster = broadcaster;
-    let timeout = sleep(Duration::from_secs(60 * 60)); // timeout after 1 hour
+    let timeout = sleep(Duration::from_secs(999)); // timeout after 999 seconds
     tokio::pin!(timeout);
-    let mut save_interval = interval(Duration::from_secs(60)); // save every minute
+    let mut save_interval = interval(Duration::from_secs(20)); // save every 20 seconds
 
     let mut player_handles = vec![None; game.max_players as usize];
     let mut minesweeper = Minesweeper::init_game(

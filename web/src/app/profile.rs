@@ -168,7 +168,7 @@ fn GameHistory() -> impl IntoView {
                 <td class="border-b border-slate-100 dark:border-slate-700 p-1">
                     <A
                         class="text-sky-800 hover:text-sky-500 font-medium"
-                        href=format!("/game/{}/players", game.game_id)
+                        href=format!("/game/{}", game.game_id)
                     >
                         {game.game_id}
                     </A>

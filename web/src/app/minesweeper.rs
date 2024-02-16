@@ -90,16 +90,17 @@ pub fn Game() -> impl IntoView {
     let params = use_params_map();
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
     let game_info = create_resource(game_id, get_game);
+    let refetch = move || game_info.refetch();
 
     provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactiveGame game_info/> },
-        false => view! { <ActiveGame game_info/> },
+        false => view! { <ActiveGame game_info refetch/> },
     };
 
     view! {
-        <Suspense fallback=move || {
+        <Transition fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
             {move || {
@@ -114,7 +115,7 @@ pub fn Game() -> impl IntoView {
                     })
             }}
 
-        </Suspense>
+        </Transition>
     }
 }
 
@@ -168,7 +169,7 @@ async fn new_game(
         )
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
-    leptos_axum::redirect(&format!("/game/{}/players", id));
+    leptos_axum::redirect(&format!("/game/{}", id));
     Ok(())
 }
 
@@ -182,7 +183,7 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
             game_id
         )));
     }
-    leptos_axum::redirect(&format!("/game/{}/players", game_id));
+    leptos_axum::redirect(&format!("/game/{}", game_id));
     Ok(())
 }
 

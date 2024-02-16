@@ -1,5 +1,4 @@
 use leptos::*;
-use leptos_router::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
 use minesweeper_lib::game::Action as PlayAction;
 use std::rc::Rc;
@@ -10,6 +9,7 @@ use crate::app::minesweeper::client::PlayersContext;
 
 use super::cell::{ActiveRow, InactiveRow};
 use super::client::FrontendGame;
+use super::players::{ActivePlayers, InactivePlayers};
 use super::GameInfo;
 
 #[component]
@@ -24,16 +24,20 @@ fn GameBorder(children: Children) -> impl IntoView {
 }
 
 #[component]
-pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
+pub fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
+where
+    F: Fn() + Clone + 'static,
+{
     let (error, set_error) = create_signal::<Option<String>>(None);
 
+    let game_id = game_info.game_id.clone();
     let UseWebsocketReturn {
         ready_state,
         message,
         send,
         close,
         ..
-    } = use_websocket(&format!("/api/websocket/game/{}", &game_info.game_id));
+    } = use_websocket(&format!("/api/websocket/game/{}", &game_id));
 
     let (game, read_signals) = FrontendGame::new(
         game_info.clone(),
@@ -47,9 +51,13 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
 
     create_effect(move |_| {
         log::debug!("before ready_state");
-        if ready_state() == ConnectionReadyState::Open {
-            log::debug!("after ready_state");
-            game_signal().send(&game_info.game_id);
+        let state = ready_state();
+        if state == ConnectionReadyState::Open {
+            log::debug!("ready_state Open");
+            game_signal().send(&game_id);
+        } else if state == ConnectionReadyState::Closed {
+            log::debug!("ready_state Closed");
+            refetch();
         }
     });
 
@@ -85,8 +93,7 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
 
     view! {
         <div class="text-center">
-            <Outlet/>
-            <div class="text-red-600 h-8">{error}</div>
+            <ActivePlayers/>
             <GameBorder>
                 {read_signals
                     .into_iter()
@@ -104,12 +111,14 @@ pub fn ActiveGame(game_info: GameInfo) -> impl IntoView {
                     })
                     .collect_view()}
             </GameBorder>
+            <div class="text-red-600 h-8">{error}</div>
         </div>
     }
 }
 
 #[component]
 pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
+    let players = game_info.players.clone();
     let board = match game_info.final_board {
         None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
         Some(b) => b,
@@ -117,7 +126,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
 
     view! {
         <div class="text-center">
-            <Outlet/>
+            <InactivePlayers players/>
             <GameBorder>
                 {board
                     .into_iter()
