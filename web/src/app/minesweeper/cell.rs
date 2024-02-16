@@ -73,8 +73,9 @@ fn cell_contents_class(cell: PlayerCell) -> String {
     match cell {
         PlayerCell::Flag => String::from("bg-neutral-500"),
         PlayerCell::Hidden => String::from("bg-neutral-500"),
+        PlayerCell::HiddenMine => String::from("bg-neutral-500"),
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => String::from("bg-red-600"),
+            Cell::Mine => String::from("bg-red-600"),
             Cell::Empty(x) => number_class(x as usize),
         },
     }
@@ -171,8 +172,13 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
             </span>
         },
         PlayerCell::Hidden => view! { <span>""</span> },
+        PlayerCell::HiddenMine => view! {
+            <span>
+                <Mine/>
+            </span>
+        },
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Bomb => view! {
+            Cell::Mine => view! {
                 <span>
                     <Mine/>
                 </span>

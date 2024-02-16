@@ -122,7 +122,7 @@ impl Minesweeper {
         }
         let (cell, _) = &self.board[cell_point];
         match cell {
-            Cell::Bomb => {
+            Cell::Mine => {
                 self.reveal(player, cell_point);
                 self.players[player].dead = true;
                 Ok(PlayOutcome::Failure(RevealedCell {
@@ -201,7 +201,7 @@ impl Minesweeper {
         let has_bomb = unflagged_neighbors
             .iter()
             .copied()
-            .find(|c| matches!(self.board[*c].0, Cell::Bomb));
+            .find(|c| matches!(self.board[*c].0, Cell::Mine));
         // check for bomb first, so other clicks don't go through
         if let Some(c) = has_bomb {
             self.reveal(player, c);
@@ -237,6 +237,14 @@ impl Minesweeper {
     }
 
     pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
+        self._viewer_board(false)
+    }
+
+    pub fn viewer_board_final(&self) -> Vec<Vec<PlayerCell>> {
+        self._viewer_board(true)
+    }
+
+    fn _viewer_board(&self, is_final: bool) -> Vec<Vec<PlayerCell>> {
         let mut return_board: Vec<Vec<PlayerCell>> =
             vec![vec![PlayerCell::Hidden; self.board.cols()]; self.board.rows()];
         for (r_num, row) in return_board.iter_mut().enumerate() {
@@ -252,6 +260,8 @@ impl Minesweeper {
                         player: item.1.player.unwrap(),
                         contents: item.0,
                     });
+                } else if is_final && matches!(item.0, Cell::Mine) {
+                    *return_item = PlayerCell::HiddenMine
                 }
             }
         }
@@ -366,7 +376,7 @@ impl Minesweeper {
             } else {
                 self.board[i].0
             };
-            if rem_neighbors && matches!(new, Cell::Bomb) {
+            if rem_neighbors && matches!(new, Cell::Mine) {
                 updated_revealed.extend(self.unplant(i, false));
                 if let Some(unplanted_bombs) = &mut to_replant {
                     *unplanted_bombs += 1;
@@ -534,7 +544,7 @@ mod test {
         let num_bombs = game
             .board
             .iter()
-            .filter(|x| matches!(x.0, Cell::Bomb))
+            .filter(|x| matches!(x.0, Cell::Mine))
             .count();
         assert_eq!(num_bombs, number);
     }
@@ -569,7 +579,7 @@ mod test {
 
         num_bombs(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 1);
-        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_0, Cell::Mine);
         point_cell(&game, POINT_0_1, Cell::Empty(1));
         point_cell(&game, POINT_1_0, Cell::Empty(1));
         point_cell(&game, POINT_1_1, Cell::Empty(1));
@@ -579,20 +589,20 @@ mod test {
 
         num_bombs(&game, 2);
         assert_eq!(game.available.len(), 9 * 9 - 2);
-        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_0, Cell::Mine);
         point_cell(&game, POINT_0_1, Cell::Empty(2));
         point_cell(&game, POINT_1_0, Cell::Empty(2));
-        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell(&game, POINT_1_1, Cell::Mine);
         point_cell(&game, POINT_0_2, Cell::Empty(1));
 
         game.plant(POINT_1_2);
 
         num_bombs(&game, 3);
         assert_eq!(game.available.len(), 9 * 9 - 3);
-        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_0, Cell::Mine);
         point_cell(&game, POINT_0_1, Cell::Empty(3));
         point_cell(&game, POINT_1_0, Cell::Empty(2));
-        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell(&game, POINT_1_1, Cell::Mine);
         point_cell(&game, POINT_0_2, Cell::Empty(2));
     }
 
@@ -617,7 +627,7 @@ mod test {
         num_bombs(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 3);
         point_cell(&game, POINT_0_2, Cell::Empty(0));
-        point_cell(&game, POINT_0_0, Cell::Bomb);
+        point_cell(&game, POINT_0_0, Cell::Mine);
         point_cell(&game, POINT_1_1, Cell::Empty(1));
     }
 
@@ -636,7 +646,7 @@ mod test {
         point_cell_state(&game, POINT_0_0, true, Some(0));
         point_cell(&game, POINT_1_1, Cell::Empty(2));
         point_cell_state(&game, POINT_1_1, true, Some(0));
-        point_cell(&game, POINT_1_2, Cell::Bomb);
+        point_cell(&game, POINT_1_2, Cell::Mine);
         point_cell_state(&game, POINT_1_2, false, None);
     }
 
@@ -651,9 +661,9 @@ mod test {
         assert_eq!(game.available.len(), 4); // not bomb and not revealed
         point_cell(&game, BoardPoint { row: 8, col: 8 }, Cell::Empty(0));
         point_cell_state(&game, BoardPoint { row: 8, col: 8 }, true, Some(0));
-        point_cell(&game, POINT_1_1, Cell::Bomb);
+        point_cell(&game, POINT_1_1, Cell::Mine);
         point_cell_state(&game, POINT_1_1, false, None);
-        point_cell(&game, POINT_1_2, Cell::Bomb);
+        point_cell(&game, POINT_1_2, Cell::Mine);
         point_cell_state(&game, POINT_1_2, false, None);
     }
 
@@ -845,21 +855,21 @@ mod test {
         let mut game = set_up_game_with_replant();
         let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
         num_bombs(&game, 4);
-        assert_ne!(game.board[POINT_1_1].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_0_1].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_1_0].0, Cell::Bomb);
-        assert_eq!(game.board[POINT_1_2].0, Cell::Bomb);
-        assert_eq!(game.board[POINT_2_1].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_1_1].0, Cell::Mine);
+        assert_ne!(game.board[POINT_0_1].0, Cell::Mine);
+        assert_ne!(game.board[POINT_1_0].0, Cell::Mine);
+        assert_eq!(game.board[POINT_1_2].0, Cell::Mine);
+        assert_eq!(game.board[POINT_2_1].0, Cell::Mine);
 
         let mut game = set_up_game_with_replant();
         let _ = game.play(0, Action::Reveal, POINT_2_2).unwrap();
         num_bombs(&game, 4);
-        assert_ne!(game.board[POINT_1_1].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_2_1].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_1_2].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_3_2].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_3_3].0, Cell::Bomb);
-        assert_ne!(game.board[POINT_2_3].0, Cell::Bomb);
-        assert_eq!(game.board[POINT_0_0].0, Cell::Bomb);
+        assert_ne!(game.board[POINT_1_1].0, Cell::Mine);
+        assert_ne!(game.board[POINT_2_1].0, Cell::Mine);
+        assert_ne!(game.board[POINT_1_2].0, Cell::Mine);
+        assert_ne!(game.board[POINT_3_2].0, Cell::Mine);
+        assert_ne!(game.board[POINT_3_3].0, Cell::Mine);
+        assert_ne!(game.board[POINT_2_3].0, Cell::Mine);
+        assert_eq!(game.board[POINT_0_0].0, Cell::Mine);
     }
 }

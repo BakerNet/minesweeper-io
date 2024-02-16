@@ -473,7 +473,7 @@ async fn handle_game(
         save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
     }
     let _ = game_manager
-        .complete_game(&game.game_id, minesweeper.viewer_board())
+        .complete_game(&game.game_id, minesweeper.viewer_board_final())
         .await
         .map_err(|e| log::error!("Error completing game: {e}"));
 }

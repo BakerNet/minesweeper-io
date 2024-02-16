@@ -108,25 +108,34 @@ where
 fn ActivePlayers() -> impl IntoView {
     let players_ctx = expect_context::<PlayersContext>();
 
-    let (player_id, players, loaded, started) = {
+    let (player_id, players, loaded, started, join_trigger) = {
         (
             players_ctx.player_id,
             players_ctx.players.clone(),
             players_ctx.players_loaded,
             players_ctx.started,
+            players_ctx.join_trigger,
         )
     };
+    let num_players = players.len();
     let last_slot = *players.last().unwrap();
-    let available_slots = move || loaded() && last_slot().is_none() && player_id().is_none();
+    let show_play =
+        move || loaded() && last_slot().is_none() && player_id().is_none() && num_players > 1;
     let show_start = move || {
         loaded()
             && (players_ctx.is_owner || (!players_ctx.has_owner && player_id().is_some()))
             && !started()
     };
 
+    if num_players == 1 {
+        create_effect(move |_| {
+            join_trigger.notify();
+        });
+    }
+
     let buttons = move || {
         view! {
-            <Show when=available_slots fallback=move || ()>
+            <Show when=show_play fallback=move || ()>
                 <PlayForm/>
             </Show>
             <Show when=show_start fallback=move || ()>

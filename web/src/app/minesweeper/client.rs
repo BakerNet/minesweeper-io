@@ -97,8 +97,8 @@ impl FrontendGame {
             Some(b) => b.to_owned(),
         };
 
-        let mut read_signals: Vec<Vec<ReadSignal<PlayerCell>>> = Vec::new();
-        let mut write_signals: Vec<Vec<WriteSignal<PlayerCell>>> = Vec::new();
+        let mut read_signals = Vec::with_capacity(game_info.rows * game_info.cols);
+        let mut write_signals = Vec::with_capacity(game_info.rows * game_info.cols);
         board.iter().for_each(|cells| {
             let mut read_row = Vec::new();
             let mut write_row = Vec::new();
@@ -110,8 +110,8 @@ impl FrontendGame {
             read_signals.push(read_row);
             write_signals.push(write_row);
         });
-        let mut players: Vec<ReadSignal<Option<ClientPlayer>>> = Vec::new();
-        let mut player_signals: Vec<WriteSignal<Option<ClientPlayer>>> = Vec::new();
+        let mut players = Vec::with_capacity(game_info.players.len());
+        let mut player_signals = Vec::with_capacity(game_info.players.len());
         game_info.players.iter().for_each(|p| {
             let (rs, ws) = create_signal(p.clone());
             players.push(rs);

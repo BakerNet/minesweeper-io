@@ -7,8 +7,13 @@ use crate::board::BoardPoint;
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerCell {
+    #[serde(rename = "h", alias = "Hidden")]
     Hidden,
+    #[serde(rename = "hm", alias = "HiddenMine")]
+    HiddenMine,
+    #[serde(rename = "f", alias = "Flag")]
     Flag,
+    #[serde(rename = "r", alias = "Revealed")]
     Revealed(RevealedCell),
 }
 
@@ -22,6 +27,7 @@ impl fmt::Debug for PlayerCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Hidden => write!(f, "-"),
+            Self::HiddenMine => write!(f, "+"),
             Self::Flag => write!(f, "F"),
             Self::Revealed(rc) => write!(
                 f,
@@ -51,8 +57,10 @@ pub struct CellState {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, Eq, PartialOrd)]
 pub enum Cell {
+    #[serde(rename = "e", alias = "Empty")]
     Empty(u8),
-    Bomb,
+    #[serde(rename = "m", alias = "Bomb", alias = "Mine")]
+    Mine,
 }
 
 impl Default for Cell {
@@ -65,39 +73,39 @@ impl Cell {
     pub fn increment(self) -> Self {
         match self {
             Self::Empty(x) => Cell::Empty(x + 1),
-            Self::Bomb => Cell::Bomb,
+            Self::Mine => Cell::Mine,
         }
     }
 
     pub fn decrement(self) -> Self {
         match self {
             Self::Empty(x) => Cell::Empty(x - 1),
-            Self::Bomb => Cell::Bomb,
+            Self::Mine => Cell::Mine,
         }
     }
 
     pub fn plant(self) -> Result<Self> {
         match self {
-            Self::Empty(_) => Ok(Cell::Bomb),
-            Self::Bomb => bail!("Plant on bomb not allowed"),
+            Self::Empty(_) => Ok(Cell::Mine),
+            Self::Mine => bail!("Plant on bomb not allowed"),
         }
     }
 
     pub fn unplant(self, num: u8) -> Result<Self> {
         match self {
             Self::Empty(_) => bail!("Unplant on empty not allowed"),
-            Self::Bomb => Ok(Cell::Empty(num)),
+            Self::Mine => Ok(Cell::Empty(num)),
         }
     }
 
     pub fn is_bomb(&self) -> bool {
-        matches!(self, Self::Bomb)
+        matches!(self, Self::Mine)
     }
 
     pub fn value(&self) -> Option<u8> {
         match self {
             Self::Empty(x) => Some(*x),
-            Self::Bomb => None,
+            Self::Mine => None,
         }
     }
 }
