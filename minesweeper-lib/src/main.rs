@@ -12,7 +12,7 @@ fn underline(input: &str) -> ansi_term::ANSIGenericString<str> {
 
 fn main() {
     let flags = xflags::parse_or_exit! {
-        optional -i,--intermediate
+        optional -i, --intermediate
         optional -e, --expert
     };
     let mut cols = 9;
