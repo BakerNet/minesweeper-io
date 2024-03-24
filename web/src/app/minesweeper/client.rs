@@ -68,8 +68,6 @@ pub struct FrontendGame {
     pub player_id: ReadSignal<Option<usize>>,
     pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
     pub players_loaded: ReadSignal<bool>,
-    pub skip_mouseup: ReadSignal<usize>,
-    pub set_skip_mouseup: WriteSignal<usize>,
     pub err_signal: WriteSignal<Option<String>>,
     pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
@@ -119,7 +117,6 @@ impl FrontendGame {
         });
         let (players_loaded, set_players_loaded) = create_signal(false);
         let (player_id, set_player_id) = create_signal::<Option<usize>>(None);
-        let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
         let join_trigger = create_trigger();
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
         let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
@@ -137,8 +134,6 @@ impl FrontendGame {
                 player_signals,
                 players_loaded,
                 set_players_loaded,
-                skip_mouseup,
-                set_skip_mouseup,
                 err_signal,
                 join_trigger,
                 started,
@@ -154,14 +149,14 @@ impl FrontendGame {
     }
 
     fn play_protections(&self) -> Result<usize> {
-        if !(self.started)() || (self.completed)() {
+        if !(self.started).get_untracked() || (self.completed).get_untracked() {
             bail!("Tried to play when game not active")
         }
-        let Some(player) =  self.player_id.get() else {
+        let Some(player) =  self.player_id.get_untracked() else {
             bail!("Tried to play when not a player")
         };
         let Some(player_info) = self.players[player]
-            .get() else {
+            .get_untracked() else {
             bail!("Tried to play when player info not available")
         };
         if player_info.dead {

@@ -4,21 +4,22 @@ use super::players::player_class;
 
 use leptos::*;
 use minesweeper_lib::{
+    board::BoardPoint,
     cell::{Cell, PlayerCell},
-    game::Action as PlayAction,
 };
 use web_sys::MouseEvent;
 
 #[component]
-pub fn ActiveRow<F>(
+pub fn ActiveRow<F, F2>(
     row: usize,
     cells: Vec<ReadSignal<PlayerCell>>,
-    skip_mouseup: ReadSignal<usize>,
-    set_skip_mouseup: WriteSignal<usize>,
-    handle_action: F,
+    set_active_cell: WriteSignal<BoardPoint>,
+    mousedown_handler: F,
+    mouseup_handler: F2,
 ) -> impl IntoView
 where
-    F: Fn(PlayAction, usize, usize) + Copy + 'static,
+    F: Fn(MouseEvent, usize, usize) + Copy + 'static,
+    F2: Fn(MouseEvent, usize, usize) + Copy + 'static,
 {
     view! {
         <div class="whitespace-nowrap">
@@ -31,9 +32,9 @@ where
                             row=row
                             col=col
                             cell=cell
-                            skip_mouseup
-                            set_skip_mouseup
-                            handle_action
+                            set_active=set_active_cell
+                            mousedown_handler
+                            mouseup_handler
                         />
                     }
                 })
@@ -95,40 +96,19 @@ pub fn cell_class(content_class: &str, player_class: &str) -> String {
 }
 
 #[component]
-fn ActiveCell<F>(
+fn ActiveCell<F, F2>(
     row: usize,
     col: usize,
     cell: ReadSignal<PlayerCell>,
-    skip_mouseup: ReadSignal<usize>,
-    set_skip_mouseup: WriteSignal<usize>,
-    handle_action: F,
+    set_active: WriteSignal<BoardPoint>,
+    mousedown_handler: F,
+    mouseup_handler: F2,
 ) -> impl IntoView
 where
-    F: Fn(PlayAction, usize, usize) + Copy + 'static,
+    F: Fn(MouseEvent, usize, usize) + Copy + 'static,
+    F2: Fn(MouseEvent, usize, usize) + Copy + 'static,
 {
     let id = format!("{}_{}", row, col);
-
-    let handle_mousedown = move |ev: MouseEvent| {
-        let set_skip_signal = { set_skip_mouseup };
-        if ev.button() == 2 {
-            handle_action(PlayAction::Flag, row, col);
-        }
-        if ev.buttons() == 3 {
-            set_skip_signal.set(2);
-            handle_action(PlayAction::RevealAdjacent, row, col);
-        }
-    };
-    let handle_mouseup = move |ev: MouseEvent| {
-        leptos_dom::log!("handle_mouseup");
-        leptos_dom::log!("{}", skip_mouseup.get());
-        if skip_mouseup.get() > 0 {
-            set_skip_mouseup.set(skip_mouseup() - 1);
-            return;
-        }
-        if ev.button() == 0 {
-            handle_action(PlayAction::Reveal, row, col);
-        }
-    };
     let class = move || {
         let item = cell();
         cell_class(&cell_contents_class(item), &cell_player_class(item))
@@ -138,8 +118,9 @@ where
         <span
             class=class
             id=id
-            on:mouseup=handle_mouseup
-            on:mousedown=handle_mousedown
+            on:mousedown=move |ev| mousedown_handler(ev, row, col)
+            on:mouseup=move |ev| mouseup_handler(ev, row, col)
+            on:mouseenter=move |_| set_active(BoardPoint { row, col })
             oncontextmenu="event.preventDefault();"
         >
             {move || {

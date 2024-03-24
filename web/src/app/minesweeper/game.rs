@@ -1,7 +1,11 @@
+use leptos::ev::keydown;
 use leptos::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+use leptos_use::{use_document, use_event_listener};
+use minesweeper_lib::board::BoardPoint;
 use minesweeper_lib::game::Action as PlayAction;
 use std::rc::Rc;
+use web_sys::{KeyboardEvent, MouseEvent};
 
 use minesweeper_lib::cell::PlayerCell;
 
@@ -13,11 +17,20 @@ use super::players::{ActivePlayers, InactivePlayers};
 use super::GameInfo;
 
 #[component]
-fn GameBorder(children: Children) -> impl IntoView {
+fn GameBorder<F>(set_active: F, children: Children) -> impl IntoView
+where
+    F: Fn(bool) + Copy + 'static,
+{
     view! {
         <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
             <div class="w-fit border-solid border border-black mx-auto">
-                <div class="w-fit border-groove border-24">{children()}</div>
+                <div
+                    class="w-fit border-groove border-24"
+                    on:mouseenter=move |_| set_active(true)
+                    on:mouseleave=move |_| set_active(false)
+                >
+                    {children()}
+                </div>
             </div>
         </div>
     }
@@ -81,20 +94,67 @@ where
         }
     });
 
+    let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
+    let (game_is_active, set_game_is_active) = create_signal(false);
+    let (active_cell, set_active_cell) = create_signal(BoardPoint { row: 0, col: 0 });
+
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         let res = match pa {
-            PlayAction::Reveal => game_signal().try_reveal(row, col),
-            PlayAction::Flag => game_signal().try_flag(row, col),
-            PlayAction::RevealAdjacent => game_signal().try_reveal_adjacent(row, col),
+            PlayAction::Reveal => game_signal.get_untracked().try_reveal(row, col),
+            PlayAction::Flag => game_signal.get_untracked().try_flag(row, col),
+            PlayAction::RevealAdjacent => game_signal.get_untracked().try_reveal_adjacent(row, col),
         };
-        res.unwrap_or_else(|e| (game_signal().err_signal)(Some(format!("{:?}", e))));
+        res.unwrap_or_else(|e| (game_signal.get_untracked().err_signal)(Some(format!("{:?}", e))));
+    };
+
+    let handle_keydown = move |ev: KeyboardEvent| {
+        if !game_is_active.get_untracked() {
+            return;
+        }
+        let BoardPoint { row, col } = active_cell.get_untracked();
+        match ev.key().as_str() {
+            " " => {
+                ev.prevent_default();
+                handle_action(PlayAction::Reveal, row, col);
+            }
+            "d" => {
+                handle_action(PlayAction::RevealAdjacent, row, col);
+            }
+            "f" => {
+                handle_action(PlayAction::Flag, row, col);
+            }
+            _ => {}
+        }
+    };
+    let _ = use_event_listener(use_document(), keydown, handle_keydown);
+
+    let handle_mousedown = move |ev: MouseEvent, row: usize, col: usize| {
+        let set_skip_signal = { set_skip_mouseup };
+        if ev.button() == 2 {
+            handle_action(PlayAction::Flag, row, col);
+        }
+        if ev.buttons() == 3 {
+            set_skip_signal.set(2);
+            handle_action(PlayAction::RevealAdjacent, row, col);
+        }
+    };
+    let handle_mouseup = move |ev: MouseEvent, row: usize, col: usize| {
+        leptos_dom::log!("handle_mouseup");
+        leptos_dom::log!("{}", skip_mouseup.get());
+        if skip_mouseup.get() > 0 {
+            set_skip_mouseup.set(skip_mouseup() - 1);
+            return;
+        }
+        if ev.button() == 0 {
+            handle_action(PlayAction::Reveal, row, col);
+        }
     };
     // TODO - game lifecycle UI (started indicators, ended indicators, countdown / starting alerts, etc.)
 
     view! {
         <div class="text-center">
             <ActivePlayers/>
-            <GameBorder>
+            <GameBorder set_active=set_game_is_active>
                 {read_signals
                     .into_iter()
                     .enumerate()
@@ -103,9 +163,9 @@ where
                             <ActiveRow
                                 row=row
                                 cells=vec
-                                skip_mouseup=game.skip_mouseup
-                                set_skip_mouseup=game.set_skip_mouseup
-                                handle_action
+                                set_active_cell=set_active_cell
+                                mousedown_handler=handle_mousedown
+                                mouseup_handler=handle_mouseup
                             />
                         }
                     })
@@ -127,7 +187,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <InactivePlayers players/>
-            <GameBorder>
+            <GameBorder set_active=move |_| {}>
                 {board
                     .into_iter()
                     .enumerate()
