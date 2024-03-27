@@ -8,8 +8,7 @@ use serde::Serialize;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
-use crate::components::button::Button;
-use crate::components::icons::Mine;
+use crate::components::{button_class, icons::Mine};
 
 pub fn player_class(player: usize) -> String {
     String::from(match player {
@@ -212,9 +211,9 @@ fn PlayForm() -> impl IntoView {
 
                         class="w-full max-w-xs h-8"
                     >
-                        <Button btn_type="submit" class="w-full w-max-xs h-8">
+                        <button type="submit" class=button_class(Some("w-full w-max-xs h-8"), None)>
                             "Play Game"
-                        </Button>
+                        </button>
                     </form>
                 }
                     .into_view()
@@ -247,13 +246,16 @@ fn StartForm(
     view! {
         <ActionForm action=start_game class="w-full max-w-xs h-8">
             <input type="hidden" name="game_id" value=game_id/>
-            <Button
-                btn_type="submit"
-                class="w-full w-max-xs h-8"
-                colors="bg-green-700 hover:bg-green-800/90 text-white"
+            <button
+                type="submit"
+                class=button_class(
+                    Some("w-full w-max-xs h-8"),
+                    Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                )
+                disabled=move || start_game.pending()
             >
                 "Start Game"
-            </Button>
+            </button>
         </ActionForm>
     }
 }

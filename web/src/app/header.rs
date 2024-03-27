@@ -69,7 +69,7 @@ where
             <A href="/" class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
             </A>
-            <div class="flex items-center space-x-2">
+            <div class="flex grow justify-end items-center space-x-2">
                 <Transition fallback=move || {
                     view! {}
                 }>

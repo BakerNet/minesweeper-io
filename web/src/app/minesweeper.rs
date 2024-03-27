@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
 
-use crate::components::{button::Button, input::input_class};
+use crate::components::{button_class, input_class};
 use game::{ActiveGame, InactiveGame};
 
 #[cfg(feature = "ssr")]
@@ -292,7 +292,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                             "Rows:"
                         </label>
                         <input
-                            class=input_class("")
+                            class=input_class(None)
                             type="number"
                             id="new_game_rows"
                             name="rows"
@@ -315,7 +315,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                             "Columns:"
                         </label>
                         <input
-                            class=input_class("")
+                            class=input_class(None)
                             type="number"
                             id="new_game_cols"
                             name="cols"
@@ -340,7 +340,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                             "Mines:"
                         </label>
                         <input
-                            class=input_class("")
+                            class=input_class(None)
                             type="number"
                             id="new_game_num_mines"
                             name="num_mines"
@@ -363,7 +363,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                             "Max Players:"
                         </label>
                         <input
-                            class=input_class("")
+                            class=input_class(None)
                             type="number"
                             id="new_game_max_players"
                             name="max_players"
@@ -384,9 +384,13 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                         <div>{error}</div>
                     </For>
                 </div>
-                <Button btn_type="submit" class="w-full max-w-xs h-12">
+                <button
+                    type="submit"
+                    class=button_class(Some("w-full max-w-xs h-12"), None)
+                    disabled=move || new_game.pending()
+                >
                     "Create New Game"
-                </Button>
+                </button>
             </ActionForm>
             <div class="w-full max-w-xs h-6">
                 <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
@@ -403,13 +407,19 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     </label>
                     <div class="flex space-x-2">
                         <input
-                            class=input_class("")
+                            class=input_class(None)
                             type="text"
                             placeholder="Enter Game ID"
                             id="join_game_game_id"
                             name="game_id"
                         />
-                        <Button btn_type="submit">"Join"</Button>
+                        <button
+                            type="submit"
+                            class=button_class(None, None)
+                            disabled=move || join_game.pending()
+                        >
+                            "Join"
+                        </button>
                     </div>
                 </div>
             </ActionForm>
