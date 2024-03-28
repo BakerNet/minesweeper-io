@@ -252,6 +252,7 @@ fn StartForm(
                     Some("w-full w-max-xs h-8"),
                     Some("bg-green-700 hover:bg-green-800/90 text-white"),
                 )
+
                 disabled=move || start_game.pending()
             >
                 "Start Game"

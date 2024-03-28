@@ -137,6 +137,7 @@ pub fn LogOut(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoVie
                     Some("w-full max-w-xs h-12"),
                     Some("bg-red-400 text-black hover:bg-red-500/90"),
                 )
+
                 disabled=move || logout.pending()
             >
                 "Log out"

@@ -1,5 +1,6 @@
 pub mod dark_mode;
 pub mod icons;
+pub mod info;
 
 pub fn input_class(exta_classes: Option<&str>) -> String {
     let extra_classes = exta_classes.unwrap_or_default();

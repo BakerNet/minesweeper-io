@@ -19,6 +19,8 @@ use leptos_meta::*;
 use leptos_router::*;
 use serde::{Deserialize, Serialize};
 
+use crate::components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FrontendUser {
     pub display_name: Option<String>,
@@ -41,6 +43,8 @@ pub fn App() -> impl IntoView {
     let login = create_server_action::<LogIn>();
     let logout = create_server_action::<LogOut>();
     let (user_update, user_updated) = create_signal("".to_string());
+    let (show_info, set_show_info) = create_signal(false);
+    use_controls_info_keybinds(set_show_info);
 
     let user = create_resource(
         move || (login.version().get(), logout.version().get(), user_update()),
@@ -106,6 +110,10 @@ pub fn App() -> impl IntoView {
 
                     <Route path="/game/:id" view=|| view! { <Game/> }/>
                 </Routes>
+                <ControlsInfoButton set_show_info/>
+                <Show when=show_info>
+                    <ControlsInfoModal set_show_info/>
+                </Show>
             </main>
         </Router>
     }
