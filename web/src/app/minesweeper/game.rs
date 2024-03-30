@@ -144,8 +144,6 @@ where
         }
     };
     let handle_mouseup = move |ev: MouseEvent, row: usize, col: usize| {
-        leptos_dom::log!("handle_mouseup");
-        leptos_dom::log!("{}", skip_mouseup.get());
         if skip_mouseup.get() > 0 {
             set_skip_mouseup.set(skip_mouseup() - 1);
             return;
