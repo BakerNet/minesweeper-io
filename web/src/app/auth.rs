@@ -105,7 +105,7 @@ pub fn Login(
             <button
                 type="submit"
                 class=button_class(Some("w-full w-max-xs h-8"), Some(target_colors))
-                disabled=move || login.pending()
+                disabled=login.pending()
             >
                 {target_readable}
             </button>
@@ -138,7 +138,7 @@ pub fn LogOut(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoVie
                     Some("bg-red-400 text-black hover:bg-red-500/90"),
                 )
 
-                disabled=move || logout.pending()
+                disabled=logout.pending()
             >
                 "Log out"
             </button>

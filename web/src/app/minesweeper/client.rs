@@ -149,14 +149,14 @@ impl FrontendGame {
     }
 
     fn play_protections(&self) -> Result<usize> {
-        if !(self.started).get_untracked() || (self.completed).get_untracked() {
+        if !(self.started).get() || (self.completed).get() {
             bail!("Tried to play when game not active")
         }
-        let Some(player) =  self.player_id.get_untracked() else {
+        let Some(player) =  self.player_id.get() else {
             bail!("Tried to play when not a player")
         };
         let Some(player_info) = self.players[player]
-            .get_untracked() else {
+            .get() else {
             bail!("Tried to play when player info not available")
         };
         if player_info.dead {
@@ -280,7 +280,7 @@ impl FrontendGame {
     }
 
     pub fn send(&self, s: &str) {
-        log::debug!("before send");
+        log::debug!("before send {s}");
         (self.send)(s)
     }
 

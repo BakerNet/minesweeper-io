@@ -89,9 +89,14 @@ where
 
     create_effect(move |last| {
         game_signal().join_trigger.track();
-        if last.is_some() {
-            game_signal().send("Play");
+        log::debug!("join_trigger rec: {last:?}");
+        if let Some(sent) = last {
+            if sent == false {
+                game_signal().send("Play");
+                return true;
+            }
         }
+        return false;
     });
 
     let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
@@ -100,18 +105,18 @@ where
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         let res = match pa {
-            PlayAction::Reveal => game_signal.get_untracked().try_reveal(row, col),
-            PlayAction::Flag => game_signal.get_untracked().try_flag(row, col),
-            PlayAction::RevealAdjacent => game_signal.get_untracked().try_reveal_adjacent(row, col),
+            PlayAction::Reveal => game_signal.get().try_reveal(row, col),
+            PlayAction::Flag => game_signal.get().try_flag(row, col),
+            PlayAction::RevealAdjacent => game_signal.get().try_reveal_adjacent(row, col),
         };
-        res.unwrap_or_else(|e| (game_signal.get_untracked().err_signal)(Some(format!("{:?}", e))));
+        res.unwrap_or_else(|e| (game_signal.get().err_signal)(Some(format!("{:?}", e))));
     };
 
     let handle_keydown = move |ev: KeyboardEvent| {
-        if !game_is_active.get_untracked() {
+        if !game_is_active.get() {
             return;
         }
-        let BoardPoint { row, col } = active_cell.get_untracked();
+        let BoardPoint { row, col } = active_cell.get();
         match ev.key().as_str() {
             " " => {
                 ev.prevent_default();

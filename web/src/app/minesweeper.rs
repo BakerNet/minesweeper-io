@@ -387,7 +387,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                 <button
                     type="submit"
                     class=button_class(Some("w-full max-w-xs h-12"), None)
-                    disabled=move || new_game.pending()
+                    disabled=new_game.pending()
                 >
                     "Create New Game"
                 </button>
@@ -416,7 +416,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                         <button
                             type="submit"
                             class=button_class(None, None)
-                            disabled=move || join_game.pending()
+                            disabled=join_game.pending()
                         >
                             "Join"
                         </button>

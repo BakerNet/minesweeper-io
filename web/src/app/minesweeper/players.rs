@@ -69,6 +69,7 @@ pub fn ActivePlayers() -> impl IntoView {
             players_ctx.join_trigger,
         )
     };
+    log::debug!("players: {players:?}");
     let num_players = players.len();
     let last_slot = *players.last().unwrap();
     let show_play =
@@ -80,8 +81,12 @@ pub fn ActivePlayers() -> impl IntoView {
     };
 
     if num_players == 1 {
+        log::debug!("num players 1");
         create_effect(move |_| {
-            join_trigger.notify();
+            if loaded() {
+                log::debug!("join_trigger");
+                join_trigger.notify();
+            }
         });
     }
 
@@ -253,7 +258,7 @@ fn StartForm(
                     Some("bg-green-700 hover:bg-green-800/90 text-white"),
                 )
 
-                disabled=move || start_game.pending()
+                disabled=start_game.pending()
             >
                 "Start Game"
             </button>
