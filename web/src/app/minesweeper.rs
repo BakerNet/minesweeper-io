@@ -358,7 +358,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     <div class="flex-1">
                         <label
                             class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_num_players"
+                            for="new_game_max_players"
                         >
                             "Max Players:"
                         </label>
