@@ -278,14 +278,24 @@ fn handles_to_client_players(
     player_handles: &[Option<PlayerHandle>],
     minesweeper: &Minesweeper,
 ) -> Vec<Option<ClientPlayer>> {
+    let current_top_score = minesweeper.current_top_score();
     player_handles
         .iter()
         .map(|item| {
-            item.as_ref().map(|player| ClientPlayer {
-                player_id: player.player_id,
-                username: player.display_name.clone(),
-                dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
-                score: minesweeper.player_score(player.player_id).unwrap_or(0),
+            item.as_ref().map(|player| {
+                let player_score = minesweeper.player_score(player.player_id).unwrap_or(0);
+                ClientPlayer {
+                    player_id: player.player_id,
+                    username: player.display_name.clone(),
+                    dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
+                    victory_click: minesweeper
+                        .player_victory_click(player.player_id)
+                        .unwrap_or(false),
+                    top_score: current_top_score
+                        .map(|s| s == player_score)
+                        .unwrap_or(false),
+                    score: player_score,
+                }
             })
         })
         .collect()
@@ -402,10 +412,14 @@ async fn handle_message(
             let outcome_msg = GameMessage::PlayOutcome(default).to_json();
             let score = minesweeper.player_score(player.player_id).unwrap();
             let dead = minesweeper.player_dead(player.player_id).unwrap();
+            let victory_click = minesweeper.player_victory_click(player.player_id).unwrap();
+            let top_score = minesweeper.player_top_score(player.player_id).unwrap();
             let player_state = ClientPlayer {
                 player_id: player.player_id,
                 username: player.display_name.clone(),
                 dead,
+                victory_click,
+                top_score,
                 score,
             };
             let player_state_message = GameMessage::PlayerUpdate(player_state).to_json();

@@ -9,3 +9,11 @@
 .border-groove {
   border-style: groove;
 }
+
+.tooltip {
+  @apply invisible absolute;
+}
+
+.has-tooltip:hover .tooltip {
+  @apply visible z-50
+}

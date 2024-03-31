@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 use super::{auth::LogOut, FrontendUser};
 use crate::{
     app::minesweeper::players::player_class,
-    components::{button_class, icons::Mine, input_class},
+    components::{
+        button_class,
+        icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
+        input_class,
+    },
     no_prefix_serverfnerror, validate_display_name,
 };
 
@@ -134,6 +138,8 @@ pub struct PlayerGame {
     game_id: String,
     player_id: u8,
     dead: bool,
+    victory_click: bool,
+    top_score: bool,
     score: i64,
 }
 
@@ -158,8 +164,11 @@ async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
             game_id: pu.game_id,
             player_id: pu.player,
             dead: pu.dead,
+            victory_click: pu.victory_click,
+            top_score: pu.top_score,
             score: pu.score,
         })
+        .rev()
         .collect())
 }
 
@@ -182,8 +191,31 @@ fn GameHistory() -> impl IntoView {
                 <td class="border-b border-slate-100 dark:border-slate-700 p-1">
                     {if game.dead {
                         view! {
-                            <span class="inline-block align-text-top bg-red-600 h-4 w-4">
+                            <span class=player_icon_holder("bg-red-600", true)>
                                 <Mine/>
+                                <IconTooltip>"Dead"</IconTooltip>
+                            </span>
+                        }
+                            .into_view()
+                    } else {
+                        ().into_view()
+                    }}
+                    {if game.top_score {
+                        view! {
+                            <span class=player_icon_holder("bg-green-800", true)>
+                                <Trophy/>
+                                <IconTooltip>"Top Score"</IconTooltip>
+                            </span>
+                        }
+                            .into_view()
+                    } else {
+                        ().into_view()
+                    }}
+                    {if game.victory_click {
+                        view! {
+                            <span class=player_icon_holder("bg-black", true)>
+                                <Star/>
+                                <IconTooltip>"Victory Click"</IconTooltip>
                             </span>
                         }
                             .into_view()

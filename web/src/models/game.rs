@@ -111,6 +111,8 @@ pub struct Player {
     pub nickname: Option<String>,
     pub player: u8,
     pub dead: bool,
+    pub victory_click: bool,
+    pub top_score: bool,
     pub score: i64,
 }
 
@@ -120,6 +122,8 @@ pub struct PlayerUser {
     pub user: Option<i64>, // User.id
     pub nickname: Option<String>,
     pub dead: bool,
+    pub victory_click: bool,
+    pub top_score: bool,
     pub score: i64,
     pub display_name: Option<String>,
     pub player: u8,
@@ -133,6 +137,8 @@ impl PlayerUser {
             player: self.player,
             nickname: self.nickname.clone(),
             dead: self.dead,
+            victory_click: self.victory_click,
+            top_score: self.top_score,
             score: self.score,
         }
     }
@@ -239,9 +245,11 @@ impl Player {
     ) -> Result<(), sqlx::Error> {
         let mut transaction = db.begin().await?;
         for p in players {
-            sqlx::query("update players set dead = ?, score = ? where game_id = ? and player = ?")
+            sqlx::query("update players set dead = ?, score = ?, victory_click = ?, top_score = ? where game_id = ? and player = ?")
                 .bind(p.dead)
                 .bind(p.score as i64)
+                .bind(p.victory_click)
+                .bind(p.top_score)
                 .bind(game_id)
                 .bind(p.player_id as u8)
                 .execute(&mut *transaction)

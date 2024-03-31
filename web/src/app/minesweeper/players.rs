@@ -8,7 +8,10 @@ use serde::Serialize;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{game_manager::GameManager, users::AuthSession};
-use crate::components::{button_class, icons::Mine};
+use crate::components::{
+    button_class,
+    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
+};
 
 pub fn player_class(player: usize) -> String {
     String::from(match player {
@@ -149,16 +152,26 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
 
 #[component]
 fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
-    let (mut player_class, username, is_dead, score) = if let Some(player) = &player {
-        (
-            player_class(player.player_id),
-            player.username.clone(),
-            player.dead,
-            player.score,
-        )
-    } else {
-        (String::from(""), String::from("--------"), false, 0)
-    };
+    let (mut player_class, username, is_dead, victory_click, top_score, score) =
+        if let Some(player) = &player {
+            (
+                player_class(player.player_id),
+                player.username.clone(),
+                player.dead,
+                player.victory_click,
+                player.top_score,
+                player.score,
+            )
+        } else {
+            (
+                String::from(""),
+                String::from("--------"),
+                false,
+                false,
+                false,
+                0,
+            )
+        };
     if !player_class.is_empty() {
         player_class += " text-black";
     } else {
@@ -172,8 +185,31 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 {username}
                 {if is_dead {
                     view! {
-                        <span class="inline-block align-text-top bg-red-600 h-4 w-4">
+                        <span class=player_icon_holder("bg-red-600", true)>
                             <Mine/>
+                            <IconTooltip>"Dead"</IconTooltip>
+                        </span>
+                    }
+                        .into_view()
+                } else {
+                    ().into_view()
+                }}
+                {if top_score {
+                    view! {
+                        <span class=player_icon_holder("bg-green-800", true)>
+                            <Trophy/>
+                            <IconTooltip>"Top Score"</IconTooltip>
+                        </span>
+                    }
+                        .into_view()
+                } else {
+                    ().into_view()
+                }}
+                {if victory_click {
+                    view! {
+                        <span class=player_icon_holder("bg-black", true)>
+                            <Star/>
+                            <IconTooltip>"Victory Click"</IconTooltip>
                         </span>
                     }
                         .into_view()

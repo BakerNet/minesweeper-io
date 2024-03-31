@@ -134,6 +134,8 @@ pub struct ClientPlayer {
     pub player_id: usize,
     pub username: String,
     pub dead: bool,
+    pub victory_click: bool,
+    pub top_score: bool,
     pub score: usize,
 }
 

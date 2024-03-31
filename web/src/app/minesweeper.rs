@@ -65,6 +65,8 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
             player_id: p.player as usize,
             username: FrontendUser::display_name_or_anon(&p.display_name, p.user.is_some()),
             dead: p.dead,
+            victory_click: p.victory_click,
+            top_score: p.top_score,
             score: p.score as usize,
         })
         .fold(vec![None; game.max_players as usize], |mut acc, p| {

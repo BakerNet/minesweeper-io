@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::HashSet;
 
 use crate::board::{Board, BoardPoint};
@@ -70,13 +71,43 @@ impl Minesweeper {
         Ok(self.players[player].dead)
     }
 
+    pub fn player_victory_click(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].victory_click)
+    }
+
+    pub fn current_top_score(&self) -> Option<usize> {
+        if self.players.len() < 2 {
+            None
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            match top_score {
+                0 => None,
+                score => Some(score),
+            }
+        }
+    }
+
+    pub fn player_top_score(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        if self.players.len() < 2 {
+            return Ok(false); // no top_score in single player
+        }
+        let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+        Ok(self.players[player].score == top_score && top_score != 0)
+    }
+
     pub fn play(
         &mut self,
         player: usize,
         action: Action,
         cell_point: BoardPoint,
     ) -> Result<PlayOutcome> {
-        if self.available.is_empty() {
+        if self.is_over() {
             bail!("Game is over")
         }
         if self.players[player].dead {
@@ -85,11 +116,15 @@ impl Minesweeper {
         if !self.board.is_in_bounds(cell_point) {
             bail!("Tried to play point outside of playzone")
         }
-        match action {
+        let play_res = match action {
             Action::Reveal => self.handle_click(player, cell_point),
             Action::RevealAdjacent => self.handle_double_click(player, cell_point),
             Action::Flag => self.handle_flag(player, cell_point),
+        };
+        if self.is_over() {
+            self.players[player].victory_click = true;
         }
+        play_res
     }
 
     fn handle_flag(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
@@ -432,6 +467,7 @@ fn bool_to_u8(b: bool) -> u8 {
 struct Player {
     played: bool,
     dead: bool,
+    victory_click: bool,
     score: usize,
     flags: HashSet<BoardPoint>,
 }
