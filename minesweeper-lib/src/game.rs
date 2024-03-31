@@ -95,10 +95,11 @@ impl Minesweeper {
             bail!("Player {player} doesn't exist")
         }
         if self.players.len() < 2 {
-            return Ok(false); // no top_score in single player
+            Ok(false) // no top_score in single player
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            Ok(self.players[player].score == top_score && top_score != 0)
         }
-        let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
-        Ok(self.players[player].score == top_score && top_score != 0)
     }
 
     pub fn play(

@@ -87,16 +87,16 @@ where
         }
     });
 
-    create_effect(move |last| {
+    create_effect(move |last: Option<bool>| {
         game_signal().join_trigger.track();
         log::debug!("join_trigger rec: {last:?}");
         if let Some(sent) = last {
-            if sent == false {
+            if !sent {
                 game_signal().send("Play");
                 return true;
             }
         }
-        return false;
+        false
     });
 
     let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
