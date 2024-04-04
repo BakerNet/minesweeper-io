@@ -122,7 +122,7 @@ impl Minesweeper {
             Action::RevealAdjacent => self.handle_double_click(player, cell_point),
             Action::Flag => self.handle_flag(player, cell_point),
         };
-        if self.is_over() {
+        if self.is_over() && self.available.is_empty() {
             self.players[player].victory_click = true;
         }
         play_res
