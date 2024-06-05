@@ -11,13 +11,13 @@ minesweeper-lib = { path="../minesweeper-lib" }
 anyhow = "1.0"
 async-trait = "0.1"
 axum = { version = "0.7", features = ["ws", "macros"], optional = true }
-axum-login = { version = "0.11", optional = true }
+axum-login = { version = "0.15", optional = true }
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 cfg-if = "1.0"
 dotenvy = "0.15"
 futures = { version = "0.3", optional = true }
-http = { version = "1.0" }
+http = { version = "1.1" }
 leptos = { version = "0.6", features = ["nightly"] }
 leptos_axum = { version = "0.6", optional = true }
 leptos_meta = { version = "0.6", features = ["nightly"] }
@@ -30,14 +30,15 @@ regex = "1.10"
 reqwest = { version = "0.12", features = ["json"] }
 serde = "1.0"
 serde_json = "1.0"
-simple_logger = "4"
+simple_logger = "5"
 sqlx = { version = "0.7", features = ["sqlite", "time", "runtime-tokio"], optional = true }
 thiserror = "1.0"
 time = "0.3"
 tokio = { version = "1", features = ["full"], optional = true }
 tower = { version = "0.4", features = ["util"], optional = true }
-tower-http = { version = "0.5.0", features = ["fs"], optional = true }
-tower-sessions = { version = "0.8", optional = true, features = ["sqlite-store"] }
+tower-http = { version = "0.5.2", features = ["fs"], optional = true }
+tower-sessions = { version = "0.12", optional = true }
+tower-sessions-sqlx-store = { version = "0.12.0", optional = true, features = ["sqlite"] }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 wasm-bindgen = "0.2"
@@ -57,6 +58,7 @@ ssr = [
     "dep:tower",
     "dep:tower-http",
     "dep:tower-sessions",
+    "dep:tower-sessions-sqlx-store",
     "dep:tracing",
     "dep:tracing-subscriber",
     "leptos/ssr",

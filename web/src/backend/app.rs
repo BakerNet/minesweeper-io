@@ -1,17 +1,12 @@
 use anyhow::Result;
 use axum::{
     body::Body,
-    error_handling::HandleErrorLayer,
     extract::{FromRef, State},
-    http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
-    BoxError, Router,
+    Router,
 };
-use axum_login::{
-    tower_sessions::{cookie::SameSite, Expiry, SessionManagerLayer},
-    AuthManagerLayerBuilder,
-};
+use axum_login::AuthManagerLayerBuilder;
 use http::Request;
 use leptos::*;
 use leptos_axum::*;
@@ -20,8 +15,10 @@ use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, T
 use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
 use time::Duration;
-use tower::ServiceBuilder;
-use tower_sessions::{Session, SqliteStore};
+use tower_sessions::{
+    cookie::SameSite, session_store, ExpiredDeletion, Expiry, Session, SessionManagerLayer,
+};
+use tower_sessions_sqlx_store::SqliteStore;
 
 use super::{auth, fileserv::file_and_error_handler, game_manager, users};
 use crate::{app, app::auth::OAuthTarget, models::game::Game};
@@ -152,6 +149,17 @@ impl App {
         })
     }
 
+    pub fn start_session_cleanup(
+        &self,
+    ) -> tokio::task::JoinHandle<Result<(), session_store::Error>> {
+        let deletion_task = tokio::task::spawn(
+            self.session_store
+                .clone()
+                .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
+        );
+        deletion_task
+    }
+
     pub async fn router(self) -> (Router, SocketAddr) {
         // Setting get_configuration(None) means we'll be using cargo-leptos's env values
         // For deployment these variables are:
@@ -176,7 +184,7 @@ impl App {
         let session_layer = SessionManagerLayer::new(self.session_store)
             .with_secure(false)
             .with_same_site(SameSite::Lax) // Ensure we send the cookie from the OAuth redirect.
-            .with_expiry(Expiry::OnInactivity(Duration::days(1)));
+            .with_expiry(Expiry::OnInactivity(Duration::days(30)));
 
         // Auth service.
         //
@@ -188,11 +196,7 @@ impl App {
             self.reddit_client,
             self.github_client,
         );
-        let auth_service = ServiceBuilder::new()
-            .layer(HandleErrorLayer::new(|_: BoxError| async {
-                StatusCode::BAD_REQUEST
-            }))
-            .layer(AuthManagerLayerBuilder::new(backend, session_layer).build());
+        let auth_service = AuthManagerLayerBuilder::new(backend, session_layer).build();
 
         // build our application with a route
         let app = Router::new()
