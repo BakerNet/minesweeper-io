@@ -1,7 +1,7 @@
 use leptos::*;
 
 pub fn player_icon_holder(bg_color: &str, has_tooltip: bool) -> String {
-    let mut class = format!("inline-block align-text-top {bg_color} h-5 w-5 p-0.5 mx-1");
+    let mut class = format!("inline-block align-text-top {bg_color} h-5 w-5 p-0.5 mx-1 rounded");
     if has_tooltip {
         class += " has-tooltip relative"
     }
