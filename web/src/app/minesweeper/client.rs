@@ -184,7 +184,7 @@ impl FrontendGame {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).borrow();
         if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
-            bail!("Tried to flag revealed cell")
+            return Ok(());
         }
         let play_json = serde_json::to_string(&Play {
             player,

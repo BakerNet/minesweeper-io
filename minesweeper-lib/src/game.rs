@@ -131,7 +131,7 @@ impl Minesweeper {
     fn handle_flag(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
-            return Ok(PlayOutcome::Success(Vec::new()));
+            bail!("Tried to play already revealed cell")
         }
         let player_cell = if self.players[player].flags.contains(&cell_point) {
             self.players[player].flags.remove(&cell_point);
