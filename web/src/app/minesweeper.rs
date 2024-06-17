@@ -208,10 +208,247 @@ impl Default for GameSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum GameMode {
+    ClassicEasy,
+    ClassicMedium,
+    ClassicHard,
+    SmallMultiplayer,
+    LargeMultiplayer,
+    Custom,
+}
+
+impl GameMode {
+    fn short_name(self) -> &'static str {
+        match self {
+            GameMode::ClassicEasy => "Easy",
+            GameMode::ClassicMedium => "Medium",
+            GameMode::ClassicHard => "Hard",
+            GameMode::SmallMultiplayer => "Small",
+            GameMode::LargeMultiplayer => "Large",
+            GameMode::Custom => "Custom",
+        }
+    }
+}
+
+impl Default for GameMode {
+    fn default() -> Self {
+        Self::LargeMultiplayer
+    }
+}
+
+impl From<GameMode> for GameSettings {
+    fn from(val: GameMode) -> Self {
+        match val {
+            GameMode::ClassicEasy => GameSettings {
+                rows: 9,
+                cols: 9,
+                num_mines: 10,
+                max_players: 1,
+            },
+            GameMode::ClassicMedium => GameSettings {
+                rows: 16,
+                cols: 16,
+                num_mines: 40,
+                max_players: 1,
+            },
+            GameMode::ClassicHard => GameSettings {
+                rows: 16,
+                cols: 30,
+                num_mines: 99,
+                max_players: 1,
+            },
+            GameMode::SmallMultiplayer => GameSettings {
+                rows: 16,
+                cols: 30,
+                num_mines: 80,
+                max_players: 2,
+            },
+            GameMode::LargeMultiplayer => GameSettings::default(),
+            GameMode::Custom => GameSettings::default(),
+        }
+    }
+}
+
+#[component]
+pub fn PresetButtons(
+    selected: Signal<GameMode>,
+    set_selected: WriteSignal<GameMode>,
+) -> impl IntoView {
+    let multiplayer_modes = [GameMode::SmallMultiplayer, GameMode::LargeMultiplayer];
+    let classic_modes = [
+        GameMode::ClassicEasy,
+        GameMode::ClassicMedium,
+        GameMode::ClassicHard,
+    ];
+
+    let mode_button = move |mode: GameMode| {
+        view! {
+            <div class="flex-1">
+                <button
+                    type="button"
+                    class=move || {
+                        let selected_colors = if selected() == mode {
+                            Some("bg-neutral-800 text-neutral-50 border-neutral-500")
+                        } else {
+                            None
+                        };
+                        button_class(Some("w-full rounded rounded-lg"), selected_colors)
+                    }
+
+                    on:click=move |_| {
+                        set_selected(mode);
+                    }
+                >
+
+                    {mode.short_name()}
+                </button>
+            </div>
+        }
+    };
+
+    view! {
+        <div class="w-full space-y-2">
+            <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
+                "Multiplayer Presets"
+            </div>
+            <div class="flex w-full space-x-2">
+                {multiplayer_modes.map(mode_button).collect_view()}
+            </div>
+        </div>
+        <div class="w-full space-y-2">
+            <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
+                "Classic Presets"
+            </div>
+            <div class="flex w-full space-x-2">{classic_modes.map(mode_button).collect_view()}</div>
+        </div>
+        <div class="w-full space-y-2">
+            <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
+                "Custom"
+            </div>
+            <div class="flex w-full space-x-2">{mode_button(GameMode::Custom)}</div>
+        </div>
+    }
+}
+
+#[component]
+pub fn SettingsInputs<F>(
+    rows: ReadSignal<i64>,
+    set_rows: WriteSignal<i64>,
+    cols: ReadSignal<i64>,
+    set_cols: WriteSignal<i64>,
+    num_mines: ReadSignal<i64>,
+    set_num_mines: WriteSignal<i64>,
+    max_players: ReadSignal<i64>,
+    set_max_players: WriteSignal<i64>,
+    on_dirty: F,
+) -> impl IntoView
+where
+    F: Fn() + Clone + Copy + 'static,
+{
+    view! {
+        <div class="flex space-x-2">
+            <div class="flex-1">
+                <label
+                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
+                    for="new_game_rows"
+                >
+                    "Rows:"
+                </label>
+                <input
+                    class=input_class(None)
+                    type="number"
+                    id="new_game_rows"
+                    name="rows"
+                    min=0
+                    max=100
+                    on:change=move |ev| {
+                        set_rows(event_target_value(&ev).parse::<i64>().unwrap_or_default());
+                        on_dirty();
+                    }
+
+                    prop:value=rows
+                />
+            </div>
+            <div class="flex-1">
+                <label
+                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
+                    for="new_game_cols"
+                >
+                    "Columns:"
+                </label>
+                <input
+                    class=input_class(None)
+                    type="number"
+                    id="new_game_cols"
+                    name="cols"
+                    min=0
+                    max=100
+                    on:change=move |ev| {
+                        set_cols(event_target_value(&ev).parse::<i64>().unwrap_or_default());
+                        on_dirty();
+                    }
+
+                    prop:value=cols
+                />
+            </div>
+        </div>
+        <div class="flex space-x-2">
+            <div class="flex-1">
+                <label
+                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
+                    for="new_game_num_mines"
+                >
+                    "Mines:"
+                </label>
+                <input
+                    class=input_class(None)
+                    type="number"
+                    id="new_game_num_mines"
+                    name="num_mines"
+                    min=0
+                    max=10000
+                    on:change=move |ev| {
+                        set_num_mines(event_target_value(&ev).parse::<i64>().unwrap_or_default());
+                        on_dirty();
+                    }
+
+                    prop:value=num_mines
+                />
+            </div>
+            <div class="flex-1">
+                <label
+                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
+                    for="new_game_max_players"
+                >
+                    "Max Players:"
+                </label>
+                <input
+                    class=input_class(None)
+                    type="number"
+                    id="new_game_max_players"
+                    name="max_players"
+                    min=0
+                    max=12
+                    on:change=move |ev| {
+                        set_max_players(event_target_value(&ev).parse::<i64>().unwrap_or_default());
+                        on_dirty();
+                    }
+
+                    prop:value=max_players
+                />
+            </div>
+        </div>
+    }
+}
+
 #[component]
 pub fn JoinOrCreateGame() -> impl IntoView {
     let join_game = create_server_action::<JoinGame>();
     let new_game = create_server_action::<NewGame>();
+
+    let (selected_mode, set_selected_mode, _) =
+        use_local_storage::<GameMode, JsonCodec>("game_mode_settings");
 
     let (custom_settings, set_custom_settings, _) =
         use_local_storage::<GameSettings, JsonCodec>("custom_game_settings");
@@ -221,14 +458,29 @@ pub fn JoinOrCreateGame() -> impl IntoView {
     let (cols, set_cols) = create_signal(defaults.cols);
     let (num_mines, set_num_mines) = create_signal(defaults.num_mines);
     let (max_players, set_max_players) = create_signal(defaults.max_players);
+    let (dirty, set_dirty) = create_signal(false);
     let (errors, set_errors) = create_signal(Vec::new());
 
-    create_effect(move |_| {
+    let load_custom_settings = move || {
         let stored_settings = custom_settings();
         set_rows(stored_settings.rows);
         set_cols(stored_settings.cols);
         set_num_mines(stored_settings.num_mines);
         set_max_players(stored_settings.max_players);
+    };
+
+    create_effect(move |_| {
+        let stored_mode = selected_mode();
+        if stored_mode != GameMode::Custom {
+            let mode_settings = GameSettings::from(stored_mode);
+            set_rows(mode_settings.rows);
+            set_cols(mode_settings.cols);
+            set_num_mines(mode_settings.num_mines);
+            set_max_players(mode_settings.max_players);
+            set_dirty(false);
+        } else if !dirty() {
+            load_custom_settings();
+        }
     });
 
     create_effect(move |_| {
@@ -265,121 +517,44 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         set_errors(errs);
     });
 
-    // TODO - add presets
-
     view! {
         <div class="space-y-4 w-80">
             <ActionForm
                 action=new_game
                 class="w-full max-w-xs space-y-2"
                 on:submit=move |ev| {
-                    set_custom_settings(GameSettings {
-                        rows: rows(),
-                        cols: cols(),
-                        num_mines: num_mines(),
-                        max_players: max_players(),
-                    });
+                    if selected_mode() == GameMode::Custom {
+                        set_custom_settings(GameSettings {
+                            rows: rows(),
+                            cols: cols(),
+                            num_mines: num_mines(),
+                            max_players: max_players(),
+                        });
+                    }
                     if !errors().is_empty() {
                         ev.prevent_default();
                     }
                 }
             >
 
-                <div class="flex space-x-2">
-                    <div class="flex-1">
-                        <label
-                            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_rows"
-                        >
-                            "Rows:"
-                        </label>
-                        <input
-                            class=input_class(None)
-                            type="number"
-                            id="new_game_rows"
-                            name="rows"
-                            min=0
-                            max=100
-                            on:change=move |ev| {
-                                set_rows(
-                                    event_target_value(&ev).parse::<i64>().unwrap_or_default(),
-                                );
-                            }
-
-                            prop:value=rows
-                        />
-                    </div>
-                    <div class="flex-1">
-                        <label
-                            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_cols"
-                        >
-                            "Columns:"
-                        </label>
-                        <input
-                            class=input_class(None)
-                            type="number"
-                            id="new_game_cols"
-                            name="cols"
-                            min=0
-                            max=100
-                            on:change=move |ev| {
-                                set_cols(
-                                    event_target_value(&ev).parse::<i64>().unwrap_or_default(),
-                                );
-                            }
-
-                            prop:value=cols
-                        />
-                    </div>
+                <div class="space-y-2">
+                    <PresetButtons selected=selected_mode set_selected=set_selected_mode/>
                 </div>
-                <div class="flex space-x-2">
-                    <div class="flex-1">
-                        <label
-                            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_num_mines"
-                        >
-                            "Mines:"
-                        </label>
-                        <input
-                            class=input_class(None)
-                            type="number"
-                            id="new_game_num_mines"
-                            name="num_mines"
-                            min=0
-                            max=10000
-                            on:change=move |ev| {
-                                set_num_mines(
-                                    event_target_value(&ev).parse::<i64>().unwrap_or_default(),
-                                );
-                            }
-
-                            prop:value=num_mines
-                        />
-                    </div>
-                    <div class="flex-1">
-                        <label
-                            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                            for="new_game_max_players"
-                        >
-                            "Max Players:"
-                        </label>
-                        <input
-                            class=input_class(None)
-                            type="number"
-                            id="new_game_max_players"
-                            name="max_players"
-                            min=0
-                            max=12
-                            on:change=move |ev| {
-                                set_max_players(
-                                    event_target_value(&ev).parse::<i64>().unwrap_or_default(),
-                                );
-                            }
-
-                            prop:value=max_players
-                        />
-                    </div>
+                <div class="space-y-2">
+                    <SettingsInputs
+                        rows
+                        set_rows
+                        cols
+                        set_cols
+                        num_mines
+                        set_num_mines
+                        max_players
+                        set_max_players
+                        on_dirty = move || {
+                            set_dirty(true);
+                            set_selected_mode(GameMode::Custom);
+                        }
+                    />
                 </div>
                 <div class="text-red-600 w-full">
                     <For each=errors key=|error| error.to_owned() let:error>
