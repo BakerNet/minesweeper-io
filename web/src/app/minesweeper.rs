@@ -210,9 +210,9 @@ impl Default for GameSettings {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GameMode {
-    ClassicEasy,
-    ClassicMedium,
-    ClassicHard,
+    ClassicBeginner,
+    ClassicIntermediate,
+    ClassicExpert,
     SmallMultiplayer,
     LargeMultiplayer,
     Custom,
@@ -221,9 +221,9 @@ pub enum GameMode {
 impl GameMode {
     fn short_name(self) -> &'static str {
         match self {
-            GameMode::ClassicEasy => "Easy",
-            GameMode::ClassicMedium => "Medium",
-            GameMode::ClassicHard => "Hard",
+            GameMode::ClassicBeginner => "Beginner",
+            GameMode::ClassicIntermediate => "Intermediate",
+            GameMode::ClassicExpert => "Expert",
             GameMode::SmallMultiplayer => "Small",
             GameMode::LargeMultiplayer => "Large",
             GameMode::Custom => "Custom",
@@ -240,19 +240,19 @@ impl Default for GameMode {
 impl From<GameMode> for GameSettings {
     fn from(val: GameMode) -> Self {
         match val {
-            GameMode::ClassicEasy => GameSettings {
+            GameMode::ClassicBeginner => GameSettings {
                 rows: 9,
                 cols: 9,
                 num_mines: 10,
                 max_players: 1,
             },
-            GameMode::ClassicMedium => GameSettings {
+            GameMode::ClassicIntermediate => GameSettings {
                 rows: 16,
                 cols: 16,
                 num_mines: 40,
                 max_players: 1,
             },
-            GameMode::ClassicHard => GameSettings {
+            GameMode::ClassicExpert => GameSettings {
                 rows: 16,
                 cols: 30,
                 num_mines: 99,
@@ -277,9 +277,9 @@ pub fn PresetButtons(
 ) -> impl IntoView {
     let multiplayer_modes = [GameMode::SmallMultiplayer, GameMode::LargeMultiplayer];
     let classic_modes = [
-        GameMode::ClassicEasy,
-        GameMode::ClassicMedium,
-        GameMode::ClassicHard,
+        GameMode::ClassicBeginner,
+        GameMode::ClassicIntermediate,
+        GameMode::ClassicExpert,
     ];
 
     let mode_button = move |mode: GameMode| {
