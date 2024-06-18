@@ -1,10 +1,8 @@
-use super::client::PlayersContext;
-
 use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
+
 use minesweeper_lib::client::ClientPlayer;
-use serde::Serialize;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
@@ -13,6 +11,8 @@ use crate::components::{
     icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
     player_class,
 };
+
+use super::client::PlayersContext;
 
 #[component]
 fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
@@ -204,12 +204,6 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
             <td class="border-b border-slate-100 dark:border-slate-700 p-1">{score}</td>
         </tr>
     }
-}
-
-#[derive(Serialize, Debug)]
-pub struct PlayForm {
-    game_id: String,
-    user: String,
 }
 
 #[component]
