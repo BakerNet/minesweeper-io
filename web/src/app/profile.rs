@@ -1,25 +1,34 @@
-use cfg_if::cfg_if;
-
 use leptos::*;
 use leptos_router::*;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::{auth::LogOut, FrontendUser};
-use crate::{
-    app::minesweeper::players::player_class,
-    components::{
-        button_class,
-        icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
-        input_class,
-    },
-    no_prefix_serverfnerror, validate_display_name,
+use super::auth::{FrontendUser, LogOut};
+use crate::components::{
+    button_class,
+    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
+    input_class, player_class,
 };
 
-cfg_if! { if #[cfg(feature="ssr")] {
-    use axum_login::AuthUser;
-    use super::auth::get_user;
-    use crate::backend::{users::AuthSession, game_manager::GameManager};
-}}
+#[cfg(feature = "ssr")]
+use super::auth::get_user;
+#[cfg(feature = "ssr")]
+use crate::backend::{AuthSession, GameManager};
+#[cfg(feature = "ssr")]
+use axum_login::AuthUser;
+
+fn no_prefix_serverfnerror(s: ServerFnError) -> String {
+    s.to_string()
+        .split(": ")
+        .last()
+        .expect("ServerFnError String expected to have prefix")
+        .to_string()
+}
+
+fn validate_display_name(name: &str) -> bool {
+    let re = Regex::new(r"^[\w]+$").unwrap();
+    re.is_match(name) && name.len() >= 3 && name.len() <= 16
+}
 
 #[component]
 pub fn Profile(

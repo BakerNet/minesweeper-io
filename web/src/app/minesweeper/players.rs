@@ -7,29 +7,12 @@ use minesweeper_lib::client::ClientPlayer;
 use serde::Serialize;
 
 #[cfg(feature = "ssr")]
-use crate::backend::{game_manager::GameManager, users::AuthSession};
+use crate::backend::{AuthSession, GameManager};
 use crate::components::{
     button_class,
     icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
+    player_class,
 };
-
-pub fn player_class(player: usize) -> String {
-    String::from(match player {
-        0 => "bg-cyan-200",
-        1 => "bg-indigo-200",
-        2 => "bg-fuchsia-200",
-        3 => "bg-orange-200",
-        4 => "bg-lime-200",
-        5 => "bg-teal-200",
-        6 => "bg-blue-200",
-        7 => "bg-purple-200",
-        8 => "bg-rose-200",
-        9 => "bg-yellow-200",
-        10 => "bg-emerald-200",
-        11 => "bg-sky-200",
-        _ => "",
-    })
-}
 
 #[component]
 fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
@@ -252,7 +235,7 @@ fn PlayForm() -> impl IntoView {
 
                         class="w-full max-w-xs h-8"
                     >
-                        <button type="submit" class=button_class(Some("w-full w-max-xs h-8"), None)>
+                        <button type="submit" class=button_class(Some("w-full max-w-xs h-8"), None)>
                             "Play Game"
                         </button>
                     </form>
@@ -290,7 +273,7 @@ fn StartForm(
             <button
                 type="submit"
                 class=button_class(
-                    Some("w-full w-max-xs h-8"),
+                    Some("w-full max-w-xs h-8"),
                     Some("bg-green-700 hover:bg-green-800/90 text-white"),
                 )
 

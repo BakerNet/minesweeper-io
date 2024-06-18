@@ -1,5 +1,5 @@
 #[cfg(feature = "ssr")]
-use minesweeper_web::backend::app::App;
+use minesweeper_web::backend::App;
 
 #[cfg(feature = "ssr")]
 #[tokio::main]

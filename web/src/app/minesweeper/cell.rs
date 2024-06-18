@@ -1,13 +1,16 @@
-use crate::components::icons::{Flag, Mine};
-
-use super::players::player_class;
-
 use leptos::*;
+use web_sys::MouseEvent;
+
 use minesweeper_lib::{
     board::BoardPoint,
     cell::{Cell, PlayerCell},
 };
-use web_sys::MouseEvent;
+
+use crate::components::{
+    cell_class,
+    icons::{Flag, Mine},
+    number_class, player_class,
+};
 
 #[component]
 pub fn ActiveRow<F, F2>(
@@ -56,20 +59,6 @@ pub fn InactiveRow(row: usize, cells: Vec<PlayerCell>) -> impl IntoView {
     }
 }
 
-pub fn number_class(num: usize) -> String {
-    String::from(match num {
-        1 => "text-blue-600",
-        2 => "text-green-600",
-        3 => "text-red-600",
-        4 => "text-blue-950",
-        5 => "text-rose-900",
-        6 => "text-teal-600",
-        7 => "text-neutral-950",
-        8 => "text-neutral-600",
-        _ => "",
-    })
-}
-
 fn cell_contents_class(cell: PlayerCell) -> String {
     match cell {
         PlayerCell::Flag => String::from("bg-neutral-500"),
@@ -89,10 +78,6 @@ fn cell_player_class(cell: PlayerCell) -> String {
         }
         _ => String::from(""),
     }
-}
-
-pub fn cell_class(content_class: &str, player_class: &str) -> String {
-    format!("inline-block text-center border border-solid border-black font-bold align-top h-8 w-8 text-2xl {} {}", content_class, player_class)
 }
 
 #[component]

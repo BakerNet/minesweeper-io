@@ -24,7 +24,8 @@ use tokio::{
 };
 
 use crate::{
-    app::{minesweeper::client::GameMessage, FrontendUser},
+    app::FrontendUser,
+    messages::GameMessage,
     models::{
         game::{Game, GameParameters, Player, PlayerUser},
         user::User,
@@ -195,7 +196,7 @@ impl GameManager {
         {
             let mut send = ws_sender.lock().await;
             let msg = GameMessage::PlayerId(player_id);
-            (send).send(Message::Text(msg.to_json())).await?;
+            (send).send(Message::Text(msg.into_json())).await?;
         }
         handle
             .game_events
@@ -335,13 +336,13 @@ async fn handle_game_event(
             let player_board = minesweeper.player_board(player.player_id);
             {
                 let mut player_sender = player.ws_sender.lock().await;
-                let player_msg = GameMessage::GameState(player_board).to_json();
+                let player_msg = GameMessage::GameState(player_board).into_json();
                 log::debug!("Sending player_msg {:?}", player_msg);
                 let _ = player_sender.send(Message::Text(player_msg)).await;
             }
 
             let players = handles_to_client_players(player_handles, minesweeper);
-            let players_msg = GameMessage::PlayersState(players).to_json();
+            let players_msg = GameMessage::PlayersState(players).into_json();
             log::debug!("Sending players_msg {:?}", players_msg);
             let _ = broadcast.send(players_msg);
         }
@@ -349,17 +350,17 @@ async fn handle_game_event(
             let viewer_board = minesweeper.viewer_board();
             {
                 let mut viewer_sender = viewer.ws_sender.lock().await;
-                let viewer_msg = GameMessage::GameState(viewer_board).to_json();
+                let viewer_msg = GameMessage::GameState(viewer_board).into_json();
                 log::debug!("Sending viewer_msg {:?}", viewer_msg);
                 let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
                 let players = handles_to_client_players(player_handles, minesweeper);
-                let players_msg = GameMessage::PlayersState(players).to_json();
+                let players_msg = GameMessage::PlayersState(players).into_json();
                 let _ = viewer_sender.send(Message::Text(players_msg)).await;
             }
         }
         GameEvent::Start => {
             *started = true;
-            let start_msg = GameMessage::GameStarted.to_json();
+            let start_msg = GameMessage::GameStarted.into_json();
             let _ = broadcast.send(start_msg);
         }
     }
@@ -392,7 +393,7 @@ async fn handle_message(
     let res = match outcome {
         Ok(res) => res,
         Err(e) => {
-            let err_msg = GameMessage::Error(format!("{:?}", e)).to_json();
+            let err_msg = GameMessage::Error(format!("{:?}", e)).into_json();
             {
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(err_msg)).await;
@@ -402,14 +403,14 @@ async fn handle_message(
     };
     match res {
         PlayOutcome::Flag(flag) => {
-            let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).to_json();
+            let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).into_json();
             {
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(flag_msg)).await;
             }
         }
         default => {
-            let outcome_msg = GameMessage::PlayOutcome(default).to_json();
+            let outcome_msg = GameMessage::PlayOutcome(default).into_json();
             let score = minesweeper.player_score(player.player_id).unwrap();
             let dead = minesweeper.player_dead(player.player_id).unwrap();
             let victory_click = minesweeper.player_victory_click(player.player_id).unwrap();
@@ -422,7 +423,7 @@ async fn handle_message(
                 top_score,
                 score,
             };
-            let player_state_message = GameMessage::PlayerUpdate(player_state).to_json();
+            let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
             let _ = broadcast.send(outcome_msg);
             let _ = broadcast.send(player_state_message);
         }

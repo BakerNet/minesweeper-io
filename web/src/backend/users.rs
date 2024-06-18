@@ -10,7 +10,7 @@ use oauth2::{
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use crate::{app::auth::OAuthTarget, models::user::User};
+use crate::{app::OAuthTarget, models::user::User};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
@@ -77,15 +77,15 @@ impl Backend {
 
     pub fn get_client(&self, target: OAuthTarget) -> &BasicClient {
         match target {
-            OAuthTarget::GOOGLE => &self.google_client,
-            OAuthTarget::REDDIT => &self.reddit_client,
-            OAuthTarget::GITHUB => &self.github_client,
+            OAuthTarget::Google => &self.google_client,
+            OAuthTarget::Reddit => &self.reddit_client,
+            OAuthTarget::Github => &self.github_client,
         }
     }
 
     pub fn authorize_url(&self, target: OAuthTarget) -> (Url, CsrfToken) {
         match target {
-            OAuthTarget::GOOGLE => self
+            OAuthTarget::Google => self
                 .google_client
                 .authorize_url(CsrfToken::new_random)
                 .add_scope(Scope::new(
@@ -95,13 +95,13 @@ impl Backend {
                     "https://www.googleapis.com/auth/userinfo.email".to_string(),
                 ))
                 .url(),
-            OAuthTarget::REDDIT => self
+            OAuthTarget::Reddit => self
                 .reddit_client
                 .authorize_url(CsrfToken::new_random)
                 .add_extra_param("duration", "permanent")
                 .add_scope(Scope::new("identity".to_string()))
                 .url(),
-            OAuthTarget::GITHUB => self
+            OAuthTarget::Github => self
                 .github_client
                 .authorize_url(CsrfToken::new_random)
                 .add_extra_param("duration", "permanent")
@@ -137,7 +137,7 @@ impl AuthnBackend for Backend {
         };
 
         let (token_res, username) = match creds.target {
-            OAuthTarget::GOOGLE => {
+            OAuthTarget::Google => {
                 // Process authorization code, expecting a token response back.
                 let token_res = self
                     .google_client
@@ -166,7 +166,7 @@ impl AuthnBackend for Backend {
                     .map_err(Self::Error::Reqwest)?;
                 (token_res, format!("GOOGLE:{}", user_info.email))
             }
-            OAuthTarget::REDDIT => {
+            OAuthTarget::Reddit => {
                 // Process authorization code, expecting a token response back.
                 let token_res = self
                     .reddit_client
@@ -195,7 +195,7 @@ impl AuthnBackend for Backend {
                     .map_err(Self::Error::Reqwest)?;
                 (token_res, format!("REDDIT:{}", user_info.name))
             }
-            OAuthTarget::GITHUB => {
+            OAuthTarget::Github => {
                 // Process authorization code, expecting a token response back.
                 let token_res = self
                     .github_client

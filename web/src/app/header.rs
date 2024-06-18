@@ -1,12 +1,9 @@
 use leptos::*;
 use leptos_router::*;
 
-use crate::{
-    app::minesweeper::cell::{cell_class, number_class},
-    components::{dark_mode::DarkModeToggle, icons::Flag},
-};
+use crate::components::{cell_class, dark_mode::DarkModeToggle, icons::Flag, number_class};
 
-use super::FrontendUser;
+use super::auth::FrontendUser;
 
 fn logo() -> impl IntoView {
     let white_bg = "bg-white hover:bg-neutral-300";

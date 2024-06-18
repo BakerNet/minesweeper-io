@@ -20,10 +20,12 @@ use tower_sessions::{
 };
 use tower_sessions_sqlx_store::SqliteStore;
 
-use super::{auth, fileserv::file_and_error_handler, game_manager, users};
-use crate::{app, app::auth::OAuthTarget, models::game::Game};
+use crate::{app::App as FrontendApp, app::OAuthTarget, models::game::Game};
 
-use super::{auth::REDIRECT_URL, game_manager::GameManager, users::AuthSession};
+use super::{
+    auth, auth::REDIRECT_URL, fileserv::file_and_error_handler, game_manager,
+    game_manager::GameManager, users, users::AuthSession,
+};
 
 /// This takes advantage of Axum's SubStates feature by deriving FromRef. This is the only way to have more than one
 /// item in Axum's State. Leptos requires you to have leptosOptions in your State struct for the leptos route handlers
@@ -44,19 +46,19 @@ pub struct App {
 
 fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
     let (id_key, secret_key, auth_url, token_url) = match target {
-        OAuthTarget::GOOGLE => (
+        OAuthTarget::Google => (
             "GOOGLE_CLIENT_ID",
             "GOOGLE_CLIENT_SECRET",
             "https://accounts.google.com/o/oauth2/v2/auth",
             "https://oauth2.googleapis.com/token",
         ),
-        OAuthTarget::REDDIT => (
+        OAuthTarget::Reddit => (
             "REDDIT_CLIENT_ID",
             "REDDIT_CLIENT_SECRET",
             "https://www.reddit.com/api/v1/authorize",
             "https://www.reddit.com/api/v1/access_token",
         ),
-        OAuthTarget::GITHUB => (
+        OAuthTarget::Github => (
             "GITHUB_CLIENT_ID",
             "GITHUB_CLIENT_SECRET",
             "https://github.com/login/oauth/authorize",
@@ -112,7 +114,7 @@ async fn leptos_routes_handler(
             provide_context(session.clone());
             provide_context(app_state.game_manager.clone());
         },
-        app::App,
+        FrontendApp,
     );
     handler(req).await.into_response()
 }
@@ -121,9 +123,9 @@ impl App {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
         dotenvy::dotenv()?;
 
-        let google_client = oauth_client(OAuthTarget::GOOGLE)?;
-        let reddit_client = oauth_client(OAuthTarget::REDDIT)?;
-        let github_client = oauth_client(OAuthTarget::GITHUB)?;
+        let google_client = oauth_client(OAuthTarget::Google)?;
+        let reddit_client = oauth_client(OAuthTarget::Reddit)?;
+        let github_client = oauth_client(OAuthTarget::Github)?;
 
         let db_url = env::var("DATABASE_URL")
             .map(String::from)
@@ -169,7 +171,7 @@ impl App {
         let conf = get_configuration(None).await.unwrap();
         let leptos_options = conf.leptos_options;
         let addr = leptos_options.site_addr;
-        let routes = generate_route_list(app::App);
+        let routes = generate_route_list(FrontendApp);
         let game_manager = GameManager::new(self.db.clone());
 
         let app_state = AppState {

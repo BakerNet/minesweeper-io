@@ -3,25 +3,37 @@ use leptos_router::*;
 use leptos_use::use_window;
 use serde::{Deserialize, Serialize};
 
-use super::FrontendUser;
-
 use crate::components::button_class;
 #[cfg(feature = "ssr")]
 use crate::{
-    backend::{
-        auth::{CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET},
-        users::AuthSession,
-    },
+    backend::{AuthSession, CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET},
     models::user::User,
 };
 #[cfg(feature = "ssr")]
 use axum_login::tower_sessions::Session;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FrontendUser {
+    pub display_name: Option<String>,
+}
+
+impl FrontendUser {
+    pub fn display_name_or_anon(display_name: &Option<String>, is_user: bool) -> String {
+        if let Some(name) = display_name {
+            name.to_owned()
+        } else if is_user {
+            "Anonymous".to_string()
+        } else {
+            "Guest".to_string()
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OAuthTarget {
-    GOOGLE,
-    REDDIT,
-    GITHUB,
+    Google,
+    Reddit,
+    Github,
 }
 
 #[cfg(feature = "ssr")]
@@ -72,17 +84,17 @@ pub fn Login(
     target: OAuthTarget,
 ) -> impl IntoView {
     let (target_str, target_readable, target_colors) = match target {
-        OAuthTarget::GOOGLE => (
+        OAuthTarget::Google => (
             "GOOGLE",
             "Log in with Google",
             "bg-blue-400 text-white hover:bg-blue-600",
         ),
-        OAuthTarget::REDDIT => (
+        OAuthTarget::Reddit => (
             "REDDIT",
             "Log in with Reddit",
             "bg-orange-600 text-white hover:bg-orange-800",
         ),
-        OAuthTarget::GITHUB => (
+        OAuthTarget::Github => (
             "GITHUB",
             "Log in with Github",
             "bg-zinc-800 text-white hover:bg-zinc-900",
@@ -104,7 +116,7 @@ pub fn Login(
             <input type="hidden" name="target" value=target_str/>
             <button
                 type="submit"
-                class=button_class(Some("w-full w-max-xs h-8"), Some(target_colors))
+                class=button_class(Some("w-full max-w-xs h-8"), Some(target_colors))
                 disabled=login.pending()
             >
                 {target_readable}

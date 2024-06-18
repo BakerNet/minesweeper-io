@@ -1,35 +1,17 @@
-use std::{cell::RefCell, rc::Rc};
-
 use anyhow::{anyhow, bail, Result};
 use leptos::*;
+use std::{cell::RefCell, rc::Rc};
+
 use minesweeper_lib::{
     board::BoardPoint,
     cell::PlayerCell,
     client::{ClientPlayer, MinesweeperClient, Play},
-    game::{Action as PlayAction, PlayOutcome},
+    game::Action as PlayAction,
 };
-use serde::{Deserialize, Serialize};
+
+use crate::messages::GameMessage;
 
 use super::GameInfo;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "game_message", content = "data")]
-pub enum GameMessage {
-    PlayerId(usize),
-    PlayOutcome(PlayOutcome),
-    PlayerUpdate(ClientPlayer),
-    GameState(Vec<Vec<PlayerCell>>),
-    PlayersState(Vec<Option<ClientPlayer>>),
-    GameStarted,
-    Error(String),
-}
-
-impl GameMessage {
-    pub fn to_json(self) -> String {
-        serde_json::to_string::<GameMessage>(&self)
-            .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {:?}", self))
-    }
-}
 
 #[derive(Clone)]
 pub struct PlayersContext {
@@ -41,7 +23,6 @@ pub struct PlayersContext {
     pub players_loaded: ReadSignal<bool>,
     pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
-    pub completed: ReadSignal<bool>,
 }
 
 impl PlayersContext {
@@ -55,7 +36,6 @@ impl PlayersContext {
             players_loaded: frontend_game.players_loaded,
             join_trigger: frontend_game.join_trigger,
             started: frontend_game.started,
-            completed: frontend_game.completed,
         }
     }
 }
@@ -80,7 +60,6 @@ pub struct FrontendGame {
     set_completed: WriteSignal<bool>,
     game: Rc<RefCell<MinesweeperClient>>,
     send: Rc<dyn Fn(&str)>,
-    close: Rc<dyn Fn()>,
 }
 
 impl FrontendGame {
@@ -88,7 +67,6 @@ impl FrontendGame {
         game_info: GameInfo,
         err_signal: WriteSignal<Option<String>>,
         send: Rc<dyn Fn(&str)>,
-        close: Rc<dyn Fn()>,
     ) -> (Self, Vec<Vec<ReadSignal<PlayerCell>>>) {
         let board = match &game_info.final_board {
             None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
@@ -142,7 +120,6 @@ impl FrontendGame {
                 set_completed,
                 game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
                 send,
-                close,
             },
             read_signals,
         )
@@ -282,10 +259,5 @@ impl FrontendGame {
     pub fn send(&self, s: &str) {
         log::debug!("before send {s}");
         (self.send)(s)
-    }
-
-    pub fn close(&self) {
-        log::debug!("before close");
-        (self.close)()
     }
 }

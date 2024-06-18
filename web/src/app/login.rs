@@ -7,9 +7,9 @@ pub fn LoginPage(login: Action<LogIn, Result<String, ServerFnError>>) -> impl In
     view! {
         <>
             <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-                <Login login target=OAuthTarget::GOOGLE/>
-                <Login login target=OAuthTarget::REDDIT/>
-                <Login login target=OAuthTarget::GITHUB/>
+                <Login login target=OAuthTarget::Google/>
+                <Login login target=OAuthTarget::Reddit/>
+                <Login login target=OAuthTarget::Github/>
             </div>
         </>
     }

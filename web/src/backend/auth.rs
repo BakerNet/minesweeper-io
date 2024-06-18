@@ -13,8 +13,9 @@ use super::users::{AuthSession, Credentials, OAuthCreds};
 
 pub const NEXT_URL_KEY: &str = "auth.next-url";
 pub const CSRF_STATE_KEY: &str = "oauth.csrf-state";
-pub const REDIRECT_URL: &str = "/oauth/callback";
 pub const OAUTH_TARGET: &str = "oauth.target";
+
+pub const REDIRECT_URL: &str = "/oauth/callback";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AuthzResp {

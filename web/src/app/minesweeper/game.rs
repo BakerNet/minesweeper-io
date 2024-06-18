@@ -1,20 +1,103 @@
 use leptos::ev::keydown;
 use leptos::*;
+use leptos_router::use_params_map;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
 use leptos_use::{use_document, use_event_listener};
-use minesweeper_lib::board::BoardPoint;
-use minesweeper_lib::game::Action as PlayAction;
 use std::rc::Rc;
 use web_sys::{KeyboardEvent, MouseEvent};
 
-use minesweeper_lib::cell::PlayerCell;
+use minesweeper_lib::{board::BoardPoint, cell::PlayerCell, game::Action as PlayAction};
 
-use crate::app::minesweeper::client::PlayersContext;
+use super::{
+    cell::{ActiveRow, InactiveRow},
+    client::{FrontendGame, PlayersContext},
+    entry::ReCreateGame,
+    players::{ActivePlayers, InactivePlayers},
+    {GameInfo, GameSettings},
+};
 
-use super::cell::{ActiveRow, InactiveRow};
-use super::client::FrontendGame;
-use super::players::{ActivePlayers, InactivePlayers};
-use super::GameInfo;
+#[cfg(feature = "ssr")]
+use crate::backend::{AuthSession, GameManager};
+#[cfg(feature = "ssr")]
+use minesweeper_lib::client::ClientPlayer;
+
+#[server(GetGame, "/api")]
+pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
+    let game_manager = use_context::<GameManager>()
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
+    let game = game_manager
+        .get_game(&game_id)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let is_owner = if let Some(user) = auth_session.user {
+        match game.owner {
+            None => false,
+            Some(owner) => user.id == owner,
+        }
+    } else {
+        false
+    };
+    let players = game_manager
+        .get_players(&game_id)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let players = players.into_iter().map(ClientPlayer::from).fold(
+        vec![None; game.max_players as usize],
+        |mut acc, p| {
+            acc[p.player_id] = Some(p.clone());
+            acc
+        },
+    );
+    Ok(GameInfo {
+        game_id: game.game_id,
+        has_owner: game.owner.is_some(),
+        is_owner,
+        rows: game.rows as usize,
+        cols: game.cols as usize,
+        num_mines: game.num_mines as usize,
+        max_players: game.max_players,
+        is_started: game.is_started,
+        is_completed: game.is_completed,
+        final_board: game.final_board,
+        players,
+    })
+}
+
+#[component]
+pub fn Game() -> impl IntoView {
+    let params = use_params_map();
+    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+    let game_info = create_resource(game_id, get_game);
+    let refetch = move || game_info.refetch();
+
+    provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
+
+    let game_view = move |game_info: GameInfo| match game_info.is_completed {
+        true => view! { <InactiveGame game_info/> },
+        false => view! { <ActiveGame game_info refetch/> },
+    };
+
+    view! {
+        <Transition fallback=move || {
+            view! { <div>"Loading..."</div> }
+        }>
+            {move || {
+                game_info
+                    .get()
+                    .map(|game_info| {
+                        view! {
+                            <ErrorBoundary fallback=|_| {
+                                view! { <div class="text-red-600">"Game not found"</div> }
+                            }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
+                        }
+                    })
+            }}
+
+        </Transition>
+    }
+}
 
 #[component]
 fn GameBorder<F>(set_active: F, children: Children) -> impl IntoView
@@ -48,16 +131,11 @@ where
         ready_state,
         message,
         send,
-        close,
         ..
     } = use_websocket(&format!("/api/websocket/game/{}", &game_id));
 
-    let (game, read_signals) = FrontendGame::new(
-        game_info.clone(),
-        set_error,
-        Rc::new(send.clone()),
-        Rc::new(close.clone()),
-    );
+    let (game, read_signals) =
+        FrontendGame::new(game_info.clone(), set_error, Rc::new(send.clone()));
     let (game_signal, _) = create_signal(game.clone());
 
     provide_context::<PlayersContext>(PlayersContext::from(&game));
@@ -182,6 +260,7 @@ where
 #[component]
 pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     let players = game_info.players.clone();
+    let game_settings = GameSettings::from(&game_info);
     let board = match game_info.final_board {
         None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
         Some(b) => b,
@@ -197,6 +276,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
                     .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
                     .collect_view()}
             </GameBorder>
+            <ReCreateGame game_settings />
         </div>
     }
 }
