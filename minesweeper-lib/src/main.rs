@@ -3,7 +3,7 @@ use std::io;
 
 use minesweeper_lib::{
     board::BoardPoint,
-    game::{Action, Minesweeper, PlayOutcome},
+    game::{Action, MinesweeperBuilder, MinesweeperOpts, PlayOutcome},
 };
 
 fn underline(input: &str) -> ansi_term::ANSIGenericString<str> {
@@ -15,25 +15,31 @@ fn main() {
         optional -i,--intermediate
         optional -e, --expert
     };
-    let mut cols = 9;
-    let mut rows = 9;
-    let mut mines = 10;
-    if flags.intermediate {
-        cols = 16;
-        rows = 16;
-        mines = 40;
-    }
-    if flags.expert {
-        cols = 30;
-        rows = 16;
-        mines = 99;
-    }
-    let mut game = Minesweeper::init_game(rows, cols, mines, 1, true).unwrap();
+    let opts = if flags.expert {
+        MinesweeperOpts {
+            cols: 30,
+            rows: 16,
+            num_mines: 99,
+        }
+    } else if flags.intermediate {
+        MinesweeperOpts {
+            cols: 16,
+            rows: 16,
+            num_mines: 40,
+        }
+    } else {
+        MinesweeperOpts {
+            rows: 9,
+            cols: 9,
+            num_mines: 10,
+        }
+    };
+    let mut game = MinesweeperBuilder::new(opts).unwrap().init();
     while !game.is_over() {
         let curr_board = &game.player_board(0);
-        let header = (0..cols).fold(String::new(), |acc, x| acc + &format!("|{}", x / 10));
+        let header = (0..opts.cols).fold(String::new(), |acc, x| acc + &format!("|{}", x / 10));
         println!("{}", &format!("XX{}|", header));
-        let header = (0..cols).fold(String::new(), |acc, x| acc + &format!("|{}", x % 10));
+        let header = (0..opts.cols).fold(String::new(), |acc, x| acc + &format!("|{}", x % 10));
         println!("{}", underline(&format!("XX{}|", header)));
         for (r_num, row) in curr_board.iter().enumerate() {
             print!("{}", underline(&format!("{:0>2}", r_num)));
