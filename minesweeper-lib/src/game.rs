@@ -8,126 +8,123 @@ use anyhow::{bail, Ok, Result};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 
-pub struct Minesweeper {
-    num_mines: usize,
-    with_replant: bool,
+#[derive(Clone, Copy, Debug)]
+pub struct MinesweeperOpts {
+    pub rows: usize,
+    pub cols: usize,
+    pub num_mines: usize,
+}
+
+impl MinesweeperOpts {
+    fn validate(&self) -> bool {
+        if self.rows == 0 || self.cols == 0 || self.num_mines == 0 {
+            return false;
+        }
+        let total = self.rows * self.cols;
+        return self.num_mines < total;
+    }
+}
+
+pub struct MinesweeperBuilder {
+    opts: MinesweeperOpts,
+    players: Option<usize>,
+    log: bool,
+    superclick: bool,
+}
+
+impl MinesweeperBuilder {
+    pub fn new(opts: MinesweeperOpts) -> Result<Self> {
+        if !opts.validate() {
+            bail!("Invalid minesweeper options")
+        }
+        Ok(Self {
+            opts,
+            players: None,
+            log: false,
+            superclick: false,
+        })
+    }
+
+    pub fn with_multiplayer(mut self, players: usize) -> Self {
+        self.players = Some(players);
+        self
+    }
+
+    pub fn with_log(mut self) -> Self {
+        self.log = true;
+        self
+    }
+
+    pub fn with_superclick(mut self) -> Self {
+        self.superclick = true;
+        self
+    }
+
+    pub fn init(self) -> ActiveMinesweeperGame {
+        let mut board = Board::new(
+            self.opts.rows,
+            self.opts.cols,
+            (Cell::default(), CellState::default()),
+        );
+        let mut available: Vec<_> = (0..board.len())
+            .map(|x| board.point_from_index(x))
+            .collect();
+        available.shuffle(&mut thread_rng());
+        let points_to_plant = &available[0..self.opts.num_mines];
+        points_to_plant.iter().for_each(|&x| {
+            board[x].0 = board[x].0.plant().unwrap();
+
+            let neighbors = board.neighbors(x);
+            neighbors.into_iter().for_each(|c| {
+                board[c].0 = board[c].0.increment();
+            });
+        });
+        let available = available.into_iter().skip(self.opts.num_mines).collect();
+        ActiveMinesweeperGame {
+            available,
+            players: vec![Player::default(); self.players.unwrap_or(1)],
+            board,
+            superclick: self.superclick,
+            log: if self.log { Some(Vec::new()) } else { None },
+        }
+    }
+}
+
+impl Board<(Cell, CellState)> {
+    fn viewer_board(&self, is_final: bool) -> Vec<Vec<PlayerCell>> {
+        let mut return_board: Vec<Vec<PlayerCell>> =
+            vec![vec![PlayerCell::Hidden; self.cols()]; self.rows()];
+        for (r_num, row) in return_board.iter_mut().enumerate() {
+            for (c_num, return_item) in row.iter_mut().enumerate() {
+                let point = BoardPoint {
+                    row: r_num,
+                    col: c_num,
+                };
+                let item = &self[point];
+                if item.1.revealed {
+                    *return_item = PlayerCell::Revealed(RevealedCell {
+                        cell_point: point,
+                        player: item.1.player.unwrap(),
+                        contents: item.0,
+                    });
+                } else if is_final && matches!(item.0, Cell::Mine) {
+                    *return_item = PlayerCell::HiddenMine
+                }
+            }
+        }
+        return_board
+    }
+}
+
+pub struct ActiveMinesweeperGame {
     available: HashSet<BoardPoint>,
     players: Vec<Player>,
     board: Board<(Cell, CellState)>,
+    log: Option<Vec<PlayOutcome>>,
+    superclick: bool,
 }
 
-impl Minesweeper {
-    fn new(
-        rows: usize,
-        cols: usize,
-        num_mines: usize,
-        max_players: usize,
-        with_replant: bool,
-    ) -> Result<Self> {
-        let total = rows * cols;
-        if num_mines > total {
-            bail!("Too many mines to create game");
-        }
-        let board = Board::new(rows, cols, (Cell::default(), CellState::default()));
-        let game = Minesweeper {
-            num_mines,
-            with_replant,
-            available: (0..total).map(|x| board.point_from_index(x)).collect(),
-            players: vec![Player::default(); max_players],
-            board,
-        };
-        Ok(game)
-    }
-
-    pub fn init_game(
-        rows: usize,
-        cols: usize,
-        num_mines: usize,
-        max_players: usize,
-        with_replant: bool,
-    ) -> Result<Minesweeper> {
-        let mut game = Self::new(rows, cols, num_mines, max_players, with_replant)?;
-        let mut take_available: Vec<BoardPoint> =
-            game.available.iter().copied().collect::<Vec<_>>();
-        take_available.shuffle(&mut thread_rng());
-        let points_to_plant = &take_available[0..game.num_mines];
-        points_to_plant.iter().for_each(|x| {
-            game.plant(*x);
-        });
-        Ok(game)
-    }
-
-    pub fn player_score(&self, player: usize) -> Result<usize> {
-        if player > self.players.len() - 1 {
-            bail!("Player {player} doesn't exist")
-        }
-        Ok(self.players[player].score)
-    }
-
-    pub fn player_dead(&self, player: usize) -> Result<bool> {
-        if player > self.players.len() - 1 {
-            bail!("Player {player} doesn't exist")
-        }
-        Ok(self.players[player].dead)
-    }
-
-    pub fn player_victory_click(&self, player: usize) -> Result<bool> {
-        if player > self.players.len() - 1 {
-            bail!("Player {player} doesn't exist")
-        }
-        Ok(self.players[player].victory_click)
-    }
-
-    pub fn current_top_score(&self) -> Option<usize> {
-        if self.players.len() < 2 {
-            None
-        } else {
-            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
-            match top_score {
-                0 => None,
-                score => Some(score),
-            }
-        }
-    }
-
-    pub fn player_top_score(&self, player: usize) -> Result<bool> {
-        if player > self.players.len() - 1 {
-            bail!("Player {player} doesn't exist")
-        }
-        if self.players.len() < 2 {
-            Ok(false) // no top_score in single player
-        } else {
-            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
-            Ok(self.players[player].score == top_score && top_score != 0)
-        }
-    }
-
-    pub fn play(
-        &mut self,
-        player: usize,
-        action: Action,
-        cell_point: BoardPoint,
-    ) -> Result<PlayOutcome> {
-        if self.is_over() {
-            bail!("Game is over")
-        }
-        if self.players[player].dead {
-            bail!("Tried to play as dead player")
-        }
-        if !self.board.is_in_bounds(cell_point) {
-            bail!("Tried to play point outside of playzone")
-        }
-        let play_res = match action {
-            Action::Reveal => self.handle_click(player, cell_point),
-            Action::RevealAdjacent => self.handle_double_click(player, cell_point),
-            Action::Flag => self.handle_flag(player, cell_point),
-        };
-        if self.is_over() && self.available.is_empty() {
-            self.players[player].victory_click = true;
-        }
-        play_res
-    }
-
+impl ActiveMinesweeperGame {
     fn handle_flag(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
@@ -153,8 +150,9 @@ impl Minesweeper {
         }
         let mut update_revealed = None::<Vec<BoardPoint>>;
         if !(self.players[player].played) && self.has_no_revealed_neighbors(cell_point) {
+            // on first click of empty board space, prevent bomb
             self.players[player].played = true;
-            update_revealed = Some(self.unplant(cell_point, true));
+            update_revealed = Some(self.unplant(cell_point, self.superclick));
         }
         let (cell, _) = &self.board[cell_point];
         match cell {
@@ -268,52 +266,6 @@ impl Minesweeper {
         item.1.revealed && item.0.is_bomb()
     }
 
-    pub fn is_over(&self) -> bool {
-        self.available.is_empty() || self.players.iter().all(|x| x.dead)
-    }
-
-    pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
-        self._viewer_board(false)
-    }
-
-    pub fn viewer_board_final(&self) -> Vec<Vec<PlayerCell>> {
-        self._viewer_board(true)
-    }
-
-    fn _viewer_board(&self, is_final: bool) -> Vec<Vec<PlayerCell>> {
-        let mut return_board: Vec<Vec<PlayerCell>> =
-            vec![vec![PlayerCell::Hidden; self.board.cols()]; self.board.rows()];
-        for (r_num, row) in return_board.iter_mut().enumerate() {
-            for (c_num, return_item) in row.iter_mut().enumerate() {
-                let point = BoardPoint {
-                    row: r_num,
-                    col: c_num,
-                };
-                let item = &self.board[point];
-                if item.1.revealed {
-                    *return_item = PlayerCell::Revealed(RevealedCell {
-                        cell_point: point,
-                        player: item.1.player.unwrap(),
-                        contents: item.0,
-                    });
-                } else if is_final && matches!(item.0, Cell::Mine) {
-                    *return_item = PlayerCell::HiddenMine
-                }
-            }
-        }
-        return_board
-    }
-
-    pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
-        let mut return_board = self.viewer_board();
-        for f in self.players[player].flags.iter() {
-            if let PlayerCell::Hidden = return_board[f.row][f.col] {
-                return_board[f.row][f.col] = PlayerCell::Flag
-            }
-        }
-        return_board
-    }
-
     fn reveal(&mut self, player: usize, cell_point: BoardPoint) -> bool {
         if self.board[cell_point].1.revealed {
             false
@@ -378,7 +330,7 @@ impl Minesweeper {
 
     fn unplant(&mut self, cell_point: BoardPoint, rem_neighbors: bool) -> Vec<BoardPoint> {
         let mut updated_revealed = HashSet::new();
-        let mut to_replant = if self.with_replant && rem_neighbors {
+        let mut to_replant = if self.players.len() == 1 && rem_neighbors {
             Some(0)
         } else {
             None
@@ -457,6 +409,175 @@ impl Minesweeper {
     }
 }
 
+impl ActiveMinesweeperGame {
+    pub fn complete(self) -> CompletedMinesweeperGame {
+        CompletedMinesweeperGame {
+            cleared: self.available.len() == 0,
+            players: self.players.into_iter().map(PlayerResult::from).collect(),
+            board: self.board.viewer_board(true),
+            log: self.log,
+        }
+    }
+
+    pub fn play(
+        &mut self,
+        player: usize,
+        action: Action,
+        cell_point: BoardPoint,
+    ) -> Result<PlayOutcome> {
+        if self.is_over() {
+            bail!("Game is over")
+        }
+        if self.players[player].dead {
+            bail!("Tried to play as dead player")
+        }
+        if !self.board.is_in_bounds(cell_point) {
+            bail!("Tried to play point outside of playzone")
+        }
+        let play_res = match action {
+            Action::Reveal => self.handle_click(player, cell_point),
+            Action::RevealAdjacent => self.handle_double_click(player, cell_point),
+            Action::Flag => self.handle_flag(player, cell_point),
+        };
+        if self.available.is_empty() {
+            // game is over
+            self.players[player].victory_click = true;
+        }
+        // record play if applicable
+        let _ = play_res.as_ref().map(|outcome| {
+            if let Some(history) = &mut self.log {
+                history.push(outcome.clone());
+            }
+        });
+        play_res
+    }
+
+    pub fn player_score(&self, player: usize) -> Result<usize> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].score)
+    }
+
+    pub fn player_dead(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].dead)
+    }
+
+    pub fn current_top_score(&self) -> Option<usize> {
+        if self.players.len() < 2 {
+            None
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            match top_score {
+                0 => None,
+                score => Some(score),
+            }
+        }
+    }
+
+    pub fn player_top_score(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        if self.players.len() < 2 {
+            Ok(false) // no top_score in single player
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            Ok(self.players[player].score == top_score && top_score != 0)
+        }
+    }
+
+    pub fn is_over(&self) -> bool {
+        self.available.is_empty() || self.players.iter().all(|x| x.dead)
+    }
+
+    pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
+        self.board.viewer_board(false)
+    }
+
+    pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+        let mut return_board = self.viewer_board();
+        for f in self.players[player].flags.iter() {
+            if let PlayerCell::Hidden = return_board[f.row][f.col] {
+                return_board[f.row][f.col] = PlayerCell::Flag
+            }
+        }
+        return_board
+    }
+}
+
+pub struct CompletedMinesweeperGame {
+    players: Vec<PlayerResult>,
+    board: Vec<Vec<PlayerCell>>,
+    log: Option<Vec<PlayOutcome>>,
+}
+
+impl CompletedMinesweeperGame {
+    pub fn player_score(&self, player: usize) -> Result<usize> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].score)
+    }
+
+    pub fn player_dead(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].dead)
+    }
+
+    pub fn player_victory_click(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].victory_click)
+    }
+
+    pub fn top_score(&self) -> Option<usize> {
+        if self.players.len() < 2 {
+            None
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            match top_score {
+                0 => None,
+                score => Some(score),
+            }
+        }
+    }
+
+    pub fn player_top_score(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        if self.players.len() < 2 {
+            Ok(false) // no top_score in single player
+        } else {
+            let top_score = self.players.iter().fold(0, |acc, p| max(p.score, acc));
+            Ok(self.players[player].score == top_score && top_score != 0)
+        }
+    }
+
+    pub fn viewer_board_final(&self) -> Vec<Vec<PlayerCell>> {
+        self.board.clone()
+    }
+
+    pub fn replay(&self, player: Option<usize>) -> Option<Vec<PlayOutcome>> {
+        self.log.as_ref().map(|log| {
+            log.iter()
+                .filter(|po| match po {
+                    PlayOutcome::Flag((_, PlayerCell::Revealed(rc))) => Some(rc.player) == player,
+                    _ => true,
+                })
+                .cloned()
+                .collect()
+        })
+    }
+}
+
 fn bool_to_u8(b: bool) -> u8 {
     match b {
         true => 1,
@@ -471,6 +592,29 @@ struct Player {
     victory_click: bool,
     score: usize,
     flags: HashSet<BoardPoint>,
+}
+
+#[derive(Clone, Debug, Default)]
+struct PlayerResult {
+    dead: bool,
+    victory_click: bool,
+    score: usize,
+}
+
+impl From<Player> for PlayerResult {
+    fn from(value: Player) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&Player> for PlayerResult {
+    fn from(value: &Player) -> Self {
+        Self {
+            dead: value.dead,
+            victory_click: value.victory_click,
+            score: value.score,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -538,9 +682,13 @@ impl PlayOutcome {
 
 #[cfg(test)]
 mod test {
-    use crate::board::BoardPoint;
-    use crate::cell::Cell;
-    use crate::game::{Action, Minesweeper, PlayOutcome};
+    use crate::board::{Board, BoardPoint};
+    use crate::cell::{Cell, CellState};
+    use crate::game::{
+        Action, ActiveMinesweeperGame, MinesweeperBuilder, MinesweeperOpts, PlayOutcome,
+    };
+
+    use super::Player;
 
     const POINT_0_0: BoardPoint = BoardPoint { row: 0, col: 0 };
     const POINT_0_1: BoardPoint = BoardPoint { row: 0, col: 1 };
@@ -555,8 +703,20 @@ mod test {
     const POINT_3_2: BoardPoint = BoardPoint { row: 3, col: 2 };
     const POINT_3_3: BoardPoint = BoardPoint { row: 3, col: 3 };
 
-    fn set_up_game(plant_3_0: bool) -> Minesweeper {
-        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
+    fn empty_game(player_num: usize) -> ActiveMinesweeperGame {
+        let board = Board::new(9, 9, (Cell::default(), CellState::default()));
+        let available = (0..81).map(|x| board.point_from_index(x)).collect();
+        ActiveMinesweeperGame {
+            available,
+            players: vec![Player::default(); player_num],
+            board,
+            log: None,
+            superclick: true,
+        }
+    }
+
+    fn set_up_game(plant_3_0: bool) -> ActiveMinesweeperGame {
+        let mut game = empty_game(2);
 
         game.plant(POINT_0_0);
         game.plant(POINT_1_1);
@@ -567,8 +727,8 @@ mod test {
         game
     }
 
-    fn set_up_game_with_replant() -> Minesweeper {
-        let mut game = Minesweeper::new(9, 9, 10, 1, true).unwrap();
+    fn set_up_game_with_replant() -> ActiveMinesweeperGame {
+        let mut game = empty_game(1);
 
         game.plant(POINT_0_0);
         game.plant(POINT_1_1);
@@ -577,7 +737,7 @@ mod test {
         game
     }
 
-    fn num_bombs(game: &Minesweeper, number: usize) {
+    fn num_bombs(game: &ActiveMinesweeperGame, number: usize) {
         let num_bombs = game
             .board
             .iter()
@@ -586,13 +746,13 @@ mod test {
         assert_eq!(num_bombs, number);
     }
 
-    fn point_cell(game: &Minesweeper, point: BoardPoint, _cell: Cell) {
+    fn point_cell(game: &ActiveMinesweeperGame, point: BoardPoint, _cell: Cell) {
         let board_cell = game.board[point].0;
         assert!(matches!(board_cell, _cell));
     }
 
     fn point_cell_state(
-        game: &Minesweeper,
+        game: &ActiveMinesweeperGame,
         point: BoardPoint,
         revealed: bool,
         player: Option<usize>,
@@ -604,13 +764,19 @@ mod test {
 
     #[test]
     fn create_and_init_game() {
-        let game = Minesweeper::init_game(9, 9, 10, 1, false).unwrap();
+        let game: ActiveMinesweeperGame = MinesweeperBuilder::new(MinesweeperOpts {
+            rows: 9,
+            cols: 9,
+            num_mines: 10,
+        })
+        .unwrap()
+        .init();
         num_bombs(&game, 10);
     }
 
     #[test]
     fn plant_works() {
-        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
+        let mut game = empty_game(2);
 
         game.plant(POINT_0_0);
 
@@ -859,7 +1025,7 @@ mod test {
 
     #[test]
     fn oob_errors() {
-        let mut game = Minesweeper::new(9, 9, 10, 1, false).unwrap();
+        let mut game = empty_game(2);
 
         let res = game.play(0, Action::Reveal, BoardPoint { col: 10, row: 0 });
         assert!(matches!(res, Err(..)));
