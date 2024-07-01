@@ -3,7 +3,7 @@ use std::io;
 
 use minesweeper_lib::{
     board::BoardPoint,
-    game::{Action, MinesweeperBuilder, MinesweeperOpts, PlayOutcome},
+    game::{Action, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
 };
 
 fn underline(input: &str) -> ansi_term::ANSIGenericString<str> {
@@ -81,7 +81,11 @@ fn main() {
             continue;
         };
 
-        let res = game.play(0, action, BoardPoint { row, col });
+        let res = game.play(Play {
+            player: 0,
+            action,
+            point: BoardPoint { row, col },
+        });
         if let Err(e) = res {
             println!("Invalid action - try again: {:?}", e);
             continue;

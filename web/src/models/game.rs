@@ -13,7 +13,6 @@ pub struct Game {
     pub cols: i64,
     pub num_mines: i64,
     pub max_players: u8,
-    pub classic: bool,
     pub is_completed: bool,
     pub is_started: bool,
     #[sqlx(json)]
@@ -25,7 +24,6 @@ pub struct GameParameters {
     pub cols: i64,
     pub num_mines: i64,
     pub max_players: u8,
-    pub classic: bool,
 }
 
 impl Game {
@@ -45,7 +43,7 @@ impl Game {
         let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
             r#"
-            insert into games (game_id, owner, rows, cols, num_mines, max_players, classic, final_board)
+            insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
             values (?, ?, ?, ?, ?, ?, ?, ?)
             returning *
             "#,
@@ -56,7 +54,6 @@ impl Game {
         .bind(game_parameters.cols)
         .bind(game_parameters.num_mines)
         .bind(game_parameters.max_players)
-        .bind(game_parameters.classic)
         .bind(Json(None::<Vec<Vec<PlayerCell>>>))
         .fetch_one(db)
         .await

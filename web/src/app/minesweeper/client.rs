@@ -5,8 +5,8 @@ use std::{cell::RefCell, rc::Rc};
 use minesweeper_lib::{
     board::BoardPoint,
     cell::PlayerCell,
-    client::{ClientPlayer, MinesweeperClient, Play},
-    game::Action as PlayAction,
+    client::{ClientPlayer, MinesweeperClient},
+    game::{Action as PlayAction, Play},
 };
 
 use crate::messages::GameMessage;
@@ -69,7 +69,7 @@ impl FrontendGame {
         send: Rc<dyn Fn(&str)>,
     ) -> (Self, Vec<Vec<ReadSignal<PlayerCell>>>) {
         let board = match &game_info.final_board {
-            None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
+            None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
             Some(b) => b.to_owned(),
         };
 

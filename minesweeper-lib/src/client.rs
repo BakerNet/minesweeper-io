@@ -1,6 +1,6 @@
 use crate::board::{Board, BoardPoint};
-use crate::cell::{Cell, PlayerCell};
-use crate::game::{Action, PlayOutcome};
+use crate::cell::{Cell, HiddenCell, PlayerCell};
+use crate::game::PlayOutcome;
 
 use serde::{Deserialize, Serialize};
 
@@ -103,7 +103,7 @@ impl MinesweeperClient {
                     .copied()
                     .filter(|pc| {
                         let item = self.board[*pc];
-                        if let PlayerCell::Flag = item {
+                        if let PlayerCell::Hidden(HiddenCell::Flag) = item {
                             true
                         } else if let PlayerCell::Revealed(nrc) = item {
                             matches!(nrc.contents, Cell::Mine)
@@ -120,13 +120,6 @@ impl MinesweeperClient {
             false
         }
     }
-}
-
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub struct Play {
-    pub player: usize,
-    pub action: Action,
-    pub point: BoardPoint,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
