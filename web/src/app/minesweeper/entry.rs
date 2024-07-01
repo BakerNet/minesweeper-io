@@ -128,7 +128,6 @@ async fn new_game(
                 cols,
                 num_mines,
                 max_players: max_players as u8,
-                classic: max_players == 1, // use classic mode (replant) for single player
             },
         )
         .await

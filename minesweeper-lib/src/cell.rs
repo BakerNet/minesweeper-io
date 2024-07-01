@@ -7,28 +7,27 @@ use crate::board::BoardPoint;
 
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerCell {
-    #[serde(rename = "h", alias = "Hidden")]
-    Hidden,
-    #[serde(rename = "hm", alias = "HiddenMine")]
-    HiddenMine,
-    #[serde(rename = "f", alias = "Flag")]
-    Flag,
     #[serde(rename = "r", alias = "Revealed")]
     Revealed(RevealedCell),
+    #[serde(untagged)]
+    Hidden(HiddenCell),
 }
 
 impl Default for PlayerCell {
     fn default() -> Self {
-        Self::Hidden
+        Self::Hidden(HiddenCell::Empty)
     }
 }
 
 impl fmt::Debug for PlayerCell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Hidden => write!(f, "-"),
-            Self::HiddenMine => write!(f, "+"),
-            Self::Flag => write!(f, "F"),
+            Self::Hidden(hc) => match hc {
+                HiddenCell::Empty => write!(f, "-"),
+                HiddenCell::Mine => write!(f, "*"),
+                HiddenCell::Flag => write!(f, "f"),
+                HiddenCell::FlagMine => write!(f, "F"),
+            },
             Self::Revealed(rc) => write!(
                 f,
                 "{}",
@@ -40,6 +39,52 @@ impl fmt::Debug for PlayerCell {
             ),
         }
     }
+}
+
+impl PlayerCell {
+    pub fn add_flag(self) -> Self {
+        match self {
+            Self::Revealed(_) => self,
+            Self::Hidden(hc) => match hc {
+                HiddenCell::Empty => Self::Hidden(HiddenCell::Flag),
+                HiddenCell::Mine => Self::Hidden(HiddenCell::FlagMine),
+                _ => self,
+            },
+        }
+    }
+
+    pub fn remove_flag(self) -> Self {
+        match self {
+            Self::Revealed(_) => self,
+            Self::Hidden(hc) => match hc {
+                HiddenCell::Flag => Self::Hidden(HiddenCell::Empty),
+                HiddenCell::FlagMine => Self::Hidden(HiddenCell::Mine),
+                _ => self,
+            },
+        }
+    }
+
+    pub fn into_hidden(self) -> Self {
+        match self {
+            Self::Hidden(_) => self,
+            Self::Revealed(rc) if matches!(rc.contents, Cell::Mine) => {
+                Self::Hidden(HiddenCell::Mine)
+            }
+            Self::Revealed(_) => Self::Hidden(HiddenCell::Empty),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum HiddenCell {
+    #[serde(rename = "e", alias = "Hidden")]
+    Empty,
+    #[serde(rename = "m", alias = "Bomb", alias = "Mine")]
+    Mine, // post-game only
+    #[serde(rename = "f", alias = "Flag")]
+    Flag,
+    #[serde(rename = "fm", alias = "FlagMine")]
+    FlagMine, // post-game only
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

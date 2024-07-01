@@ -2,7 +2,7 @@ use core::fmt;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::{Index, IndexMut},
-    slice::Iter,
+    slice::{Iter, IterMut},
 };
 
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,16 @@ where
     }
 }
 
+impl<T> From<Board<T>> for Vec<Vec<T>>
+where
+    T: Copy,
+{
+    fn from(value: Board<T>) -> Self {
+        (&value).into()
+    }
+}
+
+#[derive(Clone)]
 pub struct Board<T> {
     rows: usize,
     cols: usize,
@@ -122,6 +132,10 @@ impl<T> Board<T> {
 
     pub fn iter(&self) -> Iter<'_, T> {
         self.board.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
+        self.board.iter_mut()
     }
 
     pub fn is_in_bounds(&self, point: BoardPoint) -> bool {

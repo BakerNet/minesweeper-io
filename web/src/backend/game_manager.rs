@@ -13,8 +13,8 @@ use futures::{sink::SinkExt, stream::SplitSink, StreamExt};
 use http::StatusCode;
 use minesweeper_lib::{
     cell::PlayerCell,
-    client::{ClientPlayer, Play},
-    game::{Minesweeper, PlayOutcome},
+    client::ClientPlayer,
+    game::{Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
 };
 use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
@@ -289,9 +289,7 @@ fn handles_to_client_players(
                     player_id: player.player_id,
                     username: player.display_name.clone(),
                     dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
-                    victory_click: minesweeper
-                        .player_victory_click(player.player_id)
-                        .unwrap_or(false),
+                    victory_click: false,
                     top_score: current_top_score
                         .map(|s| s == player_score)
                         .unwrap_or(false),
@@ -389,7 +387,7 @@ async fn handle_message(
     } else {
         return;
     };
-    let outcome = minesweeper.play(play.player, play.action, play.point);
+    let outcome = minesweeper.play(play);
     let res = match outcome {
         Ok(res) => res,
         Err(e) => {
@@ -410,10 +408,10 @@ async fn handle_message(
             }
         }
         default => {
+            let victory_click = matches!(default, PlayOutcome::Victory(_));
             let outcome_msg = GameMessage::PlayOutcome(default).into_json();
             let score = minesweeper.player_score(player.player_id).unwrap();
             let dead = minesweeper.player_dead(player.player_id).unwrap();
-            let victory_click = minesweeper.player_victory_click(player.player_id).unwrap();
             let top_score = minesweeper.player_top_score(player.player_id).unwrap();
             let player_state = ClientPlayer {
                 player_id: player.player_id,
@@ -445,14 +443,19 @@ async fn handle_game(
     let mut save_interval = interval(Duration::from_secs(20)); // save every 20 seconds
 
     let mut player_handles = vec![None; game.max_players as usize];
-    let mut minesweeper = Minesweeper::init_game(
-        game.rows as usize,
-        game.cols as usize,
-        game.num_mines as usize,
-        game.max_players as usize,
-        game.classic,
-    )
-    .unwrap();
+    let mut minesweeper = MinesweeperBuilder::new(MinesweeperOpts {
+        rows: game.rows as usize,
+        cols: game.cols as usize,
+        num_mines: game.num_mines as usize,
+    })
+    .unwrap()
+    .with_superclick()
+    .with_log();
+    if game.max_players > 1 {
+        minesweeper = minesweeper.with_multiplayer(game.max_players as usize);
+    }
+    let mut minesweeper = minesweeper.init();
+
     let mut started = game.is_started; // should always be false
     let mut needs_save = false;
 
@@ -487,6 +490,7 @@ async fn handle_game(
     if needs_save {
         save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
     }
+    let minesweeper = minesweeper.complete();
     let _ = game_manager
         .complete_game(&game.game_id, minesweeper.viewer_board_final())
         .await

@@ -2,7 +2,8 @@ use std::cmp::max;
 use std::collections::HashSet;
 
 use crate::board::{Board, BoardPoint};
-use crate::cell::{Cell, CellState, PlayerCell, RevealedCell};
+use crate::cell::{Cell, CellState, HiddenCell, PlayerCell, RevealedCell};
+use crate::replay::MinesweeperReplay;
 
 use anyhow::{bail, Ok, Result};
 use rand::{seq::SliceRandom, thread_rng};
@@ -60,7 +61,7 @@ impl MinesweeperBuilder {
         self
     }
 
-    pub fn init(self) -> ActiveMinesweeperGame {
+    pub fn init(self) -> Minesweeper {
         let mut board = Board::new(
             self.opts.rows,
             self.opts.cols,
@@ -80,7 +81,7 @@ impl MinesweeperBuilder {
             });
         });
         let available = available.into_iter().skip(self.opts.num_mines).collect();
-        ActiveMinesweeperGame {
+        Minesweeper {
             available,
             players: vec![Player::default(); self.players.unwrap_or(1)],
             board,
@@ -91,40 +92,68 @@ impl MinesweeperBuilder {
 }
 
 impl Board<(Cell, CellState)> {
-    fn viewer_board(&self, is_final: bool) -> Vec<Vec<PlayerCell>> {
-        let mut return_board: Vec<Vec<PlayerCell>> =
-            vec![vec![PlayerCell::Hidden; self.cols()]; self.rows()];
-        for (r_num, row) in return_board.iter_mut().enumerate() {
-            for (c_num, return_item) in row.iter_mut().enumerate() {
-                let point = BoardPoint {
-                    row: r_num,
-                    col: c_num,
-                };
+    fn viewer_board(&self, is_final: bool) -> Board<PlayerCell> {
+        let mut new_board =
+            Board::<PlayerCell>::new(self.rows(), self.cols(), PlayerCell::default());
+        for row in 0..self.rows() {
+            for col in 0..self.cols() {
+                let point = BoardPoint { row, col };
                 let item = &self[point];
                 if item.1.revealed {
-                    *return_item = PlayerCell::Revealed(RevealedCell {
+                    new_board[point] = PlayerCell::Revealed(RevealedCell {
                         cell_point: point,
                         player: item.1.player.unwrap(),
                         contents: item.0,
                     });
                 } else if is_final && matches!(item.0, Cell::Mine) {
-                    *return_item = PlayerCell::HiddenMine
+                    new_board[point] = PlayerCell::Hidden(HiddenCell::Mine)
                 }
             }
         }
-        return_board
+        new_board
+    }
+
+    fn player_board(&self, player_flags: HashSet<BoardPoint>, is_final: bool) -> Board<PlayerCell> {
+        let mut new_board =
+            Board::<PlayerCell>::new(self.rows(), self.cols(), PlayerCell::default());
+        for row in 0..self.rows() {
+            for col in 0..self.cols() {
+                let point = BoardPoint { row, col };
+                let item = &self[point];
+                if item.1.revealed {
+                    new_board[point] = PlayerCell::Revealed(RevealedCell {
+                        cell_point: point,
+                        player: item.1.player.unwrap(),
+                        contents: item.0,
+                    });
+                } else if is_final && matches!(item.0, Cell::Mine) {
+                    new_board[point] = PlayerCell::Hidden(HiddenCell::Mine)
+                }
+                if player_flags.contains(&point) {
+                    new_board[point] = new_board[point].add_flag()
+                }
+            }
+        }
+        new_board
     }
 }
 
-pub struct ActiveMinesweeperGame {
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct Play {
+    pub player: usize,
+    pub action: Action,
+    pub point: BoardPoint,
+}
+
+pub struct Minesweeper {
     available: HashSet<BoardPoint>,
     players: Vec<Player>,
     board: Board<(Cell, CellState)>,
-    log: Option<Vec<PlayOutcome>>,
+    log: Option<Vec<(Play, PlayOutcome)>>,
     superclick: bool,
 }
 
-impl ActiveMinesweeperGame {
+impl Minesweeper {
     fn handle_flag(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
@@ -132,10 +161,10 @@ impl ActiveMinesweeperGame {
         }
         let player_cell = if self.players[player].flags.contains(&cell_point) {
             self.players[player].flags.remove(&cell_point);
-            PlayerCell::Hidden
+            PlayerCell::Hidden(HiddenCell::Empty)
         } else {
             self.players[player].flags.insert(cell_point);
-            PlayerCell::Flag
+            PlayerCell::Hidden(HiddenCell::Flag)
         };
         Ok(PlayOutcome::Flag((cell_point, player_cell)))
     }
@@ -409,44 +438,38 @@ impl ActiveMinesweeperGame {
     }
 }
 
-impl ActiveMinesweeperGame {
-    pub fn complete(self) -> CompletedMinesweeperGame {
-        CompletedMinesweeperGame {
-            cleared: self.available.len() == 0,
-            players: self.players.into_iter().map(PlayerResult::from).collect(),
+impl Minesweeper {
+    pub fn complete(self) -> CompletedMinesweeper {
+        CompletedMinesweeper {
+            players: self.players,
             board: self.board.viewer_board(true),
             log: self.log,
         }
     }
 
-    pub fn play(
-        &mut self,
-        player: usize,
-        action: Action,
-        cell_point: BoardPoint,
-    ) -> Result<PlayOutcome> {
+    pub fn play(&mut self, play: Play) -> Result<PlayOutcome> {
         if self.is_over() {
             bail!("Game is over")
         }
-        if self.players[player].dead {
+        if self.players[play.player].dead {
             bail!("Tried to play as dead player")
         }
-        if !self.board.is_in_bounds(cell_point) {
+        if !self.board.is_in_bounds(play.point) {
             bail!("Tried to play point outside of playzone")
         }
-        let play_res = match action {
-            Action::Reveal => self.handle_click(player, cell_point),
-            Action::RevealAdjacent => self.handle_double_click(player, cell_point),
-            Action::Flag => self.handle_flag(player, cell_point),
+        let play_res = match play.action {
+            Action::Reveal => self.handle_click(play.player, play.point),
+            Action::RevealAdjacent => self.handle_double_click(play.player, play.point),
+            Action::Flag => self.handle_flag(play.player, play.point),
         };
         if self.available.is_empty() {
             // game is over
-            self.players[player].victory_click = true;
+            self.players[play.player].victory_click = true;
         }
         // record play if applicable
         let _ = play_res.as_ref().map(|outcome| {
             if let Some(history) = &mut self.log {
-                history.push(outcome.clone());
+                history.push((play, outcome.clone()));
             }
         });
         play_res
@@ -490,32 +513,39 @@ impl ActiveMinesweeperGame {
         }
     }
 
+    pub fn player_victory_click(&self, player: usize) -> Result<bool> {
+        if player > self.players.len() - 1 {
+            bail!("Player {player} doesn't exist")
+        }
+        Ok(self.players[player].victory_click)
+    }
+
     pub fn is_over(&self) -> bool {
         self.available.is_empty() || self.players.iter().all(|x| x.dead)
     }
 
     pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
-        self.board.viewer_board(false)
+        self.board.viewer_board(false).into()
     }
 
     pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
         let mut return_board = self.viewer_board();
         for f in self.players[player].flags.iter() {
-            if let PlayerCell::Hidden = return_board[f.row][f.col] {
-                return_board[f.row][f.col] = PlayerCell::Flag
+            if let PlayerCell::Hidden(_) = return_board[f.row][f.col] {
+                return_board[f.row][f.col] = return_board[f.row][f.col].add_flag()
             }
         }
         return_board
     }
 }
 
-pub struct CompletedMinesweeperGame {
-    players: Vec<PlayerResult>,
-    board: Vec<Vec<PlayerCell>>,
-    log: Option<Vec<PlayOutcome>>,
+pub struct CompletedMinesweeper {
+    players: Vec<Player>,
+    board: Board<PlayerCell>,
+    log: Option<Vec<(Play, PlayOutcome)>>,
 }
 
-impl CompletedMinesweeperGame {
+impl CompletedMinesweeper {
     pub fn player_score(&self, player: usize) -> Result<usize> {
         if player > self.players.len() - 1 {
             bail!("Player {player} doesn't exist")
@@ -562,19 +592,41 @@ impl CompletedMinesweeperGame {
     }
 
     pub fn viewer_board_final(&self) -> Vec<Vec<PlayerCell>> {
-        self.board.clone()
+        (&self.board).into()
     }
 
-    pub fn replay(&self, player: Option<usize>) -> Option<Vec<PlayOutcome>> {
-        self.log.as_ref().map(|log| {
-            log.iter()
-                .filter(|po| match po {
-                    PlayOutcome::Flag((_, PlayerCell::Revealed(rc))) => Some(rc.player) == player,
-                    _ => true,
-                })
-                .cloned()
-                .collect()
-        })
+    pub fn player_board_final(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+        let mut return_board = self.viewer_board_final();
+        for f in self.players[player].flags.iter() {
+            if let PlayerCell::Hidden(_) = return_board[f.row][f.col] {
+                return_board[f.row][f.col] = return_board[f.row][f.col].add_flag()
+            }
+        }
+        return_board
+    }
+
+    fn board_start(&self) -> Board<PlayerCell> {
+        let mut board = self.board.clone();
+        board.iter_mut().for_each(|pc| *pc = pc.into_hidden());
+        board
+    }
+
+    pub fn replay(&self, player: Option<usize>) -> Option<MinesweeperReplay> {
+        if matches!(self.log, None) {
+            return None;
+        }
+        let player_log = self
+            .log
+            .as_ref()
+            .unwrap()
+            .iter()
+            .filter(|po| match po.0.action {
+                Action::Flag => Some(po.0.player) == player,
+                _ => true,
+            })
+            .cloned()
+            .collect();
+        return Some(MinesweeperReplay::new(self.board_start(), player_log));
     }
 }
 
@@ -586,35 +638,12 @@ fn bool_to_u8(b: bool) -> u8 {
 }
 
 #[derive(Clone, Debug, Default)]
-struct Player {
+pub struct Player {
     played: bool,
     dead: bool,
     victory_click: bool,
     score: usize,
     flags: HashSet<BoardPoint>,
-}
-
-#[derive(Clone, Debug, Default)]
-struct PlayerResult {
-    dead: bool,
-    victory_click: bool,
-    score: usize,
-}
-
-impl From<Player> for PlayerResult {
-    fn from(value: Player) -> Self {
-        Self::from(&value)
-    }
-}
-
-impl From<&Player> for PlayerResult {
-    fn from(value: &Player) -> Self {
-        Self {
-            dead: value.dead,
-            victory_click: value.victory_click,
-            score: value.score,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -684,11 +713,8 @@ impl PlayOutcome {
 mod test {
     use crate::board::{Board, BoardPoint};
     use crate::cell::{Cell, CellState};
-    use crate::game::{
-        Action, ActiveMinesweeperGame, MinesweeperBuilder, MinesweeperOpts, PlayOutcome,
-    };
 
-    use super::Player;
+    use super::*;
 
     const POINT_0_0: BoardPoint = BoardPoint { row: 0, col: 0 };
     const POINT_0_1: BoardPoint = BoardPoint { row: 0, col: 1 };
@@ -703,10 +729,10 @@ mod test {
     const POINT_3_2: BoardPoint = BoardPoint { row: 3, col: 2 };
     const POINT_3_3: BoardPoint = BoardPoint { row: 3, col: 3 };
 
-    fn empty_game(player_num: usize) -> ActiveMinesweeperGame {
+    fn empty_game(player_num: usize) -> Minesweeper {
         let board = Board::new(9, 9, (Cell::default(), CellState::default()));
         let available = (0..81).map(|x| board.point_from_index(x)).collect();
-        ActiveMinesweeperGame {
+        Minesweeper {
             available,
             players: vec![Player::default(); player_num],
             board,
@@ -715,7 +741,7 @@ mod test {
         }
     }
 
-    fn set_up_game(plant_3_0: bool) -> ActiveMinesweeperGame {
+    fn set_up_game(plant_3_0: bool) -> Minesweeper {
         let mut game = empty_game(2);
 
         game.plant(POINT_0_0);
@@ -727,7 +753,7 @@ mod test {
         game
     }
 
-    fn set_up_game_with_replant() -> ActiveMinesweeperGame {
+    fn set_up_game_with_replant() -> Minesweeper {
         let mut game = empty_game(1);
 
         game.plant(POINT_0_0);
@@ -737,7 +763,7 @@ mod test {
         game
     }
 
-    fn num_bombs(game: &ActiveMinesweeperGame, number: usize) {
+    fn num_bombs(game: &Minesweeper, number: usize) {
         let num_bombs = game
             .board
             .iter()
@@ -746,13 +772,13 @@ mod test {
         assert_eq!(num_bombs, number);
     }
 
-    fn point_cell(game: &ActiveMinesweeperGame, point: BoardPoint, _cell: Cell) {
+    fn point_cell(game: &Minesweeper, point: BoardPoint, _cell: Cell) {
         let board_cell = game.board[point].0;
         assert!(matches!(board_cell, _cell));
     }
 
     fn point_cell_state(
-        game: &ActiveMinesweeperGame,
+        game: &Minesweeper,
         point: BoardPoint,
         revealed: bool,
         player: Option<usize>,
@@ -764,7 +790,7 @@ mod test {
 
     #[test]
     fn create_and_init_game() {
-        let game: ActiveMinesweeperGame = MinesweeperBuilder::new(MinesweeperOpts {
+        let game: Minesweeper = MinesweeperBuilder::new(MinesweeperOpts {
             rows: 9,
             cols: 9,
             num_mines: 10,
@@ -839,7 +865,11 @@ mod test {
         let mut game = set_up_game(true);
 
         let res = game
-            .play(0, Action::Reveal, BoardPoint { row: 0, col: 0 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 0, col: 0 },
+            })
             .unwrap();
         assert_eq!(res.len(), 4);
 
@@ -857,7 +887,11 @@ mod test {
     fn first_play_cell_works() {
         let mut game = set_up_game(true);
 
-        let res = game.play(0, Action::Reveal, BoardPoint { col: 7, row: 7 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { col: 7, row: 7 },
+        });
         assert_eq!(res.unwrap().len(), 9 * 9 - 8);
 
         num_bombs(&game, 4);
@@ -874,10 +908,20 @@ mod test {
     fn second_click_bomb_failure() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point);
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: cell_point,
+        });
         assert!(matches!(res.unwrap(), PlayOutcome::Failure(_)));
     }
 
@@ -885,10 +929,22 @@ mod test {
     fn second_click_cell_success() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
         let cell_point = BoardPoint { row: 0, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point).unwrap();
+        let res = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: cell_point,
+            })
+            .unwrap();
         assert!(matches!(res.clone(), PlayOutcome::Success(_)));
         assert_eq!(res.len(), 1);
     }
@@ -897,13 +953,29 @@ mod test {
     fn flag_works() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let res = game.play(0, Action::Flag, cell_point).unwrap();
+        let res = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: cell_point,
+            })
+            .unwrap();
         assert!(matches!(res, PlayOutcome::Flag(_)));
 
-        let res = game.play(0, Action::Reveal, cell_point);
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: cell_point,
+        });
         assert!(res.is_err());
     }
 
@@ -911,7 +983,11 @@ mod test {
     fn unplant_updated_works() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, BoardPoint { col: 7, row: 7 });
+        let _ = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { col: 7, row: 7 },
+        });
 
         point_cell(&game, POINT_2_2, Cell::Empty(3));
         point_cell(&game, POINT_0_3, Cell::Empty(1));
@@ -930,14 +1006,38 @@ mod test {
     fn unflag_works() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
         let cell_point = BoardPoint { row: 1, col: 2 };
-        let _ = game.play(0, Action::Flag, cell_point).unwrap();
-        let res = game.play(0, Action::Flag, cell_point).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: cell_point,
+            })
+            .unwrap();
+        let res = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: cell_point,
+            })
+            .unwrap();
         assert!(matches!(res, PlayOutcome::Flag(_)));
 
-        let res = game.play(0, Action::Reveal, cell_point).unwrap();
+        let res = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: cell_point,
+            })
+            .unwrap();
         assert!(matches!(res, PlayOutcome::Failure(_)));
     }
 
@@ -946,21 +1046,45 @@ mod test {
         let mut game = set_up_game(true);
 
         let res = game
-            .play(0, Action::Reveal, BoardPoint { row: 0, col: 0 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 0, col: 0 },
+            })
             .unwrap();
         assert_eq!(res.len(), 4);
 
         num_bombs(&game, 2);
 
-        let _ = game.play(0, Action::Flag, POINT_1_2).unwrap();
-        let _ = game.play(0, Action::Flag, POINT_2_1).unwrap();
         let _ = game
-            .play(0, Action::Reveal, BoardPoint { row: 2, col: 2 })
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: POINT_1_2,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: POINT_2_1,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 2, col: 2 },
+            })
             .unwrap();
         point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
 
         let res = game
-            .play(0, Action::RevealAdjacent, BoardPoint { row: 2, col: 2 })
+            .play(Play {
+                player: 0,
+                action: Action::RevealAdjacent,
+                point: BoardPoint { row: 2, col: 2 },
+            })
             .expect("double-click should work");
         assert_eq!(res.len(), 9 * 9 - 9);
     }
@@ -970,19 +1094,37 @@ mod test {
         let mut game = set_up_game(true);
 
         let res = game
-            .play(0, Action::Reveal, BoardPoint { row: 0, col: 0 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 0, col: 0 },
+            })
             .unwrap();
         assert_eq!(res.len(), 4);
 
         num_bombs(&game, 2);
 
-        let _ = game.play(0, Action::Flag, POINT_1_2).unwrap();
         let _ = game
-            .play(0, Action::Reveal, BoardPoint { row: 2, col: 2 })
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: POINT_1_2,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 2, col: 2 },
+            })
             .unwrap();
         point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
 
-        let res = game.play(0, Action::RevealAdjacent, BoardPoint { row: 2, col: 2 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::RevealAdjacent,
+            point: BoardPoint { row: 2, col: 2 },
+        });
         assert!(res.is_err());
     }
 
@@ -990,12 +1132,22 @@ mod test {
     fn score_works() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
         num_bombs(&game, 2);
 
         let cell_point = BoardPoint { row: 0, col: 2 };
-        let res = game.play(0, Action::Reveal, cell_point);
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: cell_point,
+        });
         assert!(matches!(res.unwrap(), PlayOutcome::Success(_)));
         assert_eq!(game.players[0].score, 5);
     }
@@ -1004,12 +1156,26 @@ mod test {
     fn dead_errors() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
         let _ = game
-            .play(0, Action::Reveal, BoardPoint { row: 1, col: 2 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 1, col: 2 },
+            })
             .unwrap();
 
-        let res = game.play(0, Action::Reveal, BoardPoint { row: 3, col: 3 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { row: 3, col: 3 },
+        });
         assert!(matches!(res, Err(..)));
     }
 
@@ -1017,9 +1183,19 @@ mod test {
     fn revealed_errors() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
 
-        let res = game.play(0, Action::Reveal, BoardPoint { row: 1, col: 1 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { row: 1, col: 1 },
+        });
         assert!(matches!(res, Err(..)));
     }
 
@@ -1027,10 +1203,18 @@ mod test {
     fn oob_errors() {
         let mut game = empty_game(2);
 
-        let res = game.play(0, Action::Reveal, BoardPoint { col: 10, row: 0 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { col: 10, row: 0 },
+        });
         assert!(matches!(res, Err(..)));
 
-        let res = game.play(0, Action::Reveal, BoardPoint { col: 0, row: 10 });
+        let res = game.play(Play {
+            player: 0,
+            action: Action::Reveal,
+            point: BoardPoint { col: 0, row: 10 },
+        });
         assert!(matches!(res, Err(..)));
     }
 
@@ -1038,16 +1222,34 @@ mod test {
     fn victory_works() {
         let mut game = set_up_game(true);
 
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
         let _ = game
-            .play(0, Action::Reveal, BoardPoint { row: 8, col: 8 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 8, col: 8 },
+            })
             .unwrap();
 
         let _ = game
-            .play(0, Action::Reveal, BoardPoint { row: 0, col: 2 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 0, col: 2 },
+            })
             .unwrap();
         let res = game
-            .play(0, Action::Reveal, BoardPoint { row: 2, col: 0 })
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: BoardPoint { row: 2, col: 0 },
+            })
             .unwrap();
         assert!(matches!(res, PlayOutcome::Victory(..)));
         assert_eq!(game.players[0].score, 79);
@@ -1056,7 +1258,13 @@ mod test {
     #[test]
     fn replant_works() {
         let mut game = set_up_game_with_replant();
-        let _ = game.play(0, Action::Reveal, POINT_0_0).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_0_0,
+            })
+            .unwrap();
         num_bombs(&game, 4);
         assert_ne!(game.board[POINT_1_1].0, Cell::Mine);
         assert_ne!(game.board[POINT_0_1].0, Cell::Mine);
@@ -1065,7 +1273,13 @@ mod test {
         assert_eq!(game.board[POINT_2_1].0, Cell::Mine);
 
         let mut game = set_up_game_with_replant();
-        let _ = game.play(0, Action::Reveal, POINT_2_2).unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_2_2,
+            })
+            .unwrap();
         num_bombs(&game, 4);
         assert_ne!(game.board[POINT_1_1].0, Cell::Mine);
         assert_ne!(game.board[POINT_2_1].0, Cell::Mine);
