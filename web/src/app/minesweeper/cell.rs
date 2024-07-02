@@ -3,7 +3,7 @@ use web_sys::MouseEvent;
 
 use minesweeper_lib::{
     board::BoardPoint,
-    cell::{Cell, PlayerCell},
+    cell::{Cell, HiddenCell, PlayerCell},
 };
 
 use crate::components::{
@@ -61,9 +61,7 @@ pub fn InactiveRow(row: usize, cells: Vec<PlayerCell>) -> impl IntoView {
 
 fn cell_contents_class(cell: PlayerCell) -> String {
     match cell {
-        PlayerCell::Flag => String::from("bg-neutral-500"),
-        PlayerCell::Hidden => String::from("bg-neutral-500"),
-        PlayerCell::HiddenMine => String::from("bg-neutral-500"),
+        PlayerCell::Hidden(_) => String::from("bg-neutral-500"),
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Mine => String::from("bg-red-600"),
             Cell::Empty(x) => number_class(x as usize),
@@ -132,16 +130,23 @@ fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 #[component]
 fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
-        PlayerCell::Flag => view! {
-            <span>
-                <Flag/>
-            </span>
-        },
-        PlayerCell::Hidden => view! { <span>""</span> },
-        PlayerCell::HiddenMine => view! {
-            <span>
-                <Mine/>
-            </span>
+        PlayerCell::Hidden(hc) => match hc {
+            HiddenCell::Empty => view! { <span>""</span> },
+            HiddenCell::Flag => view! {
+                <span>
+                    <Flag/>
+                </span>
+            },
+            HiddenCell::Mine => view! {
+                <span>
+                    <Mine/>
+                </span>
+            },
+            HiddenCell::FlagMine => view! {
+                <span>
+                    <Flag/>
+                </span>
+            },
         },
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Mine => view! {
