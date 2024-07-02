@@ -47,13 +47,13 @@ impl MinesweeperReplay {
         self.current_play = Some(play.0);
         match &play.1 {
             PlayOutcome::Success(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.cell_point] = PlayerCell::Revealed(rc.clone());
+                self.current_board[rc.0] = PlayerCell::Revealed(rc.1.clone());
             }),
             PlayOutcome::Failure(rc) => {
-                self.current_board[rc.cell_point] = PlayerCell::Revealed(rc.clone());
+                self.current_board[rc.0] = PlayerCell::Revealed(rc.1.clone());
             }
             PlayOutcome::Victory(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.cell_point] = PlayerCell::Revealed(rc.clone());
+                self.current_board[rc.0] = PlayerCell::Revealed(rc.1.clone());
             }),
             PlayOutcome::Flag(res) => {
                 if matches!(res.1, PlayerCell::Hidden(HiddenCell::Flag)) {
@@ -80,13 +80,13 @@ impl MinesweeperReplay {
         };
         match &play_to_undo.1 {
             PlayOutcome::Success(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.cell_point] = PlayerCell::Hidden(HiddenCell::Empty);
+                self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Empty);
             }),
             PlayOutcome::Failure(rc) => {
-                self.current_board[rc.cell_point] = PlayerCell::Hidden(HiddenCell::Mine);
+                self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Mine);
             }
             PlayOutcome::Victory(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.cell_point] = PlayerCell::Hidden(HiddenCell::Empty);
+                self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Empty);
             }),
             PlayOutcome::Flag(res) => {
                 if matches!(res.1, PlayerCell::Hidden(HiddenCell::Flag)) {
