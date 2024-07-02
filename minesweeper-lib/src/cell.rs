@@ -3,8 +3,6 @@ use std::fmt;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::board::BoardPoint;
-
 #[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerCell {
     #[serde(rename = "r", alias = "Revealed")]
@@ -89,7 +87,6 @@ pub enum HiddenCell {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RevealedCell {
-    pub cell_point: BoardPoint,
     pub player: usize,
     pub contents: Cell,
 }

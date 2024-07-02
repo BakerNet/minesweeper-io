@@ -64,23 +64,23 @@ impl MinesweeperClient {
         let mut updated = Vec::new();
         match play_outcome {
             PlayOutcome::Success(cells) => cells.into_iter().for_each(|cell| {
-                let point = cell.cell_point;
-                let player_cell = PlayerCell::Revealed(cell);
+                let point = cell.0;
+                let player_cell = PlayerCell::Revealed(cell.1);
                 self.board[point] = player_cell;
                 updated.push((point, player_cell));
             }),
             PlayOutcome::Victory(cells) => {
                 cells.into_iter().for_each(|cell| {
-                    let point = cell.cell_point;
-                    let player_cell = PlayerCell::Revealed(cell);
+                    let point = cell.0;
+                    let player_cell = PlayerCell::Revealed(cell.1);
                     self.board[point] = player_cell;
                     updated.push((point, player_cell));
                 });
                 self.game_over = true;
             }
             PlayOutcome::Failure(cell) => {
-                let point = cell.cell_point;
-                let player_cell = PlayerCell::Revealed(cell);
+                let point = cell.0;
+                let player_cell = PlayerCell::Revealed(cell.1);
                 self.board[point] = player_cell;
                 updated.push((point, player_cell));
             }

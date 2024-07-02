@@ -44,7 +44,7 @@ impl Game {
         sqlx::query_as(
             r#"
             insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
-            values (?, ?, ?, ?, ?, ?, ?, ?)
+            values (?, ?, ?, ?, ?, ?, ?)
             returning *
             "#,
         )

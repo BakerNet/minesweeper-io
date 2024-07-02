@@ -101,7 +101,6 @@ impl Board<(Cell, CellState)> {
                 let item = &self[point];
                 if item.1.revealed {
                     new_board[point] = PlayerCell::Revealed(RevealedCell {
-                        cell_point: point,
                         player: item.1.player.unwrap(),
                         contents: item.0,
                     });
@@ -122,7 +121,6 @@ impl Board<(Cell, CellState)> {
                 let item = &self[point];
                 if item.1.revealed {
                     new_board[point] = PlayerCell::Revealed(RevealedCell {
-                        cell_point: point,
                         player: item.1.player.unwrap(),
                         contents: item.0,
                     });
@@ -188,11 +186,13 @@ impl Minesweeper {
             Cell::Mine => {
                 self.reveal(player, cell_point);
                 self.players[player].dead = true;
-                Ok(PlayOutcome::Failure(RevealedCell {
+                Ok(PlayOutcome::Failure((
                     cell_point,
-                    player,
-                    contents: self.board[cell_point].0,
-                }))
+                    RevealedCell {
+                        player,
+                        contents: self.board[cell_point].0,
+                    },
+                )))
             }
             Cell::Empty(x) if x == &0 => {
                 let mut revealed_points = self.reveal_neighbors(player, cell_point)?;
@@ -201,10 +201,14 @@ impl Minesweeper {
                 }
                 let revealed_points = revealed_points
                     .into_iter()
-                    .map(|c| RevealedCell {
-                        cell_point: c,
-                        player,
-                        contents: self.board[c].0,
+                    .map(|c| {
+                        (
+                            c,
+                            RevealedCell {
+                                player,
+                                contents: self.board[c].0,
+                            },
+                        )
                     })
                     .collect::<Vec<_>>();
                 self.players[player].score += revealed_points.len();
@@ -217,11 +221,13 @@ impl Minesweeper {
             Cell::Empty(_) => {
                 self.reveal(player, cell_point);
                 self.players[player].score += 1;
-                let revealed_point = vec![RevealedCell {
+                let revealed_point = vec![(
                     cell_point,
-                    player,
-                    contents: self.board[cell_point].0,
-                }];
+                    RevealedCell {
+                        player,
+                        contents: self.board[cell_point].0,
+                    },
+                )];
                 if self.available.is_empty() {
                     Ok(PlayOutcome::Victory(revealed_point))
                 } else {
@@ -269,11 +275,13 @@ impl Minesweeper {
         if let Some(c) = has_bomb {
             self.reveal(player, c);
             self.players[player].dead = true;
-            return Ok(PlayOutcome::Failure(RevealedCell {
-                cell_point: c,
-                player,
-                contents: self.board[c].0,
-            }));
+            return Ok(PlayOutcome::Failure((
+                c,
+                RevealedCell {
+                    player,
+                    contents: self.board[c].0,
+                },
+            )));
         }
         let combined_outcome = unflagged_neighbors.iter().fold(
             PlayOutcome::Success(Vec::new()),
@@ -655,9 +663,9 @@ pub enum Action {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PlayOutcome {
-    Success(Vec<RevealedCell>),
-    Failure(RevealedCell),
-    Victory(Vec<RevealedCell>),
+    Success(Vec<(BoardPoint, RevealedCell)>),
+    Failure((BoardPoint, RevealedCell)),
+    Victory(Vec<(BoardPoint, RevealedCell)>),
     Flag((BoardPoint, PlayerCell)),
 }
 
