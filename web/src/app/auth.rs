@@ -85,17 +85,17 @@ pub fn Login(
 ) -> impl IntoView {
     let (target_str, target_readable, target_colors) = match target {
         OAuthTarget::Google => (
-            "GOOGLE",
+            "Google",
             "Log in with Google",
             "bg-blue-400 text-white hover:bg-blue-600",
         ),
         OAuthTarget::Reddit => (
-            "REDDIT",
+            "Reddit",
             "Log in with Reddit",
             "bg-orange-600 text-white hover:bg-orange-800",
         ),
         OAuthTarget::Github => (
-            "GITHUB",
+            "Github",
             "Log in with Github",
             "bg-zinc-800 text-white hover:bg-zinc-900",
         ),
