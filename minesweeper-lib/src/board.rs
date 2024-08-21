@@ -33,7 +33,7 @@ where
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Board<T> {
     rows: usize,
     cols: usize,

@@ -22,7 +22,7 @@ impl MinesweeperOpts {
             return false;
         }
         let total = self.rows * self.cols;
-        return self.num_mines < total;
+        self.num_mines < total
     }
 }
 
@@ -112,6 +112,7 @@ impl Board<(Cell, CellState)> {
         new_board
     }
 
+    #[allow(dead_code)]
     fn player_board(&self, player_flags: HashSet<BoardPoint>, is_final: bool) -> Board<PlayerCell> {
         let mut new_board =
             Board::<PlayerCell>::new(self.rows(), self.cols(), PlayerCell::default());
@@ -620,9 +621,7 @@ impl CompletedMinesweeper {
     }
 
     pub fn replay(&self, player: Option<usize>) -> Option<MinesweeperReplay> {
-        if matches!(self.log, None) {
-            return None;
-        }
+        self.log.as_ref()?;
         let player_log = self
             .log
             .as_ref()
@@ -634,7 +633,7 @@ impl CompletedMinesweeper {
             })
             .cloned()
             .collect();
-        return Some(MinesweeperReplay::new(self.board_start(), player_log));
+        Some(MinesweeperReplay::new(self.board_start(), player_log))
     }
 }
 
