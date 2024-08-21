@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 use crate::board::{Board, BoardPoint};
 use crate::cell::{Cell, CellState, HiddenCell, PlayerCell, RevealedCell};
+use crate::client::ClientPlayer;
 use crate::replay::MinesweeperReplay;
 
 use anyhow::{bail, Ok, Result};
@@ -552,6 +553,38 @@ pub struct CompletedMinesweeper {
     players: Vec<Player>,
     board: Board<PlayerCell>,
     log: Option<Vec<(Play, PlayOutcome)>>,
+}
+
+impl CompletedMinesweeper {
+    pub fn from_log(
+        board: Board<PlayerCell>,
+        log: Vec<(Play, PlayOutcome)>,
+        players: Vec<ClientPlayer>,
+    ) -> CompletedMinesweeper {
+        let players_len = players.len();
+        let mut players =
+            players
+                .into_iter()
+                .fold(vec![Player::default(); players_len], |mut acc, p| {
+                    acc[p.player_id].score = p.score;
+                    acc[p.player_id].dead = p.dead;
+                    acc[p.player_id].victory_click = p.victory_click;
+                    acc
+                });
+        log.iter()
+            .filter(|item| matches!(item.1, PlayOutcome::Flag(_)))
+            .for_each(|item| match item.1 {
+                PlayOutcome::Flag((point, _)) => {
+                    players[item.0.player].flags.insert(point);
+                }
+                _ => {}
+            });
+        CompletedMinesweeper {
+            players,
+            board,
+            log: Some(log),
+        }
+    }
 }
 
 impl CompletedMinesweeper {
