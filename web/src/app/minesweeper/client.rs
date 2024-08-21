@@ -59,14 +59,14 @@ pub struct FrontendGame {
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
     game: Rc<RefCell<MinesweeperClient>>,
-    send: Rc<dyn Fn(&str)>,
+    send: Rc<dyn Fn(&String)>,
 }
 
 impl FrontendGame {
     pub fn new(
         game_info: GameInfo,
         err_signal: WriteSignal<Option<String>>,
-        send: Rc<dyn Fn(&str)>,
+        send: Rc<dyn Fn(&String)>,
     ) -> (Self, Vec<Vec<ReadSignal<PlayerCell>>>) {
         let board = match &game_info.final_board {
             None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
@@ -256,7 +256,7 @@ impl FrontendGame {
         self.cell_signals[point.row][point.col](cell);
     }
 
-    pub fn send(&self, s: &str) {
+    pub fn send(&self, s: &String) {
         log::debug!("before send {s}");
         (self.send)(s)
     }

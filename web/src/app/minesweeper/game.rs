@@ -1,7 +1,8 @@
+use codee::string::FromToStringCodec;
 use leptos::ev::keydown;
 use leptos::*;
 use leptos_router::use_params_map;
-use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebsocketReturn};
+use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebSocketReturn};
 use leptos_use::{use_document, use_event_listener};
 use std::rc::Rc;
 use web_sys::{KeyboardEvent, MouseEvent};
@@ -127,12 +128,12 @@ where
     let (error, set_error) = create_signal::<Option<String>>(None);
 
     let game_id = game_info.game_id.clone();
-    let UseWebsocketReturn {
+    let UseWebSocketReturn {
         ready_state,
         message,
         send,
         ..
-    } = use_websocket(&format!("/api/websocket/game/{}", &game_id));
+    } = use_websocket::<String, FromToStringCodec>(&format!("/api/websocket/game/{}", &game_id));
 
     let (game, read_signals) =
         FrontendGame::new(game_info.clone(), set_error, Rc::new(send.clone()));
@@ -170,7 +171,7 @@ where
         log::debug!("join_trigger rec: {last:?}");
         if let Some(sent) = last {
             if !sent {
-                game_signal().send("Play");
+                game_signal().send(&String::from("Play"));
                 return true;
             }
         }

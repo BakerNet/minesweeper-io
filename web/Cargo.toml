@@ -12,6 +12,7 @@ anyhow = "1.0"
 async-trait = "0.1"
 axum = { version = "0.7", features = ["ws", "macros"], optional = true }
 axum-login = { version = "0.15", optional = true }
+codee = { version = "0.1", features = ["json_serde"] }
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 cfg-if = "1.0"
@@ -22,7 +23,7 @@ leptos = { version = "0.6", features = ["nightly"] }
 leptos_axum = { version = "0.6", optional = true }
 leptos_meta = { version = "0.6", features = ["nightly"] }
 leptos_router = { version = "0.6", features = ["nightly"] }
-leptos-use = { version = "0.10", features = ["serde"] }
+leptos-use = { version = "0.12" }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
 oauth2 = { version = "4.4", optional = true }
