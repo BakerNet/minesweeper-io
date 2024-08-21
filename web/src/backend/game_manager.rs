@@ -294,7 +294,9 @@ fn handles_to_client_players(
                     player_id: player.player_id,
                     username: player.display_name.clone(),
                     dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
-                    victory_click: false,
+                    victory_click: minesweeper
+                        .player_victory_click(player.player_id)
+                        .unwrap_or(false),
                     top_score: current_top_score
                         .map(|s| s == player_score)
                         .unwrap_or(false),
