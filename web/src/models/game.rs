@@ -1,5 +1,9 @@
 #![cfg(feature = "ssr")]
-use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
+use minesweeper_lib::{
+    cell::PlayerCell,
+    client::ClientPlayer,
+    game::{Play, PlayOutcome},
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, FromRow, SqlitePool};
 
@@ -13,7 +17,6 @@ pub struct Game {
     pub cols: i64,
     pub num_mines: i64,
     pub max_players: u8,
-    pub classic: bool,
     pub is_completed: bool,
     pub is_started: bool,
     #[sqlx(json)]
@@ -25,7 +28,6 @@ pub struct GameParameters {
     pub cols: i64,
     pub num_mines: i64,
     pub max_players: u8,
-    pub classic: bool,
 }
 
 impl Game {
@@ -45,8 +47,8 @@ impl Game {
         let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
             r#"
-            insert into games (game_id, owner, rows, cols, num_mines, max_players, classic, final_board)
-            values (?, ?, ?, ?, ?, ?, ?, ?)
+            insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
+            values (?, ?, ?, ?, ?, ?, ?)
             returning *
             "#,
         )
@@ -56,7 +58,6 @@ impl Game {
         .bind(game_parameters.cols)
         .bind(game_parameters.num_mines)
         .bind(game_parameters.max_players)
-        .bind(game_parameters.classic)
         .bind(Json(None::<Vec<Vec<PlayerCell>>>))
         .fetch_one(db)
         .await
@@ -257,5 +258,40 @@ impl Player {
         }
         transaction.commit().await?;
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
+pub struct GameLog {
+    pub game_id: String,
+    #[sqlx(json)]
+    pub log: Vec<(Play, PlayOutcome)>,
+}
+
+impl GameLog {
+    #[allow(dead_code)]
+    pub async fn get_log(db: &SqlitePool, game_id: &str) -> Result<Option<GameLog>, sqlx::Error> {
+        sqlx::query_as("select * from game_log where game_id = ?")
+            .bind(game_id)
+            .fetch_optional(db)
+            .await
+    }
+
+    pub async fn save_log(
+        db: &SqlitePool,
+        game_id: &str,
+        log: Vec<(Play, PlayOutcome)>,
+    ) -> Result<GameLog, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            insert into game_log (game_id, log)
+            values (?, ?)
+            returning *
+            "#,
+        )
+        .bind(game_id)
+        .bind(Json(log))
+        .fetch_one(db)
+        .await
     }
 }

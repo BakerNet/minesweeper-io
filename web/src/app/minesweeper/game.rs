@@ -262,7 +262,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     let players = game_info.players.clone();
     let game_settings = GameSettings::from(&game_info);
     let board = match game_info.final_board {
-        None => vec![vec![PlayerCell::Hidden; game_info.cols]; game_info.rows],
+        None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
         Some(b) => b,
     };
 
