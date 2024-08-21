@@ -136,7 +136,7 @@ mod test {
         BoardPoint { row: 3, col: 2 },
         BoardPoint { row: 3, col: 3 },
     ];
-    const BIG_PLAY_RES: [(BoardPoint, RevealedCell); 9] = [
+    const PLAY_1_RES: [(BoardPoint, RevealedCell); 9] = [
         (
             BoardPoint { row: 0, col: 0 },
             RevealedCell {
@@ -201,18 +201,18 @@ mod test {
             },
         ),
     ];
-    const FLAG_RES: (BoardPoint, PlayerCell) = (
+    const PLAY_2_RES: (BoardPoint, PlayerCell) = (
         BoardPoint { row: 3, col: 2 },
         PlayerCell::Hidden(HiddenCell::Flag),
     );
-    const SMALL_PLAY_RES: (BoardPoint, RevealedCell) = (
+    const PLAY_3_RES: (BoardPoint, RevealedCell) = (
         BoardPoint { row: 2, col: 3 },
         RevealedCell {
             player: 0,
             contents: Cell::Empty(2),
         },
     );
-    const FAILURE_RES: (BoardPoint, RevealedCell) = (
+    const PLAY_4_RES: (BoardPoint, RevealedCell) = (
         BoardPoint { row: 3, col: 3 },
         RevealedCell {
             player: 0,
@@ -226,21 +226,22 @@ mod test {
         MINES.iter().for_each(|point| {
             expected_starting_board[*point] = PlayerCell::Hidden(HiddenCell::Mine);
         });
+        let expected_starting_board = expected_starting_board;
 
         let mut expected_next_board = expected_starting_board.clone();
         // res of first play
-        BIG_PLAY_RES.iter().for_each(|(point, rc)| {
+        PLAY_1_RES.iter().for_each(|(point, rc)| {
             expected_next_board[*point] = PlayerCell::Revealed(*rc);
         });
         let expected_board_1 = expected_next_board.clone();
         // res of second play
-        expected_next_board[FLAG_RES.0] = PlayerCell::Hidden(HiddenCell::FlagMine);
+        expected_next_board[PLAY_2_RES.0] = PlayerCell::Hidden(HiddenCell::FlagMine);
         let expected_board_2 = expected_next_board.clone();
         // res of third play
-        expected_next_board[SMALL_PLAY_RES.0] = PlayerCell::Revealed(SMALL_PLAY_RES.1);
+        expected_next_board[PLAY_3_RES.0] = PlayerCell::Revealed(PLAY_3_RES.1);
         let expected_board_3 = expected_next_board.clone();
         // res of final play
-        expected_next_board[FAILURE_RES.0] = PlayerCell::Revealed(FAILURE_RES.1);
+        expected_next_board[PLAY_4_RES.0] = PlayerCell::Revealed(PLAY_4_RES.1);
         let expected_final_board = expected_next_board.clone();
 
         drop(expected_next_board);
@@ -254,7 +255,7 @@ mod test {
                         action: Action::Reveal,
                         point: BoardPoint { row: 2, col: 2 },
                     },
-                    PlayOutcome::Success(Vec::from(BIG_PLAY_RES)),
+                    PlayOutcome::Success(Vec::from(PLAY_1_RES)),
                 ),
                 (
                     Play {
@@ -262,7 +263,7 @@ mod test {
                         action: Action::Flag,
                         point: BoardPoint { row: 3, col: 2 },
                     },
-                    PlayOutcome::Flag(FLAG_RES),
+                    PlayOutcome::Flag(PLAY_2_RES),
                 ),
                 (
                     Play {
@@ -270,7 +271,7 @@ mod test {
                         action: Action::Reveal,
                         point: BoardPoint { row: 2, col: 3 },
                     },
-                    PlayOutcome::Success(Vec::from([SMALL_PLAY_RES])),
+                    PlayOutcome::Success(Vec::from([PLAY_3_RES])),
                 ),
                 (
                     Play {
@@ -278,11 +279,12 @@ mod test {
                         action: Action::Reveal,
                         point: BoardPoint { row: 3, col: 3 },
                     },
-                    PlayOutcome::Failure(FAILURE_RES),
+                    PlayOutcome::Failure(PLAY_4_RES),
                 ),
             ]),
         );
 
+        // test advance
         assert_eq!(replay.len(), 5);
         assert!(matches!(replay.advance(), Ok(())));
         assert_eq!(replay.current_board(), expected_board_1);
@@ -293,10 +295,10 @@ mod test {
         assert!(matches!(replay.advance(), Ok(())));
         assert_eq!(replay.current_board(), expected_final_board);
 
-        // should error at end
+        // should error on advance at end
         assert!(replay.advance().is_err());
 
-        // try in reverse
+        // test rewind
         assert!(matches!(replay.rewind(), Ok(())));
         assert_eq!(replay.current_board(), expected_board_3);
         assert!(matches!(replay.rewind(), Ok(())));
@@ -306,10 +308,16 @@ mod test {
         assert!(matches!(replay.rewind(), Ok(())));
         assert_eq!(replay.current_board(), expected_starting_board);
 
+        // should error on rewind at beginning
         assert!(replay.rewind().is_err());
 
+        // try to_pos (auto advance/rewind)
         assert!(matches!(replay.to_pos(2), Ok(())));
         assert_eq!(replay.current_board(), expected_board_2);
+        assert!(matches!(replay.to_pos(4), Ok(())));
+        assert_eq!(replay.current_board(), expected_final_board);
+        assert!(matches!(replay.to_pos(1), Ok(())));
+        assert_eq!(replay.current_board(), expected_board_1);
 
         assert!(replay.to_pos(5).is_err());
     }
