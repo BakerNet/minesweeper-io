@@ -573,11 +573,8 @@ impl CompletedMinesweeper {
                 });
         log.iter()
             .filter(|item| matches!(item.1, PlayOutcome::Flag(_)))
-            .for_each(|item| match item.1 {
-                PlayOutcome::Flag((point, _)) => {
-                    players[item.0.player].flags.insert(point);
-                }
-                _ => {}
+            .for_each(|item| if let PlayOutcome::Flag((point, _)) = item.1 {
+                players[item.0.player].flags.insert(point);
             });
         CompletedMinesweeper {
             players,
