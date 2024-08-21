@@ -653,12 +653,14 @@ impl CompletedMinesweeper {
         board
     }
 
+    pub fn get_log(&self) -> Option<Vec<(Play, PlayOutcome)>> {
+        Some(self.log.as_ref()?.clone())
+    }
+
     pub fn replay(&self, player: Option<usize>) -> Option<MinesweeperReplay> {
-        self.log.as_ref()?;
         let player_log = self
             .log
-            .as_ref()
-            .unwrap()
+            .as_ref()?
             .iter()
             .filter(|po| match po.0.action {
                 Action::Flag => Some(po.0.player) == player,

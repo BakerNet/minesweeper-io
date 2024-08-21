@@ -1,5 +1,9 @@
 #![cfg(feature = "ssr")]
-use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
+use minesweeper_lib::{
+    cell::PlayerCell,
+    client::ClientPlayer,
+    game::{Play, PlayOutcome},
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, FromRow, SqlitePool};
 
@@ -254,5 +258,40 @@ impl Player {
         }
         transaction.commit().await?;
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
+pub struct GameLog {
+    pub game_id: String,
+    #[sqlx(json)]
+    pub log: Vec<(Play, PlayOutcome)>,
+}
+
+impl GameLog {
+    #[allow(dead_code)]
+    pub async fn get_log(db: &SqlitePool, game_id: &str) -> Result<Option<GameLog>, sqlx::Error> {
+        sqlx::query_as("select * from game_log where game_id = ?")
+            .bind(game_id)
+            .fetch_optional(db)
+            .await
+    }
+
+    pub async fn save_log(
+        db: &SqlitePool,
+        game_id: &str,
+        log: Vec<(Play, PlayOutcome)>,
+    ) -> Result<GameLog, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+            insert into game_log (game_id, log)
+            values (?, ?)
+            returning *
+            "#,
+        )
+        .bind(game_id)
+        .bind(Json(log))
+        .fetch_one(db)
+        .await
     }
 }

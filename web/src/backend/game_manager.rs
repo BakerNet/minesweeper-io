@@ -27,7 +27,7 @@ use crate::{
     app::FrontendUser,
     messages::GameMessage,
     models::{
-        game::{Game, GameParameters, Player, PlayerUser},
+        game::{Game, GameLog, GameParameters, Player, PlayerUser},
         user::User,
     },
 };
@@ -249,6 +249,11 @@ impl GameManager {
         }
         Game::complete_game(&self.db, game_id, final_board).await?;
         games.remove(game_id).unwrap();
+        Ok(())
+    }
+
+    async fn save_game_log(&self, game_id: &str, game_log: Vec<(Play, PlayOutcome)>) -> Result<()> {
+        GameLog::save_log(&self.db, game_id, game_log).await?;
         Ok(())
     }
 
@@ -495,6 +500,12 @@ async fn handle_game(
         .complete_game(&game.game_id, minesweeper.viewer_board_final())
         .await
         .map_err(|e| log::error!("Error completing game: {e}"));
+    if let Some(game_log) = minesweeper.get_log() {
+        let _ = game_manager
+            .save_game_log(&game.game_id, game_log)
+            .await
+            .map_err(|e| log::error!("Error saving game log: {e}"));
+    }
 }
 
 pub async fn websocket_handler(
