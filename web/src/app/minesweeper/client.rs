@@ -52,12 +52,14 @@ pub struct FrontendGame {
     pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
+    pub sync_time: ReadSignal<Option<usize>>,
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_player_id: WriteSignal<Option<usize>>,
     player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
     set_players_loaded: WriteSignal<bool>,
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
+    set_sync_time: WriteSignal<Option<usize>>,
     game: Rc<RefCell<MinesweeperClient>>,
     send: Rc<dyn Fn(&String)>,
 }
@@ -98,6 +100,7 @@ impl FrontendGame {
         let join_trigger = create_trigger();
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
         let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
+        let (sync_time, set_sync_time) = create_signal::<Option<usize>>(None);
         let rows = game_info.rows;
         let cols = game_info.cols;
         (
@@ -118,6 +121,8 @@ impl FrontendGame {
                 set_started,
                 completed,
                 set_completed,
+                sync_time,
+                set_sync_time,
                 game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
                 send,
             },
@@ -247,6 +252,10 @@ impl FrontendGame {
             }
             GameMessage::GameStarted => {
                 (self.set_started)(true);
+                Ok(())
+            }
+            GameMessage::SyncTimer(secs) => {
+                (self.set_sync_time)(Some(secs));
                 Ok(())
             }
         }

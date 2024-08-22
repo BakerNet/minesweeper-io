@@ -17,6 +17,7 @@ use super::{
     {GameInfo, GameSettings},
 };
 
+use crate::app::minesweeper::widgets::{ActiveTimer, GameWidgets};
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
 #[cfg(feature = "ssr")]
@@ -236,6 +237,7 @@ where
     view! {
         <div class="text-center">
             <ActivePlayers/>
+            <GameWidgets><ActiveTimer sync_time={game.sync_time} completed={game.completed}></ActiveTimer></GameWidgets>
             <GameBorder set_active=set_game_is_active>
                 {read_signals
                     .into_iter()
@@ -270,6 +272,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <InactivePlayers players/>
+            <GameWidgets><span class="text-yellow-500">Hello</span><span class="text-yellow-500">World</span></GameWidgets>
             <GameBorder set_active=move |_| {}>
                 {board
                     .into_iter()

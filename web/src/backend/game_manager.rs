@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use ::chrono::{DateTime, Utc};
 use anyhow::{anyhow, bail, Result};
 use axum::{
     extract::{
@@ -66,6 +67,7 @@ struct GameHandle {
     players: Vec<PlayerHandle>,
     max_players: u8,
     owner: Option<i64>,
+    start_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Clone, Debug)]
@@ -93,7 +95,11 @@ impl GameManager {
             bail!("Game with id {game_id} already exists")
         }
         let max_players = game_parameters.max_players;
-        let game = Game::create_game(&self.db, game_id, &user, game_parameters).await?;
+        let mut game = Game::create_game(&self.db, game_id, &user, game_parameters).await?;
+        if max_players == 1 {
+            Game::start_game(&self.db, game_id).await?;
+            game.is_started = true;
+        }
         let (bc_tx, _bc_rx) = broadcast::channel(100);
         let (mp_tx, mp_rx) = mpsc::channel(100);
         let (ch_tx, ch_rx) = mpsc::channel(100);
@@ -104,6 +110,7 @@ impl GameManager {
             players: Vec::with_capacity(max_players as usize),
             max_players,
             owner: user.map(|u| u.id),
+            start_time: None,
         };
         games.insert(game_id.to_string(), handle);
         let self_clone = self.clone();
@@ -148,6 +155,14 @@ impl GameManager {
             bail!("Game with id {game_id} doesn't exist")
         }
         let handle = games.get(game_id).unwrap();
+        if let Some(dt) = &handle.start_time {
+            let mut sender = ws_sender.lock().await;
+            let start_time_msg = GameMessage::SyncTimer(
+                dt.signed_duration_since(Utc::now()).num_seconds().abs() as usize,
+            )
+            .into_json();
+            let _ = sender.send(Message::Text(start_time_msg)).await;
+        };
         handle
             .game_events
             .send(GameEvent::Viewer(ViewerHandle { ws_sender }))
@@ -233,6 +248,18 @@ impl GameManager {
         Ok(())
     }
 
+    pub async fn set_start_time(&self, game_id: &str) -> Result<()> {
+        let mut games = self.games.write().await;
+        if !games.contains_key(game_id) {
+            bail!("Game with id {game_id} doesn't exist")
+        }
+        let now = Utc::now();
+        let handle = games.get_mut(game_id).unwrap();
+        handle.start_time = Some(now);
+        Game::set_start_time(&self.db, game_id, now).await?;
+        Ok(())
+    }
+
     async fn save_game(&self, game_id: &str, board: Vec<Vec<PlayerCell>>) -> Result<()> {
         let games = self.games.read().await;
         if !games.contains_key(game_id) {
@@ -247,7 +274,8 @@ impl GameManager {
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
-        Game::complete_game(&self.db, game_id, final_board).await?;
+        let now = Utc::now();
+        Game::complete_game(&self.db, game_id, final_board, now).await?;
         games.remove(game_id).unwrap();
         Ok(())
     }
@@ -332,7 +360,7 @@ async fn handle_game_event(
     event: GameEvent,
     player_handles: &mut [Option<PlayerHandle>],
     minesweeper: &mut Minesweeper,
-    broadcast: &mut broadcast::Sender<String>,
+    broadcaster: &mut broadcast::Sender<String>,
     started: &mut bool,
 ) {
     match event {
@@ -349,7 +377,7 @@ async fn handle_game_event(
             let players = handles_to_client_players(player_handles, minesweeper);
             let players_msg = GameMessage::PlayersState(players).into_json();
             log::debug!("Sending players_msg {:?}", players_msg);
-            let _ = broadcast.send(players_msg);
+            let _ = broadcaster.send(players_msg);
         }
         GameEvent::Viewer(viewer) => {
             let viewer_board = minesweeper.viewer_board();
@@ -366,7 +394,7 @@ async fn handle_game_event(
         GameEvent::Start => {
             *started = true;
             let start_msg = GameMessage::GameStarted.into_json();
-            let _ = broadcast.send(start_msg);
+            let _ = broadcaster.send(start_msg);
         }
     }
 }
@@ -376,23 +404,20 @@ async fn handle_message(
     msg: &str,
     player_handles: &[Option<PlayerHandle>],
     minesweeper: &mut Minesweeper,
-    broadcast: &mut broadcast::Sender<String>,
+    broadcaster: &mut broadcast::Sender<String>,
     started: bool,
-) {
+) -> Option<()> {
     if !started {
-        return;
+        return None;
     }
-    let play = match serde_json::from_str::<Play>(msg) {
-        Ok(play) => play,
-        Err(_) => return,
-    };
+    let play = serde_json::from_str::<Play>(msg).ok()?;
     if play.player > player_handles.len() {
-        return;
+        return None;
     }
     let player = if let Some(player) = &player_handles[play.player] {
         player
     } else {
-        return;
+        return None;
     };
     let outcome = minesweeper.play(play);
     let res = match outcome {
@@ -403,7 +428,7 @@ async fn handle_message(
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(err_msg)).await;
             }
-            return;
+            return None;
         }
     };
     match res {
@@ -413,6 +438,7 @@ async fn handle_message(
                 let mut player_sender = player.ws_sender.lock().await;
                 let _ = player_sender.send(Message::Text(flag_msg)).await;
             }
+            None
         }
         default => {
             let victory_click = matches!(default, PlayOutcome::Victory(_));
@@ -429,8 +455,9 @@ async fn handle_message(
                 score,
             };
             let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
-            let _ = broadcast.send(outcome_msg);
-            let _ = broadcast.send(player_state_message);
+            let _ = broadcaster.send(outcome_msg);
+            let _ = broadcaster.send(player_state_message);
+            Some(())
         }
     }
 }
@@ -463,15 +490,23 @@ async fn handle_game(
     }
     let mut minesweeper = minesweeper.init();
 
-    let mut started = game.is_started; // should always be false
+    let mut started = game.is_started; // false for multiplayer, true for single player
+    let mut first_play = false;
     let mut needs_save = false;
 
     loop {
         tokio::select! {
             Some(msg) = receiver.recv() => {
                 log::debug!("Message received: {}", msg);
-                handle_message(&msg, &player_handles, &mut minesweeper, &mut broadcaster, started).await;
-                needs_save = true;
+                let played = handle_message(&msg, &player_handles, &mut minesweeper, &mut broadcaster, started).await.is_some();
+                needs_save = played;
+                if played && !first_play {
+                    first_play = true;
+                    let _ = game_manager.set_start_time(&game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}"));
+                    let sync_msg = GameMessage::SyncTimer(0).into_json();
+                    log::debug!("Sending sync_msg {:?}", sync_msg);
+                    let _ = broadcaster.send(sync_msg);
+                }
                 if minesweeper.is_over() {
                     break;
                 }

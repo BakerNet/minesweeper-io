@@ -3,6 +3,7 @@ mod client;
 mod entry;
 mod game;
 mod players;
+mod widgets;
 
 pub use entry::JoinOrCreateGame;
 pub use game::Game;

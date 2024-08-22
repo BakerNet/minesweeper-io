@@ -64,6 +64,7 @@ pub fn ActivePlayers() -> impl IntoView {
         loaded()
             && (players_ctx.is_owner || (!players_ctx.has_owner && player_id().is_some()))
             && !started()
+            && num_players > 1
     };
 
     if num_players == 1 {

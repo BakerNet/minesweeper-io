@@ -1,4 +1,5 @@
 #![cfg(feature = "ssr")]
+use chrono::{DateTime, Utc};
 use minesweeper_lib::{
     cell::PlayerCell,
     client::ClientPlayer,
@@ -19,6 +20,8 @@ pub struct Game {
     pub max_players: u8,
     pub is_completed: bool,
     pub is_started: bool,
+    pub start_time: Option<DateTime<Utc>>,
+    pub end_time: Option<DateTime<Utc>>,
     #[sqlx(json)]
     pub final_board: Option<Vec<Vec<PlayerCell>>>, // todo - remove final from name
 }
@@ -71,6 +74,19 @@ impl Game {
             .map(|_| ())
     }
 
+    pub async fn set_start_time(
+        db: &SqlitePool,
+        game_id: &str,
+        timestamp: DateTime<Utc>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("update games set start_time = ? where game_id = ?")
+            .bind(timestamp)
+            .bind(game_id)
+            .execute(db)
+            .await
+            .map(|_| ())
+    }
+
     pub async fn save_board(
         db: &SqlitePool,
         game_id: &str,
@@ -88,13 +104,17 @@ impl Game {
         db: &SqlitePool,
         game_id: &str,
         final_board: Vec<Vec<PlayerCell>>,
+        end_time: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("update games set is_completed = 1, final_board = ? where game_id = ?")
-            .bind(Json(final_board))
-            .bind(game_id)
-            .execute(db)
-            .await
-            .map(|_| ())
+        sqlx::query(
+            "update games set is_completed = 1, final_board = ?, end_time = ? where game_id = ?",
+        )
+        .bind(Json(final_board))
+        .bind(end_time)
+        .bind(game_id)
+        .execute(db)
+        .await
+        .map(|_| ())
     }
 
     pub async fn set_all_games_completed(db: &SqlitePool) -> Result<(), sqlx::Error> {
