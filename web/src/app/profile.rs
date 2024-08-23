@@ -38,19 +38,19 @@ pub fn Profile(
 ) -> impl IntoView {
     view! {
         <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-            <SetDisplayName user user_updated/>
+            <SetDisplayName user user_updated />
             <div class="w-full max-w-xs h-6">
                 <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                    <hr class="w-full"/>
+                    <hr class="w-full" />
                 </span>
             </div>
-            <LogOut logout/>
+            <LogOut logout />
             <div class="w-full max-w-xs h-6">
                 <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                    <hr class="w-full"/>
+                    <hr class="w-full" />
                 </span>
             </div>
-            <GameHistory/>
+            <GameHistory />
         </div>
     }
 }
@@ -201,7 +201,7 @@ fn GameHistory() -> impl IntoView {
                     {if game.dead {
                         view! {
                             <span class=player_icon_holder("bg-red-600", true)>
-                                <Mine/>
+                                <Mine />
                                 <IconTooltip>"Dead"</IconTooltip>
                             </span>
                         }
@@ -212,7 +212,7 @@ fn GameHistory() -> impl IntoView {
                     {if game.top_score {
                         view! {
                             <span class=player_icon_holder("bg-green-800", true)>
-                                <Trophy/>
+                                <Trophy />
                                 <IconTooltip>"Top Score"</IconTooltip>
                             </span>
                         }
@@ -223,7 +223,7 @@ fn GameHistory() -> impl IntoView {
                     {if game.victory_click {
                         view! {
                             <span class=player_icon_holder("bg-black", true)>
-                                <Star/>
+                                <Star />
                                 <IconTooltip>"Victory Click"</IconTooltip>
                             </span>
                         }

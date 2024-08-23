@@ -419,7 +419,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
             >
 
                 <div class="space-y-2">
-                    <PresetButtons selected=selected_mode set_selected=set_selected_mode/>
+                    <PresetButtons selected=selected_mode set_selected=set_selected_mode />
                 </div>
                 <div class="space-y-2">
                     <SettingsInputs
@@ -431,11 +431,12 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                         set_num_mines
                         max_players
                         set_max_players
-                        on_dirty = move || {
+                        on_dirty=move || {
                             set_dirty(true);
                             set_selected_mode(GameMode::Custom);
                         }
                     />
+
                 </div>
                 <div class="text-red-600 w-full">
                     <For each=errors key=|error| error.to_owned() let:error>
@@ -491,33 +492,17 @@ pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
 
     view! {
         <div class="flex flex-col items-center space-y-4">
-            <ActionForm
-                action=new_game
-                class="w-full max-w-xs space-y-2"
-            >
-                <input
-                    type="hidden"
-                    name="rows"
-                    prop:value=game_settings.rows
-                />
-                <input
-                    type="hidden"
-                    name="cols"
-                    prop:value=game_settings.cols
-                />
-                <input
-                    type="hidden"
-                    name="num_mines"
-                    prop:value=game_settings.num_mines
-                />
-                <input
-                    type="hidden"
-                    name="max_players"
-                    prop:value=game_settings.max_players
-                />
+            <ActionForm action=new_game class="w-full max-w-xs space-y-2">
+                <input type="hidden" name="rows" prop:value=game_settings.rows />
+                <input type="hidden" name="cols" prop:value=game_settings.cols />
+                <input type="hidden" name="num_mines" prop:value=game_settings.num_mines />
+                <input type="hidden" name="max_players" prop:value=game_settings.max_players />
                 <button
                     type="submit"
-                    class=button_class(Some("w-full max-w-xs h-8"), Some("bg-green-700 hover:bg-green-800/90 text-white"))
+                    class=button_class(
+                        Some("w-full max-w-xs h-8"),
+                        Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                    )
                     disabled=new_game.pending()
                 >
                     "Play Again"

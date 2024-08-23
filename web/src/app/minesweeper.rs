@@ -5,6 +5,7 @@ mod game;
 mod players;
 mod widgets;
 
+use chrono::{DateTime, Utc};
 pub use entry::JoinOrCreateGame;
 pub use game::Game;
 
@@ -28,6 +29,8 @@ pub struct GameInfo {
     max_players: u8,
     is_started: bool,
     is_completed: bool,
+    start_time: Option<DateTime<Utc>>,
+    end_time: Option<DateTime<Utc>>,
     final_board: Option<Vec<Vec<PlayerCell>>>,
     players: Vec<Option<ClientPlayer>>,
 }

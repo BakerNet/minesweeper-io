@@ -113,7 +113,7 @@ pub fn Login(
 
     view! {
         <ActionForm action=login class="w-full max-w-xs h-8">
-            <input type="hidden" name="target" value=target_str/>
+            <input type="hidden" name="target" value=target_str />
             <button
                 type="submit"
                 class=button_class(Some("w-full max-w-xs h-8"), Some(target_colors))

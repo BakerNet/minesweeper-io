@@ -10,14 +10,14 @@ use web_sys::{KeyboardEvent, MouseEvent};
 use minesweeper_lib::{board::BoardPoint, cell::PlayerCell, game::Action as PlayAction};
 
 use super::{
-    cell::{ActiveRow, InactiveRow},
+    cell::{ActiveCell, InactiveCell},
     client::{FrontendGame, PlayersContext},
     entry::ReCreateGame,
     players::{ActivePlayers, InactivePlayers},
+    widgets::{ActiveMines, ActiveTimer, CopyGameLink, GameWidgets, InactiveMines, InactiveTimer},
     {GameInfo, GameSettings},
 };
 
-use crate::app::minesweeper::widgets::{ActiveTimer, GameWidgets};
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
 #[cfg(feature = "ssr")]
@@ -62,6 +62,8 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         max_players: game.max_players,
         is_started: game.is_started,
         is_completed: game.is_completed,
+        start_time: game.start_time,
+        end_time: game.end_time,
         final_board: game.final_board,
         players,
     })
@@ -77,8 +79,8 @@ pub fn Game() -> impl IntoView {
     provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactiveGame game_info/> },
-        false => view! { <ActiveGame game_info refetch/> },
+        true => view! { <InactiveGame game_info /> },
+        false => view! { <ActiveGame game_info refetch /> },
     };
 
     view! {
@@ -136,8 +138,7 @@ where
         ..
     } = use_websocket::<String, FromToStringCodec>(&format!("/api/websocket/game/{}", &game_id));
 
-    let (game, read_signals) =
-        FrontendGame::new(game_info.clone(), set_error, Rc::new(send.clone()));
+    let game = FrontendGame::new(game_info.clone(), set_error, Rc::new(send.clone()));
     let (game_signal, _) = create_signal(game.clone());
 
     provide_context::<PlayersContext>(PlayersContext::from(&game));
@@ -236,24 +237,45 @@ where
 
     view! {
         <div class="text-center">
-            <ActivePlayers/>
-            <GameWidgets><ActiveTimer sync_time={game.sync_time} completed={game.completed}></ActiveTimer></GameWidgets>
+            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
+                Game: {{ game_info.game_id.clone() }}
+            </h3>
+            <ActivePlayers />
+            <GameWidgets>
+                <ActiveMines num_mines=game.remaining_mines />
+                <CopyGameLink game_id=game_info.game_id />
+                <ActiveTimer sync_time=game.sync_time completed=game.completed />
+            </GameWidgets>
             <GameBorder set_active=set_game_is_active>
-                {read_signals
-                    .into_iter()
+                {game
+                    .cells
+                    .iter()
                     .enumerate()
                     .map(move |(row, vec)| {
                         view! {
-                            <ActiveRow
-                                row=row
-                                cells=vec
-                                set_active_cell=set_active_cell
-                                mousedown_handler=handle_mousedown
-                                mouseup_handler=handle_mouseup
-                            />
+                            <div class="whitespace-nowrap">
+                                {vec
+                                    .iter()
+                                    .copied()
+                                    .enumerate()
+                                    .map(move |(col, cell)| {
+                                        view! {
+                                            <ActiveCell
+                                                row=row
+                                                col=col
+                                                cell=cell
+                                                set_active=set_active_cell
+                                                mousedown_handler=handle_mousedown
+                                                mouseup_handler=handle_mouseup
+                                            />
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
                         }
                     })
                     .collect_view()}
+
             </GameBorder>
             <div class="text-red-600 h-8">{error}</div>
         </div>
@@ -264,6 +286,10 @@ where
 pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     let players = game_info.players.clone();
     let game_settings = GameSettings::from(&game_info);
+    let game_time = match (game_info.start_time, game_info.end_time) {
+        (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
+        _ => 999,
+    };
     let board = match game_info.final_board {
         None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
         Some(b) => b,
@@ -271,13 +297,33 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
 
     view! {
         <div class="text-center">
-            <InactivePlayers players/>
-            <GameWidgets><span class="text-yellow-500">Hello</span><span class="text-yellow-500">World</span></GameWidgets>
+            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
+                Game: {{ game_info.game_id.clone() }}
+            </h3>
+            <InactivePlayers players />
+            <GameWidgets>
+                <InactiveMines num_mines=game_info.num_mines />
+                <CopyGameLink game_id=game_info.game_id />
+                <InactiveTimer game_time=game_time as usize />
+            </GameWidgets>
             <GameBorder set_active=move |_| {}>
                 {board
                     .into_iter()
                     .enumerate()
-                    .map(move |(row, vec)| view! { <InactiveRow row=row cells=vec/> })
+                    .map(move |(row, vec)| {
+                        view! {
+                            <div class="whitespace-nowrap">
+                                {vec
+                                    .iter()
+                                    .copied()
+                                    .enumerate()
+                                    .map(move |(col, cell)| {
+                                        view! { <InactiveCell row=row col=col cell=cell /> }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        }
+                    })
                     .collect_view()}
             </GameBorder>
             <ReCreateGame game_settings />

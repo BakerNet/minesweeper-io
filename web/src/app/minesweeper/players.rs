@@ -81,10 +81,10 @@ pub fn ActivePlayers() -> impl IntoView {
         let game_id = players_ctx.game_id.clone();
         view! {
             <Show when=show_play fallback=move || ()>
-                <PlayForm/>
+                <PlayForm />
             </Show>
             <Show when=show_start fallback=move || ()>
-                <StartForm start_game game_id=game_id.to_string()/>
+                <StartForm start_game game_id=game_id.to_string() />
             </Show>
         }
     };
@@ -97,7 +97,7 @@ pub fn ActivePlayers() -> impl IntoView {
                     .iter()
                     .enumerate()
                     .map(move |(n, &player)| {
-                        view! { <ActivePlayer player_num=n player=player/> }
+                        view! { <ActivePlayer player_num=n player=player /> }
                     })
                     .collect_view()}
             </Scoreboard>
@@ -116,7 +116,7 @@ pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
                     .iter()
                     .enumerate()
                     .map(|(i, player)| {
-                        view! { <PlayerRow player_num=i player=player.clone()/> }
+                        view! { <PlayerRow player_num=i player=player.clone() /> }
                     })
                     .collect_view()}
 
@@ -129,7 +129,7 @@ pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
 fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
     view! {
         {move || {
-            view! { <PlayerRow player_num=player_num player=player()/> }
+            view! { <PlayerRow player_num=player_num player=player() /> }
         }}
     }
 }
@@ -170,7 +170,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 {if is_dead {
                     view! {
                         <span class=player_icon_holder("bg-red-600", true)>
-                            <Mine/>
+                            <Mine />
                             <IconTooltip>"Dead"</IconTooltip>
                         </span>
                     }
@@ -181,7 +181,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 {if top_score {
                     view! {
                         <span class=player_icon_holder("bg-green-800", true)>
-                            <Trophy/>
+                            <Trophy />
                             <IconTooltip>"Top Score"</IconTooltip>
                         </span>
                     }
@@ -192,7 +192,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 {if victory_click {
                     view! {
                         <span class=player_icon_holder("bg-black", true)>
-                            <Star/>
+                            <Star />
                             <IconTooltip>"Victory Click"</IconTooltip>
                         </span>
                     }
@@ -264,7 +264,7 @@ fn StartForm(
 ) -> impl IntoView {
     view! {
         <ActionForm action=start_game class="w-full max-w-xs h-8">
-            <input type="hidden" name="game_id" value=game_id/>
+            <input type="hidden" name="game_id" value=game_id />
             <button
                 type="submit"
                 class=button_class(

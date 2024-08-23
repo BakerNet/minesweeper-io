@@ -129,7 +129,7 @@ impl Cell {
     pub fn plant(self) -> Result<Self> {
         match self {
             Self::Empty(_) => Ok(Cell::Mine),
-            Self::Mine => bail!("Plant on bomb not allowed"),
+            Self::Mine => bail!("Plant on mine not allowed"),
         }
     }
 
@@ -140,7 +140,7 @@ impl Cell {
         }
     }
 
-    pub fn is_bomb(&self) -> bool {
+    pub fn is_mine(&self) -> bool {
         matches!(self, Self::Mine)
     }
 

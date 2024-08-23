@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use minesweeper_lib::{
     board::BoardPoint,
-    cell::PlayerCell,
+    cell::{HiddenCell, PlayerCell},
     client::{ClientPlayer, MinesweeperClient},
     game::{Action as PlayAction, Play},
 };
@@ -53,6 +53,8 @@ pub struct FrontendGame {
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
     pub sync_time: ReadSignal<Option<usize>>,
+    pub remaining_mines: ReadSignal<usize>,
+    pub cells: Vec<Vec<ReadSignal<PlayerCell>>>,
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_player_id: WriteSignal<Option<usize>>,
     player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
@@ -60,6 +62,7 @@ pub struct FrontendGame {
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
     set_sync_time: WriteSignal<Option<usize>>,
+    set_remaining_mines: WriteSignal<usize>,
     game: Rc<RefCell<MinesweeperClient>>,
     send: Rc<dyn Fn(&String)>,
 }
@@ -69,7 +72,7 @@ impl FrontendGame {
         game_info: GameInfo,
         err_signal: WriteSignal<Option<String>>,
         send: Rc<dyn Fn(&String)>,
-    ) -> (Self, Vec<Vec<ReadSignal<PlayerCell>>>) {
+    ) -> Self {
         let board = match &game_info.final_board {
             None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
             Some(b) => b.to_owned(),
@@ -101,33 +104,34 @@ impl FrontendGame {
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
         let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
         let (sync_time, set_sync_time) = create_signal::<Option<usize>>(None);
+        let (remaining_mines, set_remaining_mines) = create_signal::<usize>(game_info.num_mines);
         let rows = game_info.rows;
         let cols = game_info.cols;
-        (
-            FrontendGame {
-                game_id: Rc::new(game_info.game_id),
-                is_owner: game_info.is_owner,
-                has_owner: game_info.has_owner,
-                cell_signals: write_signals,
-                player_id,
-                set_player_id,
-                players,
-                player_signals,
-                players_loaded,
-                set_players_loaded,
-                err_signal,
-                join_trigger,
-                started,
-                set_started,
-                completed,
-                set_completed,
-                sync_time,
-                set_sync_time,
-                game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
-                send,
-            },
-            read_signals,
-        )
+        FrontendGame {
+            game_id: Rc::new(game_info.game_id),
+            is_owner: game_info.is_owner,
+            has_owner: game_info.has_owner,
+            cells: read_signals,
+            cell_signals: write_signals,
+            player_id,
+            set_player_id,
+            players,
+            player_signals,
+            players_loaded,
+            set_players_loaded,
+            err_signal,
+            join_trigger,
+            started,
+            set_started,
+            completed,
+            set_completed,
+            sync_time,
+            set_sync_time,
+            remaining_mines,
+            set_remaining_mines,
+            game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
+            send,
+        }
     }
 
     fn play_protections(&self) -> Result<usize> {
@@ -262,6 +266,24 @@ impl FrontendGame {
     }
 
     pub fn update_cell(&self, point: BoardPoint, cell: PlayerCell) {
+        let curr_cell = self.cells[point.row][point.col]();
+        match (curr_cell, cell) {
+            (PlayerCell::Hidden(HiddenCell::Flag), PlayerCell::Hidden(HiddenCell::Empty)) => {
+                self.set_remaining_mines.update(|nm| *nm += 1);
+                log::debug!("Removed flag")
+            }
+            (PlayerCell::Hidden(HiddenCell::Empty), PlayerCell::Hidden(HiddenCell::Flag)) => {
+                self.set_remaining_mines.update(|nm| *nm -= 1);
+                log::debug!("Added flag")
+            }
+            (PlayerCell::Hidden(HiddenCell::Empty), PlayerCell::Revealed(rc))
+                if rc.contents.is_mine() =>
+            {
+                self.set_remaining_mines.update(|nm| *nm -= 1);
+                log::debug!("Mine revealed")
+            }
+            _ => {}
+        }
         self.cell_signals[point.row][point.col](cell);
     }
 

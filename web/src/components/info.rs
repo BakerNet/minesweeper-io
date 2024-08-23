@@ -64,21 +64,21 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                 <h2 class="text-2xl font-bold tracking-wide my-3">Player Badges</h2>
                 <div class="text-l my-2">
                     <span class=player_icon_holder("bg-red-600", false)>
-                        <Mine/>
+                        <Mine />
                     </span>
                     <span class="font-medium">"Dead"</span>
                     " - the player died by revealing a mine"
                 </div>
                 <div class="text-l my-2">
                     <span class=player_icon_holder("bg-green-800", false)>
-                        <Trophy/>
+                        <Trophy />
                     </span>
                     <span class="font-medium">"Top Score"</span>
                     " - the player had the highest score in a multiplayer minesweeper game"
                 </div>
                 <div class="text-l my-2">
                     <span class=player_icon_holder("bg-black", false)>
-                        <Star/>
+                        <Star />
                     </span>
                     <span class="font-medium">"Victory Click"</span>
                     " - the player revealed the final non-mine cell on the map"

@@ -157,10 +157,9 @@ impl GameManager {
         let handle = games.get(game_id).unwrap();
         if let Some(dt) = &handle.start_time {
             let mut sender = ws_sender.lock().await;
-            let start_time_msg = GameMessage::SyncTimer(
-                dt.signed_duration_since(Utc::now()).num_seconds().abs() as usize,
-            )
-            .into_json();
+            let start_time_msg =
+                GameMessage::SyncTimer(Utc::now().signed_duration_since(dt).num_seconds() as usize)
+                    .into_json();
             let _ = sender.send(Message::Text(start_time_msg)).await;
         };
         handle

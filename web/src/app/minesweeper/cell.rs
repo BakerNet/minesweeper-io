@@ -12,53 +12,6 @@ use crate::components::{
     number_class, player_class,
 };
 
-#[component]
-pub fn ActiveRow<F, F2>(
-    row: usize,
-    cells: Vec<ReadSignal<PlayerCell>>,
-    set_active_cell: WriteSignal<BoardPoint>,
-    mousedown_handler: F,
-    mouseup_handler: F2,
-) -> impl IntoView
-where
-    F: Fn(MouseEvent, usize, usize) + Copy + 'static,
-    F2: Fn(MouseEvent, usize, usize) + Copy + 'static,
-{
-    view! {
-        <div class="whitespace-nowrap">
-            {cells
-                .into_iter()
-                .enumerate()
-                .map(move |(col, cell)| {
-                    view! {
-                        <ActiveCell
-                            row=row
-                            col=col
-                            cell=cell
-                            set_active=set_active_cell
-                            mousedown_handler
-                            mouseup_handler
-                        />
-                    }
-                })
-                .collect_view()}
-        </div>
-    }
-}
-
-#[component]
-pub fn InactiveRow(row: usize, cells: Vec<PlayerCell>) -> impl IntoView {
-    view! {
-        <div class="whitespace-nowrap">
-            {cells
-                .into_iter()
-                .enumerate()
-                .map(move |(col, cell)| view! { <InactiveCell row=row col=col cell=cell/> })
-                .collect_view()}
-        </div>
-    }
-}
-
 fn cell_contents_class(cell: PlayerCell) -> String {
     match cell {
         PlayerCell::Hidden(_) => String::from("bg-neutral-500"),
@@ -79,7 +32,7 @@ fn cell_player_class(cell: PlayerCell) -> String {
 }
 
 #[component]
-fn ActiveCell<F, F2>(
+pub fn ActiveCell<F, F2>(
     row: usize,
     col: usize,
     cell: ReadSignal<PlayerCell>,
@@ -108,7 +61,7 @@ where
         >
             {move || {
                 let item = cell();
-                view! { <CellContents cell=item/> }
+                view! { <CellContents cell=item /> }
             }}
 
         </span>
@@ -116,13 +69,13 @@ where
 }
 
 #[component]
-fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
+pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let class = cell_class(&cell_contents_class(cell), &cell_player_class(cell));
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
-            <CellContents cell/>
+            <CellContents cell />
         </span>
     }
 }
@@ -134,24 +87,24 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
             HiddenCell::Empty => view! { <span>""</span> },
             HiddenCell::Flag => view! {
                 <span>
-                    <Flag/>
+                    <Flag />
                 </span>
             },
             HiddenCell::Mine => view! {
                 <span>
-                    <Mine/>
+                    <Mine />
                 </span>
             },
             HiddenCell::FlagMine => view! {
                 <span>
-                    <Flag/>
+                    <Flag />
                 </span>
             },
         },
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Mine => view! {
                 <span>
-                    <Mine/>
+                    <Mine />
                 </span>
             },
             Cell::Empty(_) => view! { <span>{format!("{:?}", cell)}</span> },

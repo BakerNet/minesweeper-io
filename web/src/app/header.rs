@@ -23,7 +23,7 @@ fn logo() -> impl IntoView {
             <span class=cell_class_2>e</span>
             <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_flag>
-                <Flag/>
+                <Flag />
             </span>
             <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_1>r</span>
@@ -75,7 +75,7 @@ where
 
                     </span>
                 </Transition>
-                <DarkModeToggle/>
+                <DarkModeToggle />
             </div>
         </header>
     }

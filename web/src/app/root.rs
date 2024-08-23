@@ -45,22 +45,22 @@ pub fn App() -> impl IntoView {
             }
             "#
         </Script>
-        <Stylesheet id="leptos" href="/pkg/minesweeper-web.css"/>
+        <Stylesheet id="leptos" href="/pkg/minesweeper-web.css" />
 
         // sets the document title
-        <Title text="Welcome to Minesweeper"/>
+        <Title text="Welcome to Minesweeper" />
 
         // content for this welcome page
         <Router fallback=|| {
             let mut outside_errors = Errors::default();
             outside_errors.insert_with_default_key(AppError::NotFound);
-            view! { <ErrorTemplate outside_errors/> }.into_view()
+            view! { <ErrorTemplate outside_errors /> }.into_view()
         }>
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
-                <Header user/>
+                <Header user />
                 <Routes>
-                    <Route path="/" view=move || view! { <HomePage/> }/>
-                    <Route path="/auth/login" view=move || view! { <LoginPage login/> }/>
+                    <Route path="/" view=move || view! { <HomePage /> } />
+                    <Route path="/auth/login" view=move || view! { <LoginPage login /> } />
                     <Route
                         path="/profile"
                         view=move || {
@@ -70,12 +70,12 @@ pub fn App() -> impl IntoView {
                                 }>
                                     {move || {
                                         if let Some(Some(user)) = user.get() {
-                                            view! { <Profile user logout user_updated/> }
+                                            view! { <Profile user logout user_updated /> }
                                         } else {
                                             let mut outside_errors = Errors::default();
                                             outside_errors
                                                 .insert_with_default_key(AppError::NotLoggedIn);
-                                            view! { <ErrorTemplate outside_errors/> }
+                                            view! { <ErrorTemplate outside_errors /> }
                                         }
                                     }}
 
@@ -84,11 +84,11 @@ pub fn App() -> impl IntoView {
                         }
                     />
 
-                    <Route path="/game/:id" view=|| view! { <Game/> }/>
+                    <Route path="/game/:id" view=|| view! { <Game /> } />
                 </Routes>
-                <ControlsInfoButton set_show_info/>
+                <ControlsInfoButton set_show_info />
                 <Show when=show_info>
-                    <ControlsInfoModal set_show_info/>
+                    <ControlsInfoModal set_show_info />
                 </Show>
             </main>
         </Router>
