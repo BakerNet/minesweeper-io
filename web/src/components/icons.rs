@@ -26,6 +26,56 @@ pub fn IconTooltip(children: Children) -> impl IntoView {
 }
 
 #[component]
+pub fn FlagContrast() -> impl IntoView {
+    view! {
+        <svg
+            viewBox="0 0 11.90625 11.90625"
+            version="1.1"
+            id="svg742"
+            xmlns="http://www.w3.org/2000/svg"
+            class="object-cover h-full w-full"
+        >
+            <g id="layer1">
+                <rect
+                    style="fill:#000000;stroke-width:0.344195"
+                    id="rect746"
+                    width="0.93562794"
+                    height="4.8635416"
+                    x="1.9182292"
+                    y="1.7197917"
+                    ry="0"
+                ></rect>
+                <rect
+                    style="fill:#FFFFFF;stroke-width:0.344195"
+                    id="rect746"
+                    width="0.93562794"
+                    height="4"
+                    x="1.9182292"
+                    y="6.5833333"
+                    ry="0"
+                ></rect>
+                <rect
+                    style="fill:#ff0000;stroke-width:0.219945"
+                    id="rect748"
+                    width="4.0933728"
+                    height="4.727222"
+                    x="2.3860433"
+                    y="1.7197917"
+                ></rect>
+                <rect
+                    style="fill:#ff0000;stroke-width:0.214375"
+                    id="rect748-5"
+                    width="4.0933728"
+                    height="4.4908609"
+                    x="5.8946481"
+                    y="2.901597"
+                ></rect>
+            </g>
+        </svg>
+    }
+}
+
+#[component]
 pub fn Flag() -> impl IntoView {
     view! {
         <svg

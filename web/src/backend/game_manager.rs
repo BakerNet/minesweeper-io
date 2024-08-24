@@ -128,6 +128,12 @@ impl GameManager {
             .ok_or(anyhow!("Game does not exist"))
     }
 
+    pub async fn get_game_log(&self, game_id: &str) -> Result<GameLog> {
+        GameLog::get_log(&self.db, game_id)
+            .await?
+            .ok_or(anyhow!("Game does not exist"))
+    }
+
     pub async fn get_players(&self, game_id: &str) -> Result<Vec<PlayerUser>> {
         Player::get_players(&self.db, game_id)
             .await

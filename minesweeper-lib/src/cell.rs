@@ -87,7 +87,9 @@ pub enum HiddenCell {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RevealedCell {
+    #[serde(rename = "p", alias = "player")]
     pub player: usize,
+    #[serde(rename = "c", alias = "contents")]
     pub contents: Cell,
 }
 

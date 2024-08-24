@@ -93,11 +93,11 @@ pub fn InactiveMines(num_mines: usize) -> impl IntoView {
 }
 
 #[component]
-pub fn ActiveMines(num_mines: ReadSignal<usize>) -> impl IntoView {
+pub fn ActiveMines(num_mines: usize, flag_count: ReadSignal<usize>) -> impl IntoView {
     view! {
         <div class="flex items-center">
             <div class="flex flex-col items-center justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold px-2">
-                {{ num_mines }}
+                { move || num_mines as isize - flag_count.get() as isize }
             </div>
             <span class=widget_icon_holder("bg-neutral-200", false)>
                 <Mine />

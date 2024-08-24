@@ -7,7 +7,11 @@ use leptos_use::{use_document, use_event_listener};
 use std::rc::Rc;
 use web_sys::{KeyboardEvent, MouseEvent};
 
-use minesweeper_lib::{board::BoardPoint, cell::PlayerCell, game::Action as PlayAction};
+use minesweeper_lib::{
+    board::BoardPoint,
+    cell::{HiddenCell, PlayerCell},
+    game::Action as PlayAction,
+};
 
 use super::{
     cell::{ActiveCell, InactiveCell},
@@ -21,7 +25,7 @@ use super::{
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
 #[cfg(feature = "ssr")]
-use minesweeper_lib::client::ClientPlayer;
+use minesweeper_lib::{board::Board, client::ClientPlayer, game::CompletedMinesweeper};
 
 #[server(GetGame, "/api")]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
@@ -33,6 +37,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         .get_game(&game_id)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let game_log = game_manager.get_game_log(&game_id).await.ok();
     let is_owner = if let Some(user) = auth_session.user {
         match game.owner {
             None => false,
@@ -45,13 +50,28 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         .get_players(&game_id)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
-    let players = players.into_iter().map(ClientPlayer::from).fold(
-        vec![None; game.max_players as usize],
-        |mut acc, p| {
-            acc[p.player_id] = Some(p.clone());
-            acc
-        },
-    );
+    let players_simple = players
+        .into_iter()
+        .map(ClientPlayer::from)
+        .collect::<Vec<_>>();
+    let players_frontend =
+        players_simple
+            .iter()
+            .fold(vec![None; game.max_players as usize], |mut acc, p| {
+                acc[p.player_id] = Some(p.clone());
+                acc
+            });
+    let final_board = match (game.final_board, game_log) {
+        (Some(board), Some(game_log)) if game.max_players == 1 => {
+            let completed_minesweeper = CompletedMinesweeper::from_log(
+                Board::from_vec(board),
+                game_log.log,
+                players_simple,
+            );
+            Some(completed_minesweeper.player_board_final(0))
+        }
+        (fb, _) => fb,
+    };
     Ok(GameInfo {
         game_id: game.game_id,
         has_owner: game.owner.is_some(),
@@ -64,8 +84,8 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         is_completed: game.is_completed,
         start_time: game.start_time,
         end_time: game.end_time,
-        final_board: game.final_board,
-        players,
+        final_board,
+        players: players_frontend,
     })
 }
 
@@ -135,6 +155,7 @@ where
         ready_state,
         message,
         send,
+        close,
         ..
     } = use_websocket::<String, FromToStringCodec>(&format!("/api/websocket/game/{}", &game_id));
 
@@ -242,7 +263,7 @@ where
             </h3>
             <ActivePlayers />
             <GameWidgets>
-                <ActiveMines num_mines=game.remaining_mines />
+                <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
                 <CopyGameLink game_id=game_info.game_id />
                 <ActiveTimer sync_time=game.sync_time completed=game.completed />
             </GameWidgets>
@@ -294,6 +315,11 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
         Some(b) => b,
     };
+    let num_mines = board
+        .iter()
+        .flatten()
+        .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
+        .count();
 
     view! {
         <div class="text-center">
@@ -302,7 +328,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
             </h3>
             <InactivePlayers players />
             <GameWidgets>
-                <InactiveMines num_mines=game_info.num_mines />
+                <InactiveMines num_mines=num_mines />
                 <CopyGameLink game_id=game_info.game_id />
                 <InactiveTimer game_time=game_time as usize />
             </GameWidgets>

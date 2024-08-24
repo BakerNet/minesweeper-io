@@ -289,7 +289,6 @@ pub struct GameLog {
 }
 
 impl GameLog {
-    #[allow(dead_code)]
     pub async fn get_log(db: &SqlitePool, game_id: &str) -> Result<Option<GameLog>, sqlx::Error> {
         sqlx::query_as("select * from game_log where game_id = ?")
             .bind(game_id)

@@ -53,7 +53,7 @@ pub struct FrontendGame {
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
     pub sync_time: ReadSignal<Option<usize>>,
-    pub remaining_mines: ReadSignal<usize>,
+    pub flag_count: ReadSignal<usize>,
     pub cells: Vec<Vec<ReadSignal<PlayerCell>>>,
     cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_player_id: WriteSignal<Option<usize>>,
@@ -62,7 +62,7 @@ pub struct FrontendGame {
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
     set_sync_time: WriteSignal<Option<usize>>,
-    set_remaining_mines: WriteSignal<usize>,
+    set_flag_count: WriteSignal<usize>,
     game: Rc<RefCell<MinesweeperClient>>,
     send: Rc<dyn Fn(&String)>,
 }
@@ -104,7 +104,7 @@ impl FrontendGame {
         let (started, set_started) = create_signal::<bool>(game_info.is_started);
         let (completed, set_completed) = create_signal::<bool>(game_info.is_completed);
         let (sync_time, set_sync_time) = create_signal::<Option<usize>>(None);
-        let (remaining_mines, set_remaining_mines) = create_signal::<usize>(game_info.num_mines);
+        let (flag_count, set_flag_count) = create_signal::<usize>(0);
         let rows = game_info.rows;
         let cols = game_info.cols;
         FrontendGame {
@@ -127,8 +127,8 @@ impl FrontendGame {
             set_completed,
             sync_time,
             set_sync_time,
-            remaining_mines,
-            set_remaining_mines,
+            flag_count,
+            set_flag_count,
             game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
             send,
         }
@@ -269,17 +269,21 @@ impl FrontendGame {
         let curr_cell = self.cells[point.row][point.col]();
         match (curr_cell, cell) {
             (PlayerCell::Hidden(HiddenCell::Flag), PlayerCell::Hidden(HiddenCell::Empty)) => {
-                self.set_remaining_mines.update(|nm| *nm += 1);
+                self.set_flag_count.update(|nm| *nm -= 1);
+                log::debug!("Removed flag")
+            }
+            (PlayerCell::Hidden(HiddenCell::Flag), PlayerCell::Revealed(_)) => {
+                self.set_flag_count.update(|nm| *nm -= 1);
                 log::debug!("Removed flag")
             }
             (PlayerCell::Hidden(HiddenCell::Empty), PlayerCell::Hidden(HiddenCell::Flag)) => {
-                self.set_remaining_mines.update(|nm| *nm -= 1);
+                self.set_flag_count.update(|nm| *nm += 1);
                 log::debug!("Added flag")
             }
             (PlayerCell::Hidden(HiddenCell::Empty), PlayerCell::Revealed(rc))
                 if rc.contents.is_mine() =>
             {
-                self.set_remaining_mines.update(|nm| *nm -= 1);
+                self.set_flag_count.update(|nm| *nm += 1);
                 log::debug!("Mine revealed")
             }
             _ => {}
