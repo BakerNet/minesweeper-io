@@ -165,6 +165,22 @@ impl PlayerUser {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
+pub struct PlayerGame {
+    pub game_id: String,
+    pub player: u8,
+    pub dead: bool,
+    pub victory_click: bool,
+    pub top_score: bool,
+    pub score: i64,
+    pub start_time: Option<DateTime<Utc>>,
+    pub end_time: Option<DateTime<Utc>>,
+    pub rows: i64,
+    pub cols: i64,
+    pub num_mines: i64,
+    pub max_players: u8,
+}
+
 impl Player {
     pub async fn get_players(
         db: &SqlitePool,
@@ -196,9 +212,9 @@ impl Player {
         db: &SqlitePool,
         user: &User,
         limit: i64,
-    ) -> Result<Vec<PlayerUser>, sqlx::Error> {
+    ) -> Result<Vec<PlayerGame>, sqlx::Error> {
         sqlx::query_as(
-            "select players.*, users.display_name from players left join users on players.user = users.id where players.user = ? limit ?",
+            "select players.game_id, players.player, players.dead, players.victory_click, players.top_score, players.score, games.start_time, games.end_time, games.rows, games.cols, games.num_mines, games.max_players from players left join games on players.game_id = games.game_id where players.user = ? order by games.start_time desc limit ?",
         )
         .bind(user.id)
         .bind(limit)

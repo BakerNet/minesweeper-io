@@ -10,6 +10,7 @@ use leptos_axum::ResponseOptions;
 pub enum AppError {
     #[error("Not Found")]
     NotFound,
+    #[allow(dead_code)]
     #[error("Not Logged In")]
     NotLoggedIn,
 }

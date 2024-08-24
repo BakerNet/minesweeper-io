@@ -6,7 +6,7 @@ mod players;
 mod widgets;
 
 use chrono::{DateTime, Utc};
-pub use entry::JoinOrCreateGame;
+pub use entry::{GameMode, JoinOrCreateGame};
 pub use game::Game;
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ pub struct GameInfo {
     is_completed: bool,
     start_time: Option<DateTime<Utc>>,
     end_time: Option<DateTime<Utc>>,
-    final_board: Option<Vec<Vec<PlayerCell>>>,
+    final_board: Vec<Vec<PlayerCell>>,
     players: Vec<Option<ClientPlayer>>,
 }
 
@@ -62,6 +62,18 @@ pub struct GameSettings {
     cols: i64,
     num_mines: i64,
     max_players: i64,
+}
+
+#[cfg(feature = "ssr")]
+impl GameSettings {
+    pub fn new(rows: i64, cols: i64, num_mines: i64, max_players: i64) -> Self {
+        Self {
+            rows,
+            cols,
+            num_mines,
+            max_players,
+        }
+    }
 }
 
 impl Default for GameSettings {

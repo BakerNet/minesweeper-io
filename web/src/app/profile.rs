@@ -3,7 +3,10 @@ use leptos_router::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
-use super::auth::{FrontendUser, LogOut};
+use super::{
+    auth::{FrontendUser, LogOut},
+    minesweeper::GameMode,
+};
 use crate::components::{
     button_class,
     icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
@@ -11,7 +14,7 @@ use crate::components::{
 };
 
 #[cfg(feature = "ssr")]
-use super::auth::get_user;
+use super::{auth::get_user, minesweeper::GameSettings};
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
 #[cfg(feature = "ssr")]
@@ -31,27 +34,45 @@ fn validate_display_name(name: &str) -> bool {
 }
 
 #[component]
-pub fn Profile(
+pub fn Profile<S>(
+    user: Resource<S, Option<FrontendUser>>,
     logout: Action<LogOut, Result<(), ServerFnError>>,
-    user: FrontendUser,
     user_updated: WriteSignal<String>,
-) -> impl IntoView {
+) -> impl IntoView
+where
+    S: PartialEq + Clone + 'static,
+{
+    let user_profile = move |user: Option<FrontendUser>| match user {
+        Some(user) => View::from(view! {
+            <>
+            <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
+                <SetDisplayName user user_updated />
+                <div class="w-full max-w-xs h-6">
+                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                        <hr class="w-full" />
+                    </span>
+                </div>
+                <LogOut logout />
+                <div class="w-full max-w-xs h-6">
+                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                        <hr class="w-full" />
+                    </span>
+                </div>
+                <GameHistory />
+            </div>
+            </>
+        }),
+        _ => view! {
+            <Redirect path="/auth/login" />
+        },
+    };
+
     view! {
-        <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-            <SetDisplayName user user_updated />
-            <div class="w-full max-w-xs h-6">
-                <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                    <hr class="w-full" />
-                </span>
-            </div>
-            <LogOut logout />
-            <div class="w-full max-w-xs h-6">
-                <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                    <hr class="w-full" />
-                </span>
-            </div>
-            <GameHistory />
-        </div>
+        <Suspense fallback=move || () >
+        {move || {
+            user.get().map(user_profile)
+        }}
+        </Suspense>
     }
 }
 
@@ -142,14 +163,17 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerGame {
     game_id: String,
-    player_id: u8,
+    player: u8,
     dead: bool,
     victory_click: bool,
     top_score: bool,
     score: i64,
+    start_time: Option<String>,
+    game_time: Option<usize>,
+    game_mode: GameMode,
 }
 
 #[server(GetPlayerGames, "/api")]
@@ -171,13 +195,27 @@ async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
         .into_iter()
         .map(|pu| PlayerGame {
             game_id: pu.game_id,
-            player_id: pu.player,
+            player: pu.player,
             dead: pu.dead,
             victory_click: pu.victory_click,
             top_score: pu.top_score,
             score: pu.score,
+            start_time: pu
+                .start_time
+                .map(|dt| dt.date_naive().format("%Y-%m-%d").to_string()),
+            game_time: match (pu.start_time, pu.end_time) {
+                (Some(st), Some(et)) => {
+                    Some(999.min(et.signed_duration_since(st).num_seconds() as usize))
+                }
+                _ => None,
+            },
+            game_mode: GameMode::from(GameSettings::new(
+                pu.rows,
+                pu.cols,
+                pu.num_mines,
+                pu.max_players.into(),
+            )),
         })
-        .rev()
         .collect())
 }
 
@@ -186,7 +224,7 @@ fn GameHistory() -> impl IntoView {
     let player_games = create_resource(|| (), move |_| async { get_player_games().await });
 
     let game_view = move |game: PlayerGame| {
-        let player_class = player_class(game.player_id as usize) + " text-black";
+        let player_class = player_class(game.player as usize) + " text-black";
         view! {
             <tr class=player_class>
                 <td class="border-b border-slate-100 dark:border-slate-700 p-1">
@@ -197,6 +235,9 @@ fn GameHistory() -> impl IntoView {
                         {game.game_id}
                     </A>
                 </td>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.start_time}</td>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.game_mode.long_name()}</td>
+                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.game_time}</td>
                 <td class="border-b border-slate-100 dark:border-slate-700 p-1">
                     {if game.dead {
                         view! {
@@ -239,11 +280,20 @@ fn GameHistory() -> impl IntoView {
     };
     view! {
         <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Game History</h4>
-        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
+        <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
             <thead>
                 <tr>
                     <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Game
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Date
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Game Mode
+                    </th>
+                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                        Duration
                     </th>
                     <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Status

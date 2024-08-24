@@ -38,7 +38,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
     let game_log = game_manager.get_game_log(&game_id).await.ok();
-    let is_owner = if let Some(user) = auth_session.user {
+    let is_owner = if let Some(user) = &auth_session.user {
         match game.owner {
             None => false,
             Some(owner) => user.id == owner,
@@ -50,6 +50,15 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         .get_players(&game_id)
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
+    let user_ref = auth_session.user.as_ref();
+    let player_num = if user_ref.is_some() {
+        players
+            .iter()
+            .find(|p| p.user == user_ref.map(|u| u.id))
+            .map(|p| p.player)
+    } else {
+        None
+    };
     let players_simple = players
         .into_iter()
         .map(ClientPlayer::from)
@@ -62,15 +71,24 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
                 acc
             });
     let final_board = match (game.final_board, game_log) {
-        (Some(board), Some(game_log)) if game.max_players == 1 => {
+        (Some(board), Some(game_log)) => {
             let completed_minesweeper = CompletedMinesweeper::from_log(
                 Board::from_vec(board),
                 game_log.log,
                 players_simple,
             );
-            Some(completed_minesweeper.player_board_final(0))
+            if player_num.is_some() {
+                completed_minesweeper.player_board_final(player_num.unwrap().into())
+            } else if game.max_players == 0 {
+                completed_minesweeper.player_board_final(0)
+            } else {
+                completed_minesweeper.viewer_board_final()
+            }
         }
-        (fb, _) => fb,
+        (fb, _) => fb.unwrap_or(vec![
+            vec![PlayerCell::default(); game.cols as usize];
+            game.rows as usize
+        ]),
     };
     Ok(GameInfo {
         game_id: game.game_id,
@@ -155,11 +173,10 @@ where
         ready_state,
         message,
         send,
-        close,
         ..
     } = use_websocket::<String, FromToStringCodec>(&format!("/api/websocket/game/{}", &game_id));
 
-    let game = FrontendGame::new(game_info.clone(), set_error, Rc::new(send.clone()));
+    let game = FrontendGame::new(&game_info, set_error, Rc::new(send.clone()));
     let (game_signal, _) = create_signal(game.clone());
 
     provide_context::<PlayersContext>(PlayersContext::from(&game));
@@ -311,11 +328,8 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
         _ => 999,
     };
-    let board = match game_info.final_board {
-        None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
-        Some(b) => b,
-    };
-    let num_mines = board
+    let num_mines = game_info
+        .final_board
         .iter()
         .flatten()
         .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
@@ -333,7 +347,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
                 <InactiveTimer game_time=game_time as usize />
             </GameWidgets>
             <GameBorder set_active=move |_| {}>
-                {board
+                {game_info.final_board
                     .into_iter()
                     .enumerate()
                     .map(move |(row, vec)| {

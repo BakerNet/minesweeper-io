@@ -27,13 +27,24 @@ pub enum GameMode {
 }
 
 impl GameMode {
-    fn short_name(self) -> &'static str {
+    pub fn short_name(self) -> &'static str {
         match self {
             GameMode::ClassicBeginner => "Beginner",
             GameMode::ClassicIntermediate => "Intermediate",
             GameMode::ClassicExpert => "Expert",
             GameMode::SmallMultiplayer => "Small",
             GameMode::LargeMultiplayer => "Large",
+            GameMode::Custom => "Custom",
+        }
+    }
+
+    pub fn long_name(self) -> &'static str {
+        match self {
+            GameMode::ClassicBeginner => "Classic Beginner",
+            GameMode::ClassicIntermediate => "Classic Intermediate",
+            GameMode::ClassicExpert => "Classic Expert",
+            GameMode::SmallMultiplayer => "Multiplayer Small",
+            GameMode::LargeMultiplayer => "Multiplayer Large",
             GameMode::Custom => "Custom",
         }
     }
@@ -46,8 +57,8 @@ impl Default for GameMode {
 }
 
 impl From<&GameMode> for GameSettings {
-    fn from(val: &GameMode) -> Self {
-        match val {
+    fn from(value: &GameMode) -> Self {
+        match value {
             GameMode::ClassicBeginner => GameSettings {
                 rows: 9,
                 cols: 9,
@@ -81,6 +92,50 @@ impl From<&GameMode> for GameSettings {
 impl From<GameMode> for GameSettings {
     fn from(value: GameMode) -> Self {
         GameSettings::from(&value)
+    }
+}
+
+impl From<&GameSettings> for GameMode {
+    fn from(value: &GameSettings) -> Self {
+        match value {
+            GameSettings {
+                rows: 9,
+                cols: 9,
+                num_mines: 10,
+                max_players: 1,
+            } => GameMode::ClassicBeginner,
+            GameSettings {
+                rows: 16,
+                cols: 16,
+                num_mines: 40,
+                max_players: 1,
+            } => GameMode::ClassicIntermediate,
+            GameSettings {
+                rows: 16,
+                cols: 30,
+                num_mines: 99,
+                max_players: 1,
+            } => GameMode::ClassicExpert,
+            GameSettings {
+                rows: 16,
+                cols: 30,
+                num_mines: 80,
+                max_players: 2,
+            } => GameMode::SmallMultiplayer,
+            GameSettings {
+                rows: 50,
+                cols: 50,
+                num_mines: 500,
+                max_players: 8,
+            } => GameMode::LargeMultiplayer,
+            _ => GameMode::Custom,
+        }
+    }
+}
+
+impl From<GameSettings> for GameMode {
+    fn from(value: GameSettings) -> Self {
+        GameMode::from(&value)
     }
 }
 

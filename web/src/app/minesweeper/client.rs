@@ -69,18 +69,13 @@ pub struct FrontendGame {
 
 impl FrontendGame {
     pub fn new(
-        game_info: GameInfo,
+        game_info: &GameInfo,
         err_signal: WriteSignal<Option<String>>,
         send: Rc<dyn Fn(&String)>,
     ) -> Self {
-        let board = match &game_info.final_board {
-            None => vec![vec![PlayerCell::default(); game_info.cols]; game_info.rows],
-            Some(b) => b.to_owned(),
-        };
-
         let mut read_signals = Vec::with_capacity(game_info.rows * game_info.cols);
         let mut write_signals = Vec::with_capacity(game_info.rows * game_info.cols);
-        board.iter().for_each(|cells| {
+        game_info.final_board.iter().for_each(|cells| {
             let mut read_row = Vec::new();
             let mut write_row = Vec::new();
             cells.iter().for_each(|cell| {
@@ -108,7 +103,7 @@ impl FrontendGame {
         let rows = game_info.rows;
         let cols = game_info.cols;
         FrontendGame {
-            game_id: Rc::new(game_info.game_id),
+            game_id: Rc::new(game_info.game_id.clone()),
             is_owner: game_info.is_owner,
             has_owner: game_info.has_owner,
             cells: read_signals,

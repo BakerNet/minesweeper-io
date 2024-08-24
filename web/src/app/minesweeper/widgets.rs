@@ -10,7 +10,7 @@ use crate::components::icons::{widget_icon_holder, Copy, IconTooltip, Mine, Stop
 pub fn GameWidgets(children: Children) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center">
-            <div class="flex justify-between w-full max-w-xs select-none mb-2">{children()}</div>
+            <div class="flex justify-between w-full max-w-xs mb-2">{children()}</div>
         </div>
     }
 }

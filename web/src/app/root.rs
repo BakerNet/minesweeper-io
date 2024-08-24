@@ -65,21 +65,7 @@ pub fn App() -> impl IntoView {
                         path="/profile"
                         view=move || {
                             view! {
-                                <Transition fallback=move || {
-                                    view! { <span>"Loading..."</span> }
-                                }>
-                                    {move || {
-                                        if let Some(Some(user)) = user.get() {
-                                            view! { <Profile user logout user_updated /> }
-                                        } else {
-                                            let mut outside_errors = Errors::default();
-                                            outside_errors
-                                                .insert_with_default_key(AppError::NotLoggedIn);
-                                            view! { <ErrorTemplate outside_errors /> }
-                                        }
-                                    }}
-
-                                </Transition>
+                                <Profile user logout user_updated />
                             }
                         }
                     />

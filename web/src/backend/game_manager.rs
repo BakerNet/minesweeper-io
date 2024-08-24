@@ -28,7 +28,7 @@ use crate::{
     app::FrontendUser,
     messages::GameMessage,
     models::{
-        game::{Game, GameLog, GameParameters, Player, PlayerUser},
+        game::{Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser},
         user::User,
     },
 };
@@ -140,7 +140,7 @@ impl GameManager {
             .map_err(|e| e.into())
     }
 
-    pub async fn get_player_games_for_user(&self, user: &User) -> Result<Vec<PlayerUser>> {
+    pub async fn get_player_games_for_user(&self, user: &User) -> Result<Vec<PlayerGame>> {
         Player::get_player_games_for_user(&self.db, user, 100)
             .await
             .map_err(|e| e.into())
