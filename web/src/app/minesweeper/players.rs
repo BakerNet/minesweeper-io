@@ -24,13 +24,13 @@ where
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
             <thead>
                 <tr>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Player
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Username
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Score
                     </th>
                 </tr>
@@ -170,8 +170,8 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
 
     view! {
         <tr class=player_class>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+            <td class="border border-slate-100 dark:border-slate-700 p-1">{player_num}</td>
+            <td class="border border-slate-100 dark:border-slate-700 p-1">
                 {username}
                 {if is_dead {
                     view! {
@@ -208,7 +208,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 }}
 
             </td>
-            <td class="border-b border-slate-100 dark:border-slate-700 p-1">{score}</td>
+            <td class="border border-slate-100 dark:border-slate-700 p-1">{score}</td>
         </tr>
     }
 }

@@ -222,12 +222,26 @@ async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
 #[component]
 fn GameHistory() -> impl IntoView {
     let player_games = create_resource(|| (), move |_| async { get_player_games().await });
+    let td_class = "border border-slate-100 dark:border-slate-700 p-1";
 
+    let loading_row = move |num: usize| {
+        let player_class = player_class(0) + " text-black";
+        view! {
+                <tr class=player_class>
+                    <td class=td_class>Game {num}</td>
+                    <td class=td_class></td>
+                    <td class=td_class></td>
+                    <td class=td_class>Loading...</td>
+                    <td class=td_class></td>
+                    <td class=td_class></td>
+                </tr>
+        }
+    };
     let game_view = move |game: PlayerGame| {
         let player_class = player_class(game.player as usize) + " text-black";
         view! {
             <tr class=player_class>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                <td class=td_class>
                     <A
                         class="text-sky-800 hover:text-sky-500 font-medium"
                         href=format!("/game/{}", game.game_id)
@@ -235,10 +249,10 @@ fn GameHistory() -> impl IntoView {
                         {game.game_id}
                     </A>
                 </td>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.start_time}</td>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.game_mode.long_name()}</td>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.game_time}</td>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">
+                <td class=td_class>{game.start_time}</td>
+                <td class=td_class>{game.game_mode.long_name()}</td>
+                <td class=td_class>{game.game_time}</td>
+                <td class=td_class>
                     {if game.dead {
                         view! {
                             <span class=player_icon_holder("bg-red-600", true)>
@@ -274,7 +288,7 @@ fn GameHistory() -> impl IntoView {
                     }}
 
                 </td>
-                <td class="border-b border-slate-100 dark:border-slate-700 p-1">{game.score}</td>
+                <td class=td_class>{game.score}</td>
             </tr>
         }
     };
@@ -283,28 +297,28 @@ fn GameHistory() -> impl IntoView {
         <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
             <thead>
                 <tr>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Game
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Date
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Game Mode
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Duration
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Status
                     </th>
-                    <th class="border-b dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
                         Score
                     </th>
                 </tr>
             </thead>
             <tbody>
-                <Suspense fallback=move || ()>
+                <Suspense fallback=move || (0..5).map(loading_row).collect_view()>
 
                     {move || {
                         player_games
