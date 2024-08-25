@@ -150,21 +150,6 @@ pub struct PlayerUser {
     pub player: u8,
 }
 
-impl PlayerUser {
-    pub fn to_player(&self) -> Player {
-        Player {
-            game_id: self.game_id.clone(),
-            user: self.user,
-            player: self.player,
-            nickname: self.nickname.clone(),
-            dead: self.dead,
-            victory_click: self.victory_click,
-            top_score: self.top_score,
-            score: self.score,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct PlayerGame {
     pub game_id: String,
@@ -191,20 +176,6 @@ impl Player {
         )
         .bind(game_id)
         .fetch_all(db)
-        .await
-    }
-
-    pub async fn get_player_from_user(
-        db: &SqlitePool,
-        game_id: &str,
-        user: &User,
-    ) -> Result<Option<PlayerUser>, sqlx::Error> {
-        sqlx::query_as(
-            "select players.*, users.display_name from players inner join users on players.user = users.id where players.game_id = ? and players.user = ?",
-        )
-        .bind(game_id)
-        .bind(user.id)
-        .fetch_optional(db)
         .await
     }
 
@@ -243,36 +214,6 @@ impl Player {
         .execute(db)
         .await
         .map(|_| ())
-    }
-
-    pub async fn set_score(
-        db: &SqlitePool,
-        game_id: &str,
-        player: u8,
-        score: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query("update players set score = ? where game_id = ? and player = ?")
-            .bind(score)
-            .bind(game_id)
-            .bind(player)
-            .execute(db)
-            .await
-            .map(|_| ())
-    }
-
-    pub async fn set_dead(
-        db: &SqlitePool,
-        game_id: &str,
-        player: u8,
-        dead: bool,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query("update players set dead = ? where game_id = ? and player = ?")
-            .bind(dead)
-            .bind(game_id)
-            .bind(player)
-            .execute(db)
-            .await
-            .map(|_| ())
     }
 
     pub async fn update_players(

@@ -122,12 +122,12 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
         _ => {}
     });
 
-    let curr_name = FrontendUser::display_name_or_anon(&user.display_name, true);
+    let curr_name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
 
     view! {
         <div class="flex flex-col space-y-2 w-full max-w-xs">
             <span class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
-                {curr_name.clone()}
+                {&curr_name}
             </span>
             {move || {
                 name_err
@@ -228,10 +228,10 @@ fn GameHistory() -> impl IntoView {
         let player_class = player_class(0) + " text-black";
         view! {
                 <tr class=player_class>
-                    <td class=td_class>Game {num}</td>
+                    <td class=td_class>"Game "{num}</td>
                     <td class=td_class></td>
                     <td class=td_class></td>
-                    <td class=td_class>Loading...</td>
+                    <td class=td_class>"Loading..."</td>
                     <td class=td_class></td>
                     <td class=td_class></td>
                 </tr>
@@ -298,22 +298,22 @@ fn GameHistory() -> impl IntoView {
             <thead>
                 <tr>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Game
+                        "Game"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Date
+                        "Date"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Game Mode
+                        "Game Mode"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Duration
+                        "Duration"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Status
+                        "Status"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Score
+                        "Score"
                     </th>
                 </tr>
             </thead>

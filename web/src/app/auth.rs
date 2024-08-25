@@ -18,7 +18,7 @@ pub struct FrontendUser {
 }
 
 impl FrontendUser {
-    pub fn display_name_or_anon(display_name: &Option<String>, is_user: bool) -> String {
+    pub fn display_name_or_anon(display_name: Option<&String>, is_user: bool) -> String {
         if let Some(name) = display_name {
             name.to_owned()
         } else if is_user {

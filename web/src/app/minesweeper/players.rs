@@ -1,6 +1,7 @@
 use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
+use std::rc::Rc;
 
 use minesweeper_lib::client::ClientPlayer;
 
@@ -25,13 +26,13 @@ where
             <thead>
                 <tr>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Player
+                        "Player"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Username
+                        "Username"
                     </th>
                     <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        Score
+                        "Score"
                     </th>
                 </tr>
             </thead>
@@ -42,27 +43,28 @@ where
 }
 
 #[component]
-pub fn ActivePlayers() -> impl IntoView {
-    let players_ctx = expect_context::<PlayersContext>();
+pub fn ActivePlayers(players_context: PlayersContext) -> impl IntoView {
     let start_game = create_server_action::<StartGame>();
 
-    let (player_id, players, loaded, started, join_trigger) = {
-        (
-            players_ctx.player_id,
-            players_ctx.players.clone(),
-            players_ctx.players_loaded,
-            players_ctx.started,
-            players_ctx.join_trigger,
-        )
-    };
+    let PlayersContext {
+        game_id,
+        is_owner,
+        has_owner,
+        player_id,
+        players,
+        players_loaded,
+        started,
+        join_trigger,
+    } = players_context;
     log::debug!("players: {players:?}");
     let num_players = players.len();
     let last_slot = *players.last().unwrap();
-    let show_play =
-        move || loaded() && last_slot().is_none() && player_id().is_none() && num_players > 1;
+    let show_play = move || {
+        players_loaded() && last_slot().is_none() && player_id().is_none() && num_players > 1
+    };
     let show_start = move || {
-        loaded()
-            && (players_ctx.is_owner || (!players_ctx.has_owner && player_id().is_some()))
+        players_loaded()
+            && (is_owner || (!has_owner && player_id().is_some()))
             && !started()
             && num_players > 1
     };
@@ -70,7 +72,7 @@ pub fn ActivePlayers() -> impl IntoView {
     if num_players == 1 {
         log::debug!("num players 1");
         create_effect(move |_| {
-            if loaded() {
+            if players_loaded() {
                 log::debug!("join_trigger");
                 join_trigger.notify();
             }
@@ -78,10 +80,10 @@ pub fn ActivePlayers() -> impl IntoView {
     }
 
     let buttons = move || {
-        let game_id = players_ctx.game_id.clone();
+        let game_id = Rc::clone(&game_id);
         view! {
             <Show when=show_play fallback=move || ()>
-                <PlayForm />
+                <PlayForm join_trigger />
             </Show>
             <Show when=show_start fallback=move || ()>
                 <StartForm start_game game_id=game_id.to_string() />
@@ -94,9 +96,9 @@ pub fn ActivePlayers() -> impl IntoView {
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Players</h4>
             <Scoreboard buttons>
                 {players
-                    .iter()
+                    .into_iter()
                     .enumerate()
-                    .map(move |(n, &player)| {
+                    .map(move |(n, player)| {
                         view! { <ActivePlayer player_num=n player=player /> }
                     })
                     .collect_view()}
@@ -119,10 +121,10 @@ pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
             <Scoreboard buttons=move || ()>
 
                 {players
-                    .iter()
+                    .into_iter()
                     .enumerate()
                     .map(|(i, player)| {
-                        view! { <PlayerRow player_num=i player=player.clone() /> }
+                        view! { <PlayerRow player_num=i player=player /> }
                     })
                     .collect_view()}
 
@@ -143,10 +145,10 @@ fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> 
 #[component]
 fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     let (mut player_class, username, is_dead, victory_click, top_score, score) =
-        if let Some(player) = &player {
+        if let Some(player) = player {
             (
                 player_class(player.player_id),
-                player.username.clone(),
+                player.username,
                 player.dead,
                 player.victory_click,
                 player.top_score,
@@ -214,13 +216,11 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
 }
 
 #[component]
-fn PlayForm() -> impl IntoView {
-    let players_ctx = expect_context::<PlayersContext>();
-    let (trigger_join, _) = create_signal(players_ctx.join_trigger);
+fn PlayForm(join_trigger: Trigger) -> impl IntoView {
     let (show, set_show) = create_signal(true);
 
     let join_game = move || {
-        trigger_join().notify();
+        join_trigger.notify();
         set_show(false);
     };
 
@@ -243,7 +243,7 @@ fn PlayForm() -> impl IntoView {
                 }
                     .into_view()
             } else {
-                view! { <div>Joining...</div> }.into_view()
+                view! { <div>"Joining..."</div> }.into_view()
             }
         }}
     }

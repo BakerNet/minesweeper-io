@@ -178,7 +178,7 @@ impl Minesweeper {
             bail!("Tried to play flagged cell")
         }
         let mut update_revealed = None::<Vec<BoardPoint>>;
-        if !(self.players[player].played) && self.has_no_revealed_neighbors(cell_point) {
+        if !(self.players[player].played) && self.has_no_revealed_nearby(cell_point) {
             // on first click of empty board space, prevent mine
             self.players[player].played = true;
             update_revealed = Some(self.unplant(cell_point, self.superclick));
@@ -346,11 +346,13 @@ impl Minesweeper {
         })
     }
 
-    fn has_no_revealed_neighbors(&self, cell_point: BoardPoint) -> bool {
+    fn has_no_revealed_nearby(&self, cell_point: BoardPoint) -> bool {
         let neighbors = self.board.neighbors(cell_point);
         neighbors
             .iter()
             .copied()
+            .map(|n| self.board.neighbors(n))
+            .flatten()
             .filter(|i| self.board[*i].1.revealed)
             .count()
             == 0
@@ -786,25 +788,20 @@ mod test {
         }
     }
 
-    fn set_up_game(plant_3_0: bool) -> Minesweeper {
+    fn set_up_game() -> Minesweeper {
         let mut game = empty_game(2);
 
         game.plant(POINT_0_0);
         game.plant(POINT_1_1);
         game.plant(POINT_1_2);
-        if plant_3_0 {
-            game.plant(POINT_2_1);
-        }
+        game.plant(POINT_2_1);
         game
     }
 
-    fn set_up_game_with_replant() -> Minesweeper {
-        let mut game = empty_game(1);
+    fn set_up_game_no_superclick() -> Minesweeper {
+        let mut game = set_up_game();
+        game.superclick = false;
 
-        game.plant(POINT_0_0);
-        game.plant(POINT_1_1);
-        game.plant(POINT_1_2);
-        game.plant(POINT_2_1);
         game
     }
 
@@ -817,7 +814,7 @@ mod test {
         assert_eq!(num_mines, number);
     }
 
-    fn point_cell(game: &Minesweeper, point: BoardPoint, _cell: Cell) {
+    fn assert_point_cell(game: &Minesweeper, point: BoardPoint, _cell: Cell) {
         let board_cell = game.board[point].0;
         assert!(matches!(board_cell, _cell));
     }
@@ -853,61 +850,61 @@ mod test {
 
         num_mines(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 1);
-        point_cell(&game, POINT_0_0, Cell::Mine);
-        point_cell(&game, POINT_0_1, Cell::Empty(1));
-        point_cell(&game, POINT_1_0, Cell::Empty(1));
-        point_cell(&game, POINT_1_1, Cell::Empty(1));
-        point_cell(&game, POINT_0_2, Cell::Empty(0));
+        assert_point_cell(&game, POINT_0_0, Cell::Mine);
+        assert_point_cell(&game, POINT_0_1, Cell::Empty(1));
+        assert_point_cell(&game, POINT_1_0, Cell::Empty(1));
+        assert_point_cell(&game, POINT_1_1, Cell::Empty(1));
+        assert_point_cell(&game, POINT_0_2, Cell::Empty(0));
 
         game.plant(POINT_1_1);
 
         num_mines(&game, 2);
         assert_eq!(game.available.len(), 9 * 9 - 2);
-        point_cell(&game, POINT_0_0, Cell::Mine);
-        point_cell(&game, POINT_0_1, Cell::Empty(2));
-        point_cell(&game, POINT_1_0, Cell::Empty(2));
-        point_cell(&game, POINT_1_1, Cell::Mine);
-        point_cell(&game, POINT_0_2, Cell::Empty(1));
+        assert_point_cell(&game, POINT_0_0, Cell::Mine);
+        assert_point_cell(&game, POINT_0_1, Cell::Empty(2));
+        assert_point_cell(&game, POINT_1_0, Cell::Empty(2));
+        assert_point_cell(&game, POINT_1_1, Cell::Mine);
+        assert_point_cell(&game, POINT_0_2, Cell::Empty(1));
 
         game.plant(POINT_1_2);
 
         num_mines(&game, 3);
         assert_eq!(game.available.len(), 9 * 9 - 3);
-        point_cell(&game, POINT_0_0, Cell::Mine);
-        point_cell(&game, POINT_0_1, Cell::Empty(3));
-        point_cell(&game, POINT_1_0, Cell::Empty(2));
-        point_cell(&game, POINT_1_1, Cell::Mine);
-        point_cell(&game, POINT_0_2, Cell::Empty(2));
+        assert_point_cell(&game, POINT_0_0, Cell::Mine);
+        assert_point_cell(&game, POINT_0_1, Cell::Empty(3));
+        assert_point_cell(&game, POINT_1_0, Cell::Empty(2));
+        assert_point_cell(&game, POINT_1_1, Cell::Mine);
+        assert_point_cell(&game, POINT_0_2, Cell::Empty(2));
     }
 
     #[test]
     fn unplant_mine_works() {
-        let mut game = set_up_game(false);
+        let mut game = set_up_game();
 
         game.unplant(POINT_0_0, true);
 
-        num_mines(&game, 1);
-        assert_eq!(game.available.len(), 9 * 9 - 3);
-        point_cell(&game, POINT_0_0, Cell::Empty(0));
-        point_cell(&game, POINT_1_1, Cell::Empty(1));
+        num_mines(&game, 4);
+        assert_eq!(game.available.len(), 9 * 9 - 6);
+        assert_point_cell(&game, POINT_0_0, Cell::Empty(0));
+        assert_point_cell(&game, POINT_1_1, Cell::Empty(1));
     }
 
     #[test]
     fn unplant_cell_works() {
-        let mut game = set_up_game(false);
+        let mut game = set_up_game();
 
         game.unplant(POINT_0_2, true);
 
-        num_mines(&game, 1);
-        assert_eq!(game.available.len(), 9 * 9 - 3);
-        point_cell(&game, POINT_0_2, Cell::Empty(0));
-        point_cell(&game, POINT_0_0, Cell::Mine);
-        point_cell(&game, POINT_1_1, Cell::Empty(1));
+        num_mines(&game, 4);
+        assert_eq!(game.available.len(), 9 * 9 - 6);
+        assert_point_cell(&game, POINT_0_2, Cell::Empty(0));
+        assert_point_cell(&game, POINT_0_0, Cell::Mine);
+        assert_point_cell(&game, POINT_1_1, Cell::Empty(1));
     }
 
     #[test]
     fn first_play_mine_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let res = game
             .play(Play {
@@ -918,19 +915,19 @@ mod test {
             .unwrap();
         assert_eq!(res.len(), 4);
 
-        num_mines(&game, 2);
-        assert_eq!(game.available.len(), 9 * 9 - 6);
-        point_cell(&game, POINT_0_0, Cell::Empty(0));
+        num_mines(&game, 4);
+        assert_eq!(game.available.len(), 9 * 9 - 8);
+        assert_point_cell(&game, POINT_0_0, Cell::Empty(0));
         point_cell_state(&game, POINT_0_0, true, Some(0));
-        point_cell(&game, POINT_1_1, Cell::Empty(2));
+        assert_point_cell(&game, POINT_1_1, Cell::Empty(2));
         point_cell_state(&game, POINT_1_1, true, Some(0));
-        point_cell(&game, POINT_1_2, Cell::Mine);
+        assert_point_cell(&game, POINT_1_2, Cell::Mine);
         point_cell_state(&game, POINT_1_2, false, None);
     }
 
     #[test]
     fn first_play_cell_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let res = game.play(Play {
             player: 0,
@@ -941,17 +938,17 @@ mod test {
 
         num_mines(&game, 4);
         assert_eq!(game.available.len(), 4); // not mine and not revealed
-        point_cell(&game, BoardPoint { row: 8, col: 8 }, Cell::Empty(0));
+        assert_point_cell(&game, BoardPoint { row: 8, col: 8 }, Cell::Empty(0));
         point_cell_state(&game, BoardPoint { row: 8, col: 8 }, true, Some(0));
-        point_cell(&game, POINT_1_1, Cell::Mine);
+        assert_point_cell(&game, POINT_1_1, Cell::Mine);
         point_cell_state(&game, POINT_1_1, false, None);
-        point_cell(&game, POINT_1_2, Cell::Mine);
+        assert_point_cell(&game, POINT_1_2, Cell::Mine);
         point_cell_state(&game, POINT_1_2, false, None);
     }
 
     #[test]
     fn second_click_mine_failure() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -972,7 +969,7 @@ mod test {
 
     #[test]
     fn second_click_cell_success() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -983,6 +980,7 @@ mod test {
             .unwrap();
 
         let cell_point = BoardPoint { row: 0, col: 2 };
+        game.unplant(cell_point, false); // guarantee not mine
         let res = game
             .play(Play {
                 player: 0,
@@ -990,13 +988,13 @@ mod test {
                 point: cell_point,
             })
             .unwrap();
-        assert!(matches!(res.clone(), PlayOutcome::Success(_)));
+        assert!(matches!(&res, PlayOutcome::Success(_)));
         assert_eq!(res.len(), 1);
     }
 
     #[test]
     fn flag_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -1026,7 +1024,7 @@ mod test {
 
     #[test]
     fn unplant_updated_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game.play(Play {
             player: 0,
@@ -1034,13 +1032,13 @@ mod test {
             point: BoardPoint { col: 7, row: 7 },
         });
 
-        point_cell(&game, POINT_2_2, Cell::Empty(3));
-        point_cell(&game, POINT_0_3, Cell::Empty(1));
+        assert_point_cell(&game, POINT_2_2, Cell::Empty(3));
+        assert_point_cell(&game, POINT_0_3, Cell::Empty(1));
 
         let updated = game.unplant(POINT_1_1, true);
 
-        point_cell(&game, POINT_2_2, Cell::Empty(0));
-        point_cell(&game, POINT_0_3, Cell::Empty(0));
+        assert_point_cell(&game, POINT_2_2, Cell::Empty(0));
+        assert_point_cell(&game, POINT_0_3, Cell::Empty(0));
 
         assert!(updated.contains(&POINT_2_2));
         assert!(updated.contains(&POINT_0_3));
@@ -1049,7 +1047,7 @@ mod test {
 
     #[test]
     fn unflag_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -1088,19 +1086,25 @@ mod test {
 
     #[test]
     fn double_click_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game_no_superclick();
 
         let res = game
             .play(Play {
                 player: 0,
                 action: Action::Reveal,
-                point: BoardPoint { row: 0, col: 0 },
+                point: BoardPoint { row: 2, col: 2 },
             })
             .unwrap();
-        assert_eq!(res.len(), 4);
+        assert_eq!(res.len(), 1);
+        assert_point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(3));
 
-        num_mines(&game, 2);
-
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: POINT_1_1,
+            })
+            .unwrap();
         let _ = game
             .play(Play {
                 player: 0,
@@ -1115,14 +1119,6 @@ mod test {
                 point: POINT_2_1,
             })
             .unwrap();
-        let _ = game
-            .play(Play {
-                player: 0,
-                action: Action::Reveal,
-                point: BoardPoint { row: 2, col: 2 },
-            })
-            .unwrap();
-        point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
 
         let res = game
             .play(Play {
@@ -1131,24 +1127,30 @@ mod test {
                 point: BoardPoint { row: 2, col: 2 },
             })
             .expect("double-click should work");
-        assert_eq!(res.len(), 9 * 9 - 9);
+        assert!(res.len() == 9 * 9 - 9); // 5 is worst case scenario for replant
     }
 
     #[test]
     fn bad_double_click_fails() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game_no_superclick();
 
         let res = game
             .play(Play {
                 player: 0,
                 action: Action::Reveal,
-                point: BoardPoint { row: 0, col: 0 },
+                point: BoardPoint { row: 2, col: 2 },
             })
             .unwrap();
-        assert_eq!(res.len(), 4);
+        assert_eq!(res.len(), 1);
+        assert_point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(3));
 
-        num_mines(&game, 2);
-
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Flag,
+                point: POINT_1_1,
+            })
+            .unwrap();
         let _ = game
             .play(Play {
                 player: 0,
@@ -1156,14 +1158,6 @@ mod test {
                 point: POINT_1_2,
             })
             .unwrap();
-        let _ = game
-            .play(Play {
-                player: 0,
-                action: Action::Reveal,
-                point: BoardPoint { row: 2, col: 2 },
-            })
-            .unwrap();
-        point_cell(&game, BoardPoint { row: 2, col: 2 }, Cell::Empty(2));
 
         let res = game.play(Play {
             player: 0,
@@ -1175,7 +1169,7 @@ mod test {
 
     #[test]
     fn score_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -1185,7 +1179,7 @@ mod test {
             })
             .unwrap();
 
-        num_mines(&game, 2);
+        num_mines(&game, 4);
 
         let cell_point = BoardPoint { row: 0, col: 2 };
         let res = game.play(Play {
@@ -1199,7 +1193,7 @@ mod test {
 
     #[test]
     fn dead_errors() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -1226,7 +1220,7 @@ mod test {
 
     #[test]
     fn revealed_errors() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game();
 
         let _ = game
             .play(Play {
@@ -1265,13 +1259,20 @@ mod test {
 
     #[test]
     fn victory_works() {
-        let mut game = set_up_game(true);
+        let mut game = set_up_game_no_superclick();
 
         let _ = game
             .play(Play {
                 player: 0,
                 action: Action::Reveal,
-                point: POINT_0_0,
+                point: POINT_0_1,
+            })
+            .unwrap();
+        let _ = game
+            .play(Play {
+                player: 0,
+                action: Action::Reveal,
+                point: POINT_1_0,
             })
             .unwrap();
         let _ = game
@@ -1297,12 +1298,12 @@ mod test {
             })
             .unwrap();
         assert!(matches!(res, PlayOutcome::Victory(..)));
-        assert_eq!(game.players[0].score, 79);
+        assert_eq!(game.players[0].score, 77);
     }
 
     #[test]
     fn replant_works() {
-        let mut game = set_up_game_with_replant();
+        let mut game = set_up_game();
         let _ = game
             .play(Play {
                 player: 0,
@@ -1317,7 +1318,7 @@ mod test {
         assert_eq!(game.board[POINT_1_2].0, Cell::Mine);
         assert_eq!(game.board[POINT_2_1].0, Cell::Mine);
 
-        let mut game = set_up_game_with_replant();
+        let mut game = set_up_game();
         let _ = game
             .play(Play {
                 player: 0,

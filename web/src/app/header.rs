@@ -14,18 +14,18 @@ fn logo() -> impl IntoView {
     let cell_class_flag = cell_class("", "bg-neutral-500 hover:bg-neutral-600/90");
     view! {
         <span class="whitespace-nowrap">
-            <span class=cell_class_4.clone()>M</span>
-            <span class=cell_class_2.clone()>i</span>
-            <span class=cell_class_3.clone()>n</span>
+            <span class=&cell_class_4>M</span>
+            <span class=&cell_class_2>i</span>
+            <span class=&cell_class_3>n</span>
             <span class=cell_class_3>e</span>
             <span class=cell_class_4>s</span>
-            <span class=cell_class_2.clone()>w</span>
+            <span class=&cell_class_2>w</span>
             <span class=cell_class_2>e</span>
-            <span class=cell_class_1.clone()>e</span>
+            <span class=&cell_class_1>e</span>
             <span class=cell_class_flag>
                 <Flag />
             </span>
-            <span class=cell_class_1.clone()>e</span>
+            <span class=&cell_class_1>e</span>
             <span class=cell_class_1>r</span>
         </span>
     }
@@ -42,18 +42,18 @@ where
             None => view! {
                 "Guest ("
                 <A href="/auth/login" class=aclass>
-                    Log in
+                    "Log in"
                 </A>
                 ")"
             }
             .into_view(),
             Some(user) => {
-                let name = FrontendUser::display_name_or_anon(&user.display_name, true);
+                let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
                 view! {
                     {name}
                     " ("
                     <A href="/profile" class=aclass>
-                        Profile
+                        "Profile"
                     </A>
                     ")"
                 }

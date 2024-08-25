@@ -40,7 +40,10 @@ impl From<&PlayerUser> for ClientPlayer {
     fn from(value: &PlayerUser) -> Self {
         ClientPlayer {
             player_id: value.player as usize,
-            username: FrontendUser::display_name_or_anon(&value.display_name, value.user.is_some()),
+            username: FrontendUser::display_name_or_anon(
+                value.display_name.as_ref(),
+                value.user.is_some(),
+            ),
             dead: value.dead,
             victory_click: value.victory_click,
             top_score: value.top_score,

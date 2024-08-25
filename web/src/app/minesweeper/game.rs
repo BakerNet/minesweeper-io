@@ -59,17 +59,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         None
     };
-    let players_simple = players
-        .into_iter()
-        .map(ClientPlayer::from)
-        .collect::<Vec<_>>();
-    let players_frontend =
-        players_simple
-            .iter()
-            .fold(vec![None; game.max_players as usize], |mut acc, p| {
-                acc[p.player_id] = Some(p.clone());
-                acc
-            });
+    let players_simple = players.iter().map(ClientPlayer::from).collect::<Vec<_>>();
     let final_board = match (game.final_board, game_log) {
         (Some(board), Some(game_log)) => {
             let completed_minesweeper = CompletedMinesweeper::from_log(
@@ -90,6 +80,14 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
             game.rows as usize
         ]),
     };
+    let players_frontend =
+        players
+            .into_iter()
+            .fold(vec![None; game.max_players as usize], |mut acc, p| {
+                let index = p.player as usize;
+                acc[index] = Some(ClientPlayer::from(p));
+                acc
+            });
     Ok(GameInfo {
         game_id: game.game_id,
         has_owner: game.owner.is_some(),
@@ -132,7 +130,8 @@ pub fn Game() -> impl IntoView {
                         view! {
                             <ErrorBoundary fallback=|_| {
                                 view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{move || { game_info.clone().map(game_view) }}</ErrorBoundary>
+                            }>{game_info.map(game_view)
+                            }</ErrorBoundary>
                         }
                     })
             }}
@@ -168,19 +167,22 @@ where
 {
     let (error, set_error) = create_signal::<Option<String>>(None);
 
-    let game_id = game_info.game_id.clone();
     let UseWebSocketReturn {
         ready_state,
         message,
         send,
         ..
-    } = use_websocket::<String, FromToStringCodec>(&format!("/api/websocket/game/{}", &game_id));
+    } = use_websocket::<String, FromToStringCodec>(&format!(
+        "/api/websocket/game/{}",
+        &game_info.game_id
+    ));
 
     let game = FrontendGame::new(&game_info, set_error, Rc::new(send.clone()));
     let (game_signal, _) = create_signal(game.clone());
 
-    provide_context::<PlayersContext>(PlayersContext::from(&game));
+    let players_context = PlayersContext::from(&game);
 
+    let game_id = game_info.game_id.clone();
     create_effect(move |_| {
         log::debug!("before ready_state");
         let state = ready_state();
@@ -276,9 +278,9 @@ where
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                Game: {{ game_info.game_id.clone() }}
+                "Game: "{ &game_info.game_id }
             </h3>
-            <ActivePlayers />
+            <ActivePlayers players_context />
             <GameWidgets>
                 <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
                 <CopyGameLink game_id=game_info.game_id />
@@ -322,7 +324,6 @@ where
 
 #[component]
 pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
-    let players = game_info.players.clone();
     let game_settings = GameSettings::from(&game_info);
     let game_time = match (game_info.start_time, game_info.end_time) {
         (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
@@ -338,9 +339,9 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                Game: {{ game_info.game_id.clone() }}
+                "Game: "{ &game_info.game_id }
             </h3>
-            <InactivePlayers players />
+            <InactivePlayers players=game_info.players />
             <GameWidgets>
                 <InactiveMines num_mines=num_mines />
                 <CopyGameLink game_id=game_info.game_id />

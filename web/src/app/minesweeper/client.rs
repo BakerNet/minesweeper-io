@@ -28,7 +28,7 @@ pub struct PlayersContext {
 impl PlayersContext {
     pub fn from(frontend_game: &FrontendGame) -> Self {
         PlayersContext {
-            game_id: frontend_game.game_id.clone(),
+            game_id: Rc::clone(&frontend_game.game_id),
             is_owner: frontend_game.is_owner,
             has_owner: frontend_game.has_owner,
             player_id: frontend_game.player_id,
@@ -103,7 +103,7 @@ impl FrontendGame {
         let rows = game_info.rows;
         let cols = game_info.cols;
         FrontendGame {
-            game_id: Rc::new(game_info.game_id.clone()),
+            game_id: Rc::new(game_info.game_id.to_owned()),
             is_owner: game_info.is_owner,
             has_owner: game_info.has_owner,
             cells: read_signals,

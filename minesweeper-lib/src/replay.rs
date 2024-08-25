@@ -39,8 +39,8 @@ impl MinesweeperReplay {
         self.current_play
     }
 
-    pub fn current_board(&self) -> Board<PlayerCell> {
-        self.current_board.clone()
+    pub fn current_board(&self) -> &Board<PlayerCell> {
+        &self.current_board
     }
 
     pub fn advance(&mut self) -> Result<()> {
@@ -287,37 +287,37 @@ mod test {
         // test advance
         assert_eq!(replay.len(), 5);
         assert!(matches!(replay.advance(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_1);
+        assert_eq!(replay.current_board(), &expected_board_1);
         assert!(matches!(replay.advance(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_2);
+        assert_eq!(replay.current_board(), &expected_board_2);
         assert!(matches!(replay.advance(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_3);
+        assert_eq!(replay.current_board(), &expected_board_3);
         assert!(matches!(replay.advance(), Ok(())));
-        assert_eq!(replay.current_board(), expected_final_board);
+        assert_eq!(replay.current_board(), &expected_final_board);
 
         // should error on advance at end
         assert!(replay.advance().is_err());
 
         // test rewind
         assert!(matches!(replay.rewind(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_3);
+        assert_eq!(replay.current_board(), &expected_board_3);
         assert!(matches!(replay.rewind(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_2);
+        assert_eq!(replay.current_board(), &expected_board_2);
         assert!(matches!(replay.rewind(), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_1);
+        assert_eq!(replay.current_board(), &expected_board_1);
         assert!(matches!(replay.rewind(), Ok(())));
-        assert_eq!(replay.current_board(), expected_starting_board);
+        assert_eq!(replay.current_board(), &expected_starting_board);
 
         // should error on rewind at beginning
         assert!(replay.rewind().is_err());
 
         // try to_pos (auto advance/rewind)
         assert!(matches!(replay.to_pos(2), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_2);
+        assert_eq!(replay.current_board(), &expected_board_2);
         assert!(matches!(replay.to_pos(4), Ok(())));
-        assert_eq!(replay.current_board(), expected_final_board);
+        assert_eq!(replay.current_board(), &expected_final_board);
         assert!(matches!(replay.to_pos(1), Ok(())));
-        assert_eq!(replay.current_board(), expected_board_1);
+        assert_eq!(replay.current_board(), &expected_board_1);
 
         assert!(replay.to_pos(5).is_err());
     }

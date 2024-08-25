@@ -187,7 +187,7 @@ impl GameManager {
         }
         let handle = games.get_mut(game_id).unwrap();
         let user_id = user.as_ref().map(|u| u.id);
-        let display_name = user.as_ref().and_then(|u| u.display_name.clone());
+        let display_name = user.as_ref().and_then(|u| u.display_name.as_ref());
         let found = handle
             .players
             .iter_mut()
@@ -203,13 +203,13 @@ impl GameManager {
                 handle.players.push(PlayerHandle {
                     user_id,
                     player_id,
-                    display_name: FrontendUser::display_name_or_anon(&display_name, user.is_some()),
-                    ws_sender: ws_sender.clone(),
+                    display_name: FrontendUser::display_name_or_anon(display_name, user.is_some()),
+                    ws_sender: Arc::clone(&ws_sender),
                 });
                 player_id
             }
             Some(p) => {
-                p.ws_sender = ws_sender.clone();
+                p.ws_sender = Arc::clone(&ws_sender);
                 p.player_id
             }
         };
@@ -223,8 +223,8 @@ impl GameManager {
             .send(GameEvent::Player(PlayerHandle {
                 user_id,
                 player_id,
-                display_name: FrontendUser::display_name_or_anon(&display_name, user.is_some()),
-                ws_sender: ws_sender.clone(),
+                display_name: FrontendUser::display_name_or_anon(display_name, user.is_some()),
+                ws_sender: Arc::clone(&ws_sender),
             }))
             .await?;
         Ok(handle.from_client.clone())
@@ -325,7 +325,7 @@ fn handles_to_client_players(
                 let player_score = minesweeper.player_score(player.player_id).unwrap_or(0);
                 ClientPlayer {
                     player_id: player.player_id,
-                    username: player.display_name.clone(),
+                    username: player.display_name.to_owned(),
                     dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
                     victory_click: minesweeper
                         .player_victory_click(player.player_id)
@@ -370,10 +370,12 @@ async fn handle_game_event(
 ) {
     match event {
         GameEvent::Player(player) => {
-            player_handles[player.player_id] = Some(player.clone());
-            let player_board = minesweeper.player_board(player.player_id);
+            let player_sender = Arc::clone(&player.ws_sender);
+            let player_id = player.player_id;
+            let player_board = minesweeper.player_board(player_id);
+            player_handles[player_id] = Some(player);
             {
-                let mut player_sender = player.ws_sender.lock().await;
+                let mut player_sender = player_sender.lock().await;
                 let player_msg = GameMessage::GameState(player_board).into_json();
                 log::debug!("Sending player_msg {:?}", player_msg);
                 let _ = player_sender.send(Message::Text(player_msg)).await;
@@ -453,7 +455,7 @@ async fn handle_message(
             let top_score = minesweeper.player_top_score(player.player_id).unwrap();
             let player_state = ClientPlayer {
                 player_id: player.player_id,
-                username: player.display_name.clone(),
+                username: player.display_name.to_owned(),
                 dead,
                 victory_click,
                 top_score,
@@ -578,13 +580,15 @@ pub async fn websocket(
     let (sender, mut receiver) = stream.split();
     let sender = Arc::new(Mutex::new(sender));
 
-    let sender_clone = sender.clone();
+    let game_id = game_id.as_str();
+
+    let sender_clone = Arc::clone(&sender);
     let mut rx = game_manager
-        .join_game(&game_id, sender_clone)
+        .join_game(game_id, sender_clone)
         .await
         .unwrap_or_else(|_| panic!("Failed to join game ({}) from websocket", game_id));
 
-    let sender_clone = sender.clone();
+    let sender_clone = Arc::clone(&sender);
     // Spawn the first task that will receive broadcast messages and send text
     // messages over the websocket to our client.
     let mut send_task = tokio::spawn(async move {
@@ -603,9 +607,9 @@ pub async fn websocket(
     });
 
     let mut game_sender = None;
-    if game_manager.was_playing(&game_id, &user).await {
+    if game_manager.was_playing(game_id, &user).await {
         let resp = game_manager
-            .play_game(&game_id, &user, sender.clone())
+            .play_game(game_id, &user, Arc::clone(&sender))
             .await;
         match resp {
             Ok(tx) => {
@@ -623,7 +627,7 @@ pub async fn websocket(
                     match recvd {
                         Some(Ok(Message::Text(msg))) if msg == "Play" => {
                             log::debug!("Trying to Play");
-                            let resp = game_manager.play_game(&game_id, &user, sender.clone()).await;
+                            let resp = game_manager.play_game(game_id, &user, Arc::clone(&sender)).await;
                             match resp {
                                 Ok(tx) => {
                                     game_sender = Some(tx);

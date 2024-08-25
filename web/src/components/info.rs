@@ -30,7 +30,7 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                 class="flex flex-col rounded-lg border border-black shadow-lg text-gray-900 dark:text-gray-300 bg-slate-200 dark:bg-slate-800 p-8 w-10/12 max-w-md max-h-10/12 overflow-auto"
                 on:click=move |ev| ev.stop_propagation()
             >
-                <h2 class="text-2xl font-bold tracking-wide my-3">Controls</h2>
+                <h2 class="text-2xl font-bold tracking-wide my-3">"Controls"</h2>
                 <div class="text-l my-2">
                     <span class=key_class>"Left Click"</span>
                     " or "
@@ -61,7 +61,7 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                     <span class="font-medium">"Controls"</span>
                     " menu"
                 </div>
-                <h2 class="text-2xl font-bold tracking-wide my-3">Player Badges</h2>
+                <h2 class="text-2xl font-bold tracking-wide my-3">"Player Badges"</h2>
                 <div class="text-l my-2">
                     <span class=player_icon_holder("bg-red-600", false)>
                         <Mine />
@@ -83,13 +83,13 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                     <span class="font-medium">"Victory Click"</span>
                     " - the player revealed the final non-mine cell on the map"
                 </div>
-                <h2 class="text-2xl font-bold tracking-wide my-3">Multiplayer Rules</h2>
+                <h2 class="text-2xl font-bold tracking-wide my-3">"Multiplayer Rules"</h2>
                 <div class="text-l my-2">
                     "Multiple players trying to reveal the same cell is hadled first-click-wins"
                 </div>
                 <div class="text-l my-2">
                     " Each player gets one " <span class="font-medium">"\"Super Click\""</span>
-                    " - that is, the first hidden cell they reveal that is not adjacent to any revealed cells is guaranteed to be an empty cell"
+                    " - that is, the first hidden cell they reveal that is not within a 2-cell distance to any revealed cells is guaranteed to be an empty cell"
                 </div>
                 <div class="text-l my-2">
                     "If a game is created by a " <span class="font-medium">"Guest"</span>
