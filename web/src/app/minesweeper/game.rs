@@ -67,8 +67,8 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
                 game_log.log,
                 players_simple,
             );
-            if player_num.is_some() {
-                completed_minesweeper.player_board_final(player_num.unwrap().into())
+            if let Some(p) = player_num {
+                completed_minesweeper.player_board_final(p.into())
             } else if game.max_players == 0 {
                 completed_minesweeper.player_board_final(0)
             } else {

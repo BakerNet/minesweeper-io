@@ -348,11 +348,12 @@ impl Minesweeper {
 
     fn has_no_revealed_nearby(&self, cell_point: BoardPoint) -> bool {
         let neighbors = self.board.neighbors(cell_point);
-        neighbors
-            .iter()
-            .copied()
-            .map(|n| self.board.neighbors(n))
-            .flatten()
+        let nearby = neighbors
+            .into_iter()
+            .flat_map(|n| self.board.neighbors(n))
+            .collect::<HashSet<_>>();
+        nearby
+            .into_iter()
             .filter(|i| self.board[*i].1.revealed)
             .count()
             == 0
@@ -427,9 +428,9 @@ impl Minesweeper {
         if unplanted_mines == 0 {
             return;
         }
-        let has_revealed_neighbor = |bp: &BoardPoint| {
+        let has_revealed_neighbor = |bp: BoardPoint| {
             self.board
-                .neighbors(*bp)
+                .neighbors(bp)
                 .iter()
                 .any(|c| self.board[*c].1.revealed)
         };
@@ -437,7 +438,7 @@ impl Minesweeper {
             .available
             .iter()
             .filter(|&bp| {
-                *bp != first_cell && !neighbors.contains(bp) && !has_revealed_neighbor(bp)
+                *bp != first_cell && !neighbors.contains(bp) && !has_revealed_neighbor(*bp)
             })
             .copied()
             .collect::<Vec<_>>();
