@@ -594,6 +594,10 @@ impl CompletedMinesweeper {
             log: Some(log),
         }
     }
+
+    pub fn recover_log(self) -> Option<Vec<(Play, PlayOutcome)>> {
+        self.log
+    }
 }
 
 impl CompletedMinesweeper {
@@ -677,7 +681,11 @@ impl CompletedMinesweeper {
             })
             .cloned()
             .collect();
-        Some(MinesweeperReplay::new(self.board_start(), player_log))
+        Some(MinesweeperReplay::new(
+            self.board_start(),
+            player_log,
+            self.players.len(),
+        ))
     }
 }
 

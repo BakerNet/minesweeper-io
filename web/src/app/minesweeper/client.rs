@@ -280,8 +280,9 @@ impl FrontendGame {
     }
 }
 
+#[allow(clippy::type_complexity)]
 pub fn signals_from_board(
-    board: &Vec<Vec<PlayerCell>>,
+    board: &[Vec<PlayerCell>],
 ) -> (
     Vec<Vec<ReadSignal<PlayerCell>>>,
     Vec<Vec<WriteSignal<PlayerCell>>>,

@@ -41,7 +41,6 @@ pub fn ActivePlayers(
     players: Vec<ReadSignal<Option<ClientPlayer>>>,
     children: Children,
 ) -> impl IntoView {
-    log::debug!("players: {players:?}");
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Players"</h4>
