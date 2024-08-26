@@ -1,7 +1,7 @@
+use chrono::DateTime;
 use codee::string::FromToStringCodec;
-use leptos::ev::keydown;
 use leptos::*;
-use leptos_router::use_params_map;
+use leptos_router::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebSocketReturn};
 use leptos_use::{use_document, use_event_listener};
 use std::rc::Rc;
@@ -15,9 +15,9 @@ use minesweeper_lib::{
 
 use super::{
     cell::{ActiveCell, InactiveCell},
-    client::{FrontendGame, PlayersContext},
+    client::{signals_from_board, FrontendGame, PlayersContext},
     entry::ReCreateGame,
-    players::{ActivePlayers, InactivePlayers},
+    players::{ActivePlayers, InactivePlayers, PlayerButtons},
     widgets::{ActiveMines, ActiveTimer, CopyGameLink, GameWidgets, InactiveMines, InactiveTimer},
     {GameInfo, GameSettings},
 };
@@ -56,6 +56,8 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
             .iter()
             .find(|p| p.user == user_ref.map(|u| u.id))
             .map(|p| p.player)
+    } else if game.max_players == 1 {
+        Some(0)
     } else {
         None
     };
@@ -112,11 +114,41 @@ pub fn Game() -> impl IntoView {
     let game_info = create_resource(game_id, get_game);
     let refetch = move || game_info.refetch();
 
-    provide_context::<Resource<String, Result<GameInfo, ServerFnError>>>(game_info);
-
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
         true => view! { <InactiveGame game_info /> },
         false => view! { <ActiveGame game_info refetch /> },
+    };
+
+    view! {
+        <Transition fallback=move || {
+            view! { <div>"Loading..."</div> }
+        }>
+            {move || {
+                game_info
+                    .get()
+                    .map(|game_info| {
+                        view! {
+                            <ErrorBoundary fallback=|_| {
+                                view! { <div class="text-red-600">"Game not found"</div> }
+                            }>{game_info.map(game_view)
+                            }</ErrorBoundary>
+                        }
+                    })
+            }}
+
+        </Transition>
+    }
+}
+
+#[component]
+pub fn GameReplay() -> impl IntoView {
+    let params = use_params_map();
+    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+    let game_info = create_resource(game_id, get_game);
+
+    let game_view = move |game_info: GameInfo| match game_info.is_completed {
+        true => view! { < ReplayGame game_info /> },
+        false => view! { <Redirect path=format!("/game/{}", game_info.game_id) /> },
     };
 
     view! {
@@ -161,7 +193,7 @@ where
 }
 
 #[component]
-pub fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
+fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
 where
     F: Fn() + Clone + 'static,
 {
@@ -252,7 +284,7 @@ where
             _ => {}
         }
     };
-    let _ = use_event_listener(use_document(), keydown, handle_keydown);
+    let _ = use_event_listener(use_document(), ev::keydown, handle_keydown);
 
     let handle_mousedown = move |ev: MouseEvent, row: usize, col: usize| {
         let set_skip_signal = { set_skip_mouseup };
@@ -275,12 +307,16 @@ where
     };
     // TODO - game lifecycle UI (started indicators, ended indicators, countdown / starting alerts, etc.)
 
+    let players = players_context.players.clone();
+
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
                 "Game: "{ &game_info.game_id }
             </h3>
-            <ActivePlayers players_context />
+            <ActivePlayers players >
+                <PlayerButtons players_context />
+            </ActivePlayers>
             <GameWidgets>
                 <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
                 <CopyGameLink game_id=game_info.game_id />
@@ -323,12 +359,9 @@ where
 }
 
 #[component]
-pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
+fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     let game_settings = GameSettings::from(&game_info);
-    let game_time = match (game_info.start_time, game_info.end_time) {
-        (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
-        _ => 999,
-    };
+    let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let num_mines = game_info
         .final_board
         .iter()
@@ -345,7 +378,7 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
             <GameWidgets>
                 <InactiveMines num_mines=num_mines />
                 <CopyGameLink game_id=game_info.game_id />
-                <InactiveTimer game_time=game_time as usize />
+                <InactiveTimer game_time />
             </GameWidgets>
             <GameBorder set_active=move |_| {}>
                 {game_info.final_board
@@ -370,4 +403,79 @@ pub fn InactiveGame(game_info: GameInfo) -> impl IntoView {
             <ReCreateGame game_settings />
         </div>
     }
+}
+
+#[component]
+fn ReplayGame(game_info: GameInfo) -> impl IntoView {
+    log::debug!("replay for {:?}", game_info);
+    let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
+    let (flag_count, _set_flag_count) = create_signal(0);
+    let (_, set_active_cell) = create_signal(BoardPoint { row: 0, col: 0 });
+
+    let (player_read_signals, _players_write_signals) = game_info
+        .players
+        .iter()
+        .cloned()
+        .map(|p| create_signal(p))
+        .collect::<(Vec<_>, Vec<_>)>();
+
+    let (read_signals, _write_signals) = signals_from_board(&game_info.final_board);
+
+    view! {
+        <div class="text-center">
+            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
+                "Game: "{ &game_info.game_id }
+            </h3>
+            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
+                "REPLAY FEATURE COMING SOON"
+            </h3>
+            <ActivePlayers players=player_read_signals>{()}</ActivePlayers>
+            <GameWidgets>
+                <ActiveMines num_mines=game_info.num_mines flag_count />
+                <CopyGameLink game_id=game_info.game_id />
+                <InactiveTimer game_time />
+            </GameWidgets>
+            <GameBorder set_active=move |_| ()>
+                {read_signals
+                    .iter()
+                    .enumerate()
+                    .map(move |(row, vec)| {
+                        view! {
+                            <div class="whitespace-nowrap">
+                                {vec
+                                    .iter()
+                                    .copied()
+                                    .enumerate()
+                                    .map(move |(col, cell)| {
+                                        view! {
+                                            <ActiveCell
+                                                row=row
+                                                col=col
+                                                cell=cell
+                                                set_active=set_active_cell
+                                                mousedown_handler=move |_, _, _| ()
+                                                mouseup_handler=move |_, _, _| ()
+                                            />
+                                        }
+                                    })
+                                    .collect_view()}
+                            </div>
+                        }
+                    })
+                    .collect_view()}
+
+            </GameBorder>
+        </div>
+    }
+}
+
+fn game_time_from_start_end<T: chrono::TimeZone>(
+    start_time: Option<DateTime<T>>,
+    end_time: Option<DateTime<T>>,
+) -> usize {
+    let game_time = match (start_time, end_time) {
+        (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
+        _ => 999,
+    } as usize;
+    game_time
 }

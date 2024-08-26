@@ -1,4 +1,3 @@
-use leptos::ev::keydown;
 use leptos::*;
 use leptos_use::{use_document, use_event_listener};
 use web_sys::KeyboardEvent;
@@ -103,11 +102,13 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
 }
 
 pub fn use_controls_info_keybinds(set_show_info: WriteSignal<bool>) {
-    let _ = use_event_listener(use_document(), keydown, move |ev: KeyboardEvent| {
-        match ev.key().as_str() {
+    let _ = use_event_listener(
+        use_document(),
+        ev::keydown,
+        move |ev: KeyboardEvent| match ev.key().as_str() {
             "?" => set_show_info(true),
             "Escape" => set_show_info(false),
             _ => {}
-        }
-    });
+        },
+    );
 }

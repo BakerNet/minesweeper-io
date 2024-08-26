@@ -10,7 +10,7 @@ use super::{
     header::Header,
     home::HomePage,
     login::LoginPage,
-    minesweeper::Game,
+    minesweeper::{Game, GameReplay},
     profile::Profile,
 };
 
@@ -69,8 +69,10 @@ pub fn App() -> impl IntoView {
                             }
                         }
                     />
-
-                    <Route path="/game/:id" view=|| view! { <Game /> } />
+                    <Route path="/game/:id" view=|| view! { <Outlet /> }>
+                        <Route path="/replay" view=|| view! { <GameReplay /> } />
+                        <Route path="/" view=|| view! { <Game /> } />
+                    </Route>
                 </Routes>
                 <ControlsInfoButton set_show_info />
                 <Show when=show_info>

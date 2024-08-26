@@ -1,7 +1,6 @@
 use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
-use std::rc::Rc;
 
 use minesweeper_lib::client::ClientPlayer;
 
@@ -16,11 +15,7 @@ use crate::components::{
 use super::client::PlayersContext;
 
 #[component]
-fn Scoreboard<F, IV>(children: Children, buttons: F) -> impl IntoView
-where
-    F: Fn() -> IV,
-    IV: IntoView,
-{
+fn Scoreboard(children: Children) -> impl IntoView {
     view! {
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
             <thead>
@@ -38,12 +33,34 @@ where
             </thead>
             <tbody>{children()}</tbody>
         </table>
-        {buttons()}
     }
 }
 
 #[component]
-pub fn ActivePlayers(players_context: PlayersContext) -> impl IntoView {
+pub fn ActivePlayers(
+    players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    children: Children,
+) -> impl IntoView {
+    log::debug!("players: {players:?}");
+    view! {
+        <div class="flex flex-col items-center my-8 space-y-4">
+            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Players"</h4>
+            <Scoreboard>
+                {players
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(n, player)| {
+                        view! { <ActivePlayer player_num=n player=player /> }
+                    })
+                    .collect_view()}
+            </Scoreboard>
+            {children()}
+        </div>
+    }
+}
+
+#[component]
+pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
     let start_game = create_server_action::<StartGame>();
 
     let PlayersContext {
@@ -56,7 +73,6 @@ pub fn ActivePlayers(players_context: PlayersContext) -> impl IntoView {
         started,
         join_trigger,
     } = players_context;
-    log::debug!("players: {players:?}");
     let num_players = players.len();
     let last_slot = *players.last().unwrap();
     let show_play = move || {
@@ -79,31 +95,13 @@ pub fn ActivePlayers(players_context: PlayersContext) -> impl IntoView {
         });
     }
 
-    let buttons = move || {
-        let game_id = Rc::clone(&game_id);
-        view! {
-            <Show when=show_play fallback=move || ()>
-                <PlayForm join_trigger />
-            </Show>
-            <Show when=show_start fallback=move || ()>
-                <StartForm start_game game_id=game_id.to_string() />
-            </Show>
-        }
-    };
-
     view! {
-        <div class="flex flex-col items-center my-8 space-y-4">
-            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Players</h4>
-            <Scoreboard buttons>
-                {players
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(n, player)| {
-                        view! { <ActivePlayer player_num=n player=player /> }
-                    })
-                    .collect_view()}
-            </Scoreboard>
-        </div>
+        <Show when=show_play fallback=move || ()>
+            <PlayForm join_trigger />
+        </Show>
+        <Show when=show_start fallback=move || () clone:game_id>
+            <StartForm start_game game_id=game_id.to_string() />
+        </Show>
     }
 }
 
@@ -118,7 +116,7 @@ pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">
                 {if is_victory { "Complete" } else { "Game Over" }}
             </h4>
-            <Scoreboard buttons=move || ()>
+            <Scoreboard>
 
                 {players
                     .into_iter()

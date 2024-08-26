@@ -73,19 +73,7 @@ impl FrontendGame {
         err_signal: WriteSignal<Option<String>>,
         send: Rc<dyn Fn(&String)>,
     ) -> Self {
-        let mut read_signals = Vec::with_capacity(game_info.rows * game_info.cols);
-        let mut write_signals = Vec::with_capacity(game_info.rows * game_info.cols);
-        game_info.final_board.iter().for_each(|cells| {
-            let mut read_row = Vec::new();
-            let mut write_row = Vec::new();
-            cells.iter().for_each(|cell| {
-                let (rs, ws) = create_signal(*cell);
-                read_row.push(rs);
-                write_row.push(ws);
-            });
-            read_signals.push(read_row);
-            write_signals.push(write_row);
-        });
+        let (read_signals, write_signals) = signals_from_board(&game_info.final_board);
         let mut players = Vec::with_capacity(game_info.players.len());
         let mut player_signals = Vec::with_capacity(game_info.players.len());
         game_info.players.iter().for_each(|p| {
@@ -290,4 +278,26 @@ impl FrontendGame {
         log::debug!("before send {s}");
         (self.send)(s)
     }
+}
+
+pub fn signals_from_board(
+    board: &Vec<Vec<PlayerCell>>,
+) -> (
+    Vec<Vec<ReadSignal<PlayerCell>>>,
+    Vec<Vec<WriteSignal<PlayerCell>>>,
+) {
+    let mut read_signals = Vec::with_capacity(board.len() * board[0].len());
+    let mut write_signals = Vec::with_capacity(board.len() * board[0].len());
+    board.iter().for_each(|cells| {
+        let mut read_row = Vec::new();
+        let mut write_row = Vec::new();
+        cells.iter().for_each(|cell| {
+            let (rs, ws) = create_signal(*cell);
+            read_row.push(rs);
+            write_row.push(ws);
+        });
+        read_signals.push(read_row);
+        write_signals.push(write_row);
+    });
+    (read_signals, write_signals)
 }

@@ -140,8 +140,11 @@ impl Board<(Cell, CellState)> {
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Play {
+    #[serde(rename = "p", alias = "player")]
     pub player: usize,
+    #[serde(rename = "a", alias = "action")]
     pub action: Action,
+    #[serde(rename = "bp", alias = "point")]
     pub point: BoardPoint,
 }
 
@@ -696,16 +699,23 @@ pub struct Player {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Action {
+    #[serde(rename = "f", alias = "Flag")]
     Flag,
+    #[serde(rename = "r", alias = "Reveal")]
     Reveal,
+    #[serde(rename = "ra", alias = "RevealAdjacent")]
     RevealAdjacent,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PlayOutcome {
+    #[serde(rename = "s", alias = "Success")]
     Success(Vec<(BoardPoint, RevealedCell)>),
+    #[serde(rename = "x", alias = "Failure")]
     Failure((BoardPoint, RevealedCell)),
+    #[serde(rename = "v", alias = "Victory")]
     Victory(Vec<(BoardPoint, RevealedCell)>),
+    #[serde(rename = "f", alias = "Flag")]
     Flag((BoardPoint, PlayerCell)),
 }
 
