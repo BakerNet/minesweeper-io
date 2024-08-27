@@ -45,35 +45,27 @@ where
     let user_profile = move |user: Option<FrontendUser>| match user {
         Some(user) => View::from(view! {
             <>
-            <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-                <SetDisplayName user user_updated />
-                <div class="w-full max-w-xs h-6">
-                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                        <hr class="w-full" />
-                    </span>
+                <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
+                    <SetDisplayName user user_updated />
+                    <div class="w-full max-w-xs h-6">
+                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                            <hr class="w-full" />
+                        </span>
+                    </div>
+                    <LogOut logout />
+                    <div class="w-full max-w-xs h-6">
+                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                            <hr class="w-full" />
+                        </span>
+                    </div>
+                    <GameHistory />
                 </div>
-                <LogOut logout />
-                <div class="w-full max-w-xs h-6">
-                    <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                        <hr class="w-full" />
-                    </span>
-                </div>
-                <GameHistory />
-            </div>
             </>
         }),
-        _ => view! {
-            <Redirect path="/auth/login" />
-        },
+        _ => view! { <Redirect path="/auth/login" /> },
     };
 
-    view! {
-        <Suspense fallback=move || () >
-        {move || {
-            user.get().map(user_profile)
-        }}
-        </Suspense>
-    }
+    view! { <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense> }
 }
 
 #[server(SetDisplayName, "/api")]
@@ -227,14 +219,14 @@ fn GameHistory() -> impl IntoView {
     let loading_row = move |num: usize| {
         let player_class = player_class(0) + " text-black";
         view! {
-                <tr class=player_class>
-                    <td class=td_class>"Game "{num}</td>
-                    <td class=td_class></td>
-                    <td class=td_class></td>
-                    <td class=td_class>"Loading..."</td>
-                    <td class=td_class></td>
-                    <td class=td_class></td>
-                </tr>
+            <tr class=player_class>
+                <td class=td_class>"Game "{num}</td>
+                <td class=td_class></td>
+                <td class=td_class></td>
+                <td class=td_class>"Loading..."</td>
+                <td class=td_class></td>
+                <td class=td_class></td>
+            </tr>
         }
     };
     let game_view = move |game: PlayerGame| {
@@ -318,7 +310,9 @@ fn GameHistory() -> impl IntoView {
                 </tr>
             </thead>
             <tbody>
-                <Suspense fallback=move || (0..5).map(loading_row).collect_view()>
+                <Suspense fallback=move || {
+                    (0..5).map(loading_row).collect_view()
+                }>
 
                     {move || {
                         player_games

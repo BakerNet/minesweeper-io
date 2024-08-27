@@ -662,7 +662,9 @@ impl CompletedMinesweeper {
 
     fn board_start(&self) -> Board<PlayerCell> {
         let mut board = self.board.clone();
-        board.iter_mut().for_each(|pc| *pc = pc.into_hidden());
+        board
+            .iter_mut()
+            .for_each(|pc| *pc = pc.into_hidden().remove_flag());
         board
     }
 
@@ -713,6 +715,16 @@ pub enum Action {
     Reveal,
     #[serde(rename = "ra", alias = "RevealAdjacent")]
     RevealAdjacent,
+}
+
+impl Action {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Action::Flag => "Flag",
+            Action::Reveal => "Reveal",
+            Action::RevealAdjacent => "Reveal Adjacent",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

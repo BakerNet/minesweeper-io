@@ -212,8 +212,7 @@ pub fn GameView() -> impl IntoView {
                         view! {
                             <ErrorBoundary fallback=|_| {
                                 view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)
-                            }</ErrorBoundary>
+                            }>{game_info.map(game_view)}</ErrorBoundary>
                         }
                     })
             }}
@@ -229,7 +228,7 @@ pub fn GameReplay() -> impl IntoView {
     let game_info = create_resource(game_id, get_replay);
 
     let game_view = move |replay_data: GameInfoWithLog| match replay_data.game_info.is_completed {
-        true => view! { < ReplayGame replay_data /> },
+        true => view! { <ReplayGame replay_data /> },
         false => view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> },
     };
 
@@ -244,8 +243,7 @@ pub fn GameReplay() -> impl IntoView {
                         view! {
                             <ErrorBoundary fallback=|_| {
                                 view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)
-                            }</ErrorBoundary>
+                            }>{game_info.map(game_view)}</ErrorBoundary>
                         }
                     })
             }}
@@ -260,7 +258,7 @@ where
     F: Fn(bool) + Copy + 'static,
 {
     view! {
-        <div class="select-none overflow-x-auto overflow-y-hidden mb-12">
+        <div class="select-none overflow-x-auto overflow-y-hidden mb-8">
             <div class="w-fit border-solid border border-black mx-auto">
                 <div
                     class="w-fit border-groove border-24"
@@ -387,16 +385,15 @@ where
             handle_action(PlayAction::Reveal, row, col);
         }
     };
-    // TODO - game lifecycle UI (started indicators, ended indicators, countdown / starting alerts, etc.)
 
     let players = players_context.players.clone();
 
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{ &game_info.game_id }
+                "Game: "{&game_info.game_id}
             </h3>
-            <ActivePlayers players >
+            <ActivePlayers players>
                 <PlayerButtons players_context />
             </ActivePlayers>
             <GameWidgets>
@@ -454,7 +451,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{ &game_info.game_id }
+                "Game: "{&game_info.game_id}
             </h3>
             <InactivePlayers players=game_info.players />
             <GameWidgets>
@@ -463,7 +460,8 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
                 <InactiveTimer game_time />
             </GameWidgets>
             <GameBorder set_active=move |_| {}>
-                {game_info.final_board
+                {game_info
+                    .final_board
                     .into_iter()
                     .enumerate()
                     .map(move |(row, vec)| {
@@ -513,10 +511,12 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .replay(replay_data.player_num.map(|p| p.into()))
         .expect("We are guaranteed log is not None");
 
+    let cells = cell_read_signals.clone();
+
     view! {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{ &game_info.game_id }
+                "Game: "{&game_info.game_id}
             </h3>
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
                 "REPLAY FEATURE COMING SOON"
@@ -528,7 +528,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
                 <InactiveTimer game_time />
             </GameWidgets>
             <GameBorder set_active=move |_| ()>
-                {cell_read_signals
+                {cells
                     .iter()
                     .enumerate()
                     .map(move |(row, vec)| {
@@ -557,7 +557,13 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
                     .collect_view()}
 
             </GameBorder>
-            <ReplayControls replay cell_write_signals set_flag_count player_write_signals />
+            <ReplayControls
+                replay
+                cell_read_signals
+                cell_write_signals
+                set_flag_count
+                player_write_signals
+            />
         </div>
     }
 }

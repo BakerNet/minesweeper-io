@@ -64,9 +64,7 @@ pub fn App() -> impl IntoView {
                     <Route
                         path="/profile"
                         view=move || {
-                            view! {
-                                <Profile user logout user_updated />
-                            }
+                            view! { <Profile user logout user_updated /> }
                         }
                     />
                     <Route path="/game/:id" view=|| view! { <Outlet /> }>

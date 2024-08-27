@@ -23,7 +23,7 @@ pub struct Game {
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
     #[sqlx(json)]
-    pub final_board: Option<Vec<Vec<PlayerCell>>>, // todo - remove final from name
+    pub final_board: Option<Vec<Vec<PlayerCell>>>,
 }
 
 pub struct GameParameters {

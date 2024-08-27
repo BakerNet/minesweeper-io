@@ -546,7 +546,7 @@ pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
     let new_game = create_server_action::<NewGame>();
 
     view! {
-        <div class="flex flex-col items-center space-y-4">
+        <div class="flex flex-col items-center space-y-4 mb-8">
             <ActionForm action=new_game class="w-full max-w-xs space-y-2">
                 <input type="hidden" name="rows" prop:value=game_settings.rows />
                 <input type="hidden" name="cols" prop:value=game_settings.cols />
