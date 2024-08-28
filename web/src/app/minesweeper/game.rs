@@ -302,10 +302,15 @@ where
         &game_info.game_id
     ));
 
-    let game = FrontendGame::new(&game_info, set_error, Rc::new(send.clone()));
-    let (game_signal, _) = create_signal(game.clone());
-
+    let game = FrontendGame::new(&game_info, set_error, Rc::new(send));
     let players_context = PlayersContext::from(&game);
+    let flag_count = game.flag_count;
+    let completed = game.completed;
+    let sync_time = game.sync_time;
+    let cells = Rc::clone(&game.cells);
+    let players = Rc::clone(&game.players);
+
+    let (game_signal, _) = create_signal(game);
 
     let game_id = game_info.game_id.clone();
     create_effect(move |_| {
@@ -399,20 +404,17 @@ where
         }
     };
 
-    let players = players_context.players.clone();
-
     view! {
         <ActivePlayers players title="Players">
             <PlayerButtons players_context />
         </ActivePlayers>
         <GameWidgets>
-            <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
+            <ActiveMines num_mines=game_info.num_mines flag_count />
             <CopyGameLink game_id=game_info.game_id />
-            <ActiveTimer sync_time=game.sync_time completed=game.completed />
+            <ActiveTimer sync_time completed />
         </GameWidgets>
         <GameBorder set_active=set_game_is_active>
-            {game
-                .cells
+            {cells
                 .iter()
                 .enumerate()
                 .map(move |(row, vec)| {
@@ -513,6 +515,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .collect::<(Vec<_>, Vec<_>)>();
 
     let (cell_read_signals, cell_write_signals) = signals_from_board(&game_info.final_board);
+    let cell_read_signals = Rc::new(cell_read_signals);
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
         Board::from_vec(game_info.final_board),
@@ -523,10 +526,10 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .replay(replay_data.player_num.map(|p| p.into()))
         .expect("We are guaranteed log is not None");
 
-    let cells = cell_read_signals.clone();
+    let cells = Rc::clone(&cell_read_signals);
 
     view! {
-        <ActivePlayers players=player_read_signals title="Replay">
+        <ActivePlayers players=player_read_signals.into() title="Replay">
             {}
         </ActivePlayers>
         <GameWidgets>

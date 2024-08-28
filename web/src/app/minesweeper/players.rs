@@ -1,6 +1,7 @@
 use anyhow::Result;
 use leptos::*;
 use leptos_router::*;
+use std::rc::Rc;
 
 use minesweeper_lib::client::ClientPlayer;
 
@@ -38,7 +39,7 @@ fn Scoreboard(children: Children) -> impl IntoView {
 
 #[component]
 pub fn ActivePlayers(
-    players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    players: Rc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     title: &'static str,
     children: Children,
 ) -> impl IntoView {
@@ -47,10 +48,10 @@ pub fn ActivePlayers(
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
             <Scoreboard>
                 {players
-                    .into_iter()
+                    .iter()
                     .enumerate()
                     .map(move |(n, player)| {
-                        view! { <ActivePlayer player_num=n player=player /> }
+                        view! { <ActivePlayer player_num=n player=*player /> }
                     })
                     .collect_view()}
             </Scoreboard>

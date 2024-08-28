@@ -16,9 +16,9 @@ use minesweeper_lib::{
 #[allow(dead_code)]
 struct ReplayStore {
     replay: Rc<RefCell<MinesweeperReplay>>,
-    cell_read_signals: Vec<Vec<ReadSignal<PlayerCell>>>,
-    cell_write_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
-    player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
+    cell_read_signals: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_write_signals: Rc<Vec<Vec<WriteSignal<PlayerCell>>>>,
+    player_write_signals: Rc<Vec<WriteSignal<Option<ClientPlayer>>>>,
 }
 
 impl ReplayStore {
@@ -61,7 +61,7 @@ impl ReplayStore {
 #[component]
 pub fn ReplayControls(
     replay: MinesweeperReplay,
-    cell_read_signals: Vec<Vec<ReadSignal<PlayerCell>>>,
+    cell_read_signals: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
     cell_write_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_flag_count: WriteSignal<usize>,
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
@@ -80,8 +80,8 @@ pub fn ReplayControls(
     let replay = ReplayStore {
         replay: Rc::new(RefCell::new(replay)),
         cell_read_signals,
-        cell_write_signals,
-        player_write_signals,
+        cell_write_signals: cell_write_signals.into(),
+        player_write_signals: player_write_signals.into(),
     };
     let (replay, _) = create_signal(replay);
 
