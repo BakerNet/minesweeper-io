@@ -285,7 +285,8 @@ fn GameHistory() -> impl IntoView {
         }
     };
     view! {
-        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">Game History</h4>
+        <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Game History"</h4>
+        <div class="max-w-full overflow-x-auto">
         <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
             <thead>
                 <tr>
@@ -328,5 +329,6 @@ fn GameHistory() -> impl IntoView {
                 </Suspense>
             </tbody>
         </table>
+        </div>
     }
 }

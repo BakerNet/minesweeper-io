@@ -230,7 +230,7 @@ pub fn ReplayControls(
                         "Toggle Mines"
                     </span>
                 </label>
-                <div>
+                <div class="w-full max-w-xs flex justify-between items-center">
                     <button
                         type="button"
                         class=button_class(
@@ -249,7 +249,7 @@ pub fn ReplayControls(
                         max=max
                         value="0"
                         step="1"
-                        class="w-fill h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-200"
+                        class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-200"
                         node_ref=slider_el
                         on:input=move |_| to_pos()
                         on:change=move |_| to_pos()
