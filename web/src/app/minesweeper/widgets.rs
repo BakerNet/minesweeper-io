@@ -72,7 +72,7 @@ pub fn ActiveTimer(
                 <StopWatch />
             </span>
             <div class="flex flex-col items-center justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold px-2">
-                { display_time }
+                {display_time}
             </div>
         </div>
     }
@@ -83,7 +83,7 @@ pub fn InactiveMines(num_mines: usize) -> impl IntoView {
     view! {
         <div class="flex items-center">
             <div class="flex flex-col items-center justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold px-2">
-                { num_mines }
+                {num_mines}
             </div>
             <span class=widget_icon_holder("bg-neutral-200", false)>
                 <Mine />
@@ -97,7 +97,7 @@ pub fn ActiveMines(num_mines: usize, flag_count: ReadSignal<usize>) -> impl Into
     view! {
         <div class="flex items-center">
             <div class="flex flex-col items-center justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold px-2">
-                { move || num_mines as isize - flag_count.get() as isize }
+                {move || num_mines as isize - flag_count.get() as isize}
             </div>
             <span class=widget_icon_holder("bg-neutral-200", false)>
                 <Mine />
@@ -114,7 +114,7 @@ pub fn InactiveTimer(game_time: usize) -> impl IntoView {
                 <StopWatch />
             </span>
             <div class="flex flex-col items-center justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold px-2">
-                { game_time }
+                {game_time}
             </div>
         </div>
     }

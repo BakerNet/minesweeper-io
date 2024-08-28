@@ -2,7 +2,7 @@ use core::fmt;
 use std::{
     fmt::{Debug, Display, Formatter},
     ops::{Index, IndexMut},
-    slice::{Iter, IterMut},
+    slice::{Chunks, ChunksMut, Iter, IterMut},
 };
 
 use serde::{Deserialize, Serialize};
@@ -128,6 +128,14 @@ impl<T> Board<T> {
 
     pub fn is_empty(&self) -> bool {
         self.board.is_empty()
+    }
+
+    pub fn rows_iter(&self) -> Chunks<T> {
+        self.board.chunks(self.cols)
+    }
+
+    pub fn rows_iter_mut(&mut self) -> ChunksMut<T> {
+        self.board.chunks_mut(self.cols)
     }
 
     pub fn iter(&self) -> Iter<'_, T> {

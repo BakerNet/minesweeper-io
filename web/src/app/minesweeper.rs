@@ -3,15 +3,20 @@ mod client;
 mod entry;
 mod game;
 mod players;
+mod replay;
 mod widgets;
 
 use chrono::{DateTime, Utc};
 pub use entry::{GameMode, JoinOrCreateGame};
-pub use game::Game;
+pub use game::{GameReplay, GameView, GameWrapper};
 
 use serde::{Deserialize, Serialize};
 
-use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer};
+use minesweeper_lib::{
+    cell::PlayerCell,
+    client::ClientPlayer,
+    game::{Play, PlayOutcome},
+};
 
 #[cfg(feature = "ssr")]
 use super::auth::FrontendUser;
@@ -33,6 +38,13 @@ pub struct GameInfo {
     end_time: Option<DateTime<Utc>>,
     final_board: Vec<Vec<PlayerCell>>,
     players: Vec<Option<ClientPlayer>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameInfoWithLog {
+    game_info: GameInfo,
+    player_num: Option<u8>,
+    log: Vec<(Play, PlayOutcome)>,
 }
 
 #[cfg(feature = "ssr")]

@@ -140,8 +140,11 @@ impl Board<(Cell, CellState)> {
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Play {
+    #[serde(rename = "p", alias = "player")]
     pub player: usize,
+    #[serde(rename = "a", alias = "action")]
     pub action: Action,
+    #[serde(rename = "bp", alias = "point")]
     pub point: BoardPoint,
 }
 
@@ -591,6 +594,10 @@ impl CompletedMinesweeper {
             log: Some(log),
         }
     }
+
+    pub fn recover_log(self) -> Option<Vec<(Play, PlayOutcome)>> {
+        self.log
+    }
 }
 
 impl CompletedMinesweeper {
@@ -655,7 +662,9 @@ impl CompletedMinesweeper {
 
     fn board_start(&self) -> Board<PlayerCell> {
         let mut board = self.board.clone();
-        board.iter_mut().for_each(|pc| *pc = pc.into_hidden());
+        board
+            .iter_mut()
+            .for_each(|pc| *pc = pc.into_hidden().remove_flag());
         board
     }
 
@@ -674,7 +683,11 @@ impl CompletedMinesweeper {
             })
             .cloned()
             .collect();
-        Some(MinesweeperReplay::new(self.board_start(), player_log))
+        Some(MinesweeperReplay::new(
+            self.board_start(),
+            player_log,
+            self.players.len(),
+        ))
     }
 }
 
@@ -696,16 +709,33 @@ pub struct Player {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Action {
+    #[serde(rename = "f", alias = "Flag")]
     Flag,
+    #[serde(rename = "r", alias = "Reveal")]
     Reveal,
+    #[serde(rename = "ra", alias = "RevealAdjacent")]
     RevealAdjacent,
+}
+
+impl Action {
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Action::Flag => "Flag",
+            Action::Reveal => "Reveal",
+            Action::RevealAdjacent => "Reveal Adjacent",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum PlayOutcome {
+    #[serde(rename = "s", alias = "Success")]
     Success(Vec<(BoardPoint, RevealedCell)>),
+    #[serde(rename = "x", alias = "Failure")]
     Failure((BoardPoint, RevealedCell)),
+    #[serde(rename = "v", alias = "Victory")]
     Victory(Vec<(BoardPoint, RevealedCell)>),
+    #[serde(rename = "f", alias = "Flag")]
     Flag((BoardPoint, PlayerCell)),
 }
 

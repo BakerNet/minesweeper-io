@@ -19,7 +19,7 @@ pub struct PlayersContext {
     pub is_owner: bool,
     pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
-    pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    pub players: Rc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     pub players_loaded: ReadSignal<bool>,
     pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
@@ -32,7 +32,7 @@ impl PlayersContext {
             is_owner: frontend_game.is_owner,
             has_owner: frontend_game.has_owner,
             player_id: frontend_game.player_id,
-            players: frontend_game.players.clone(),
+            players: Rc::clone(&frontend_game.players),
             players_loaded: frontend_game.players_loaded,
             join_trigger: frontend_game.join_trigger,
             started: frontend_game.started,
@@ -46,7 +46,7 @@ pub struct FrontendGame {
     pub is_owner: bool,
     pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
-    pub players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    pub players: Rc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     pub players_loaded: ReadSignal<bool>,
     pub err_signal: WriteSignal<Option<String>>,
     pub join_trigger: Trigger,
@@ -54,10 +54,10 @@ pub struct FrontendGame {
     pub completed: ReadSignal<bool>,
     pub sync_time: ReadSignal<Option<usize>>,
     pub flag_count: ReadSignal<usize>,
-    pub cells: Vec<Vec<ReadSignal<PlayerCell>>>,
-    cell_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
+    pub cells: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_signals: Rc<Vec<Vec<WriteSignal<PlayerCell>>>>,
     set_player_id: WriteSignal<Option<usize>>,
-    player_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
+    player_signals: Rc<Vec<WriteSignal<Option<ClientPlayer>>>>,
     set_players_loaded: WriteSignal<bool>,
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
@@ -73,19 +73,7 @@ impl FrontendGame {
         err_signal: WriteSignal<Option<String>>,
         send: Rc<dyn Fn(&String)>,
     ) -> Self {
-        let mut read_signals = Vec::with_capacity(game_info.rows * game_info.cols);
-        let mut write_signals = Vec::with_capacity(game_info.rows * game_info.cols);
-        game_info.final_board.iter().for_each(|cells| {
-            let mut read_row = Vec::new();
-            let mut write_row = Vec::new();
-            cells.iter().for_each(|cell| {
-                let (rs, ws) = create_signal(*cell);
-                read_row.push(rs);
-                write_row.push(ws);
-            });
-            read_signals.push(read_row);
-            write_signals.push(write_row);
-        });
+        let (read_signals, write_signals) = signals_from_board(&game_info.final_board);
         let mut players = Vec::with_capacity(game_info.players.len());
         let mut player_signals = Vec::with_capacity(game_info.players.len());
         game_info.players.iter().for_each(|p| {
@@ -106,12 +94,12 @@ impl FrontendGame {
             game_id: Rc::new(game_info.game_id.to_owned()),
             is_owner: game_info.is_owner,
             has_owner: game_info.has_owner,
-            cells: read_signals,
-            cell_signals: write_signals,
+            cells: read_signals.into(),
+            cell_signals: write_signals.into(),
             player_id,
             set_player_id,
-            players,
-            player_signals,
+            players: players.into(),
+            player_signals: player_signals.into(),
             players_loaded,
             set_players_loaded,
             err_signal,
@@ -290,4 +278,27 @@ impl FrontendGame {
         log::debug!("before send {s}");
         (self.send)(s)
     }
+}
+
+#[allow(clippy::type_complexity)]
+pub fn signals_from_board(
+    board: &[Vec<PlayerCell>],
+) -> (
+    Vec<Vec<ReadSignal<PlayerCell>>>,
+    Vec<Vec<WriteSignal<PlayerCell>>>,
+) {
+    let mut read_signals = Vec::with_capacity(board.len() * board[0].len());
+    let mut write_signals = Vec::with_capacity(board.len() * board[0].len());
+    board.iter().for_each(|cells| {
+        let mut read_row = Vec::new();
+        let mut write_row = Vec::new();
+        cells.iter().for_each(|cell| {
+            let (rs, ws) = create_signal(*cell);
+            read_row.push(rs);
+            write_row.push(ws);
+        });
+        read_signals.push(read_row);
+        write_signals.push(write_row);
+    });
+    (read_signals, write_signals)
 }

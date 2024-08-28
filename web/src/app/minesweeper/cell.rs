@@ -82,6 +82,24 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 }
 
 #[component]
+pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+    let id = format!("{}_{}", row, col);
+    let class = move || {
+        let item = cell();
+        cell_class(&cell_contents_class(item, true), &cell_player_class(item))
+    };
+
+    view! {
+        <span class=class id=id oncontextmenu="event.preventDefault();">
+            {move || {
+                let item = cell();
+                view! { <CellContents cell=item /> }
+            }}
+        </span>
+    }
+}
+
+#[component]
 fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
         PlayerCell::Hidden(hc) => match hc {

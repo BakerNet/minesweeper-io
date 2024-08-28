@@ -10,7 +10,7 @@ use super::{
     header::Header,
     home::HomePage,
     login::LoginPage,
-    minesweeper::Game,
+    minesweeper::{GameReplay, GameView, GameWrapper},
     profile::Profile,
 };
 
@@ -59,18 +59,18 @@ pub fn App() -> impl IntoView {
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user />
                 <Routes>
-                    <Route path="/" view=move || view! { <HomePage /> } />
+                    <Route path="/" view=HomePage />
                     <Route path="/auth/login" view=move || view! { <LoginPage login /> } />
                     <Route
                         path="/profile"
                         view=move || {
-                            view! {
-                                <Profile user logout user_updated />
-                            }
+                            view! { <Profile user logout user_updated /> }
                         }
                     />
-
-                    <Route path="/game/:id" view=|| view! { <Game /> } />
+                    <Route path="/game/:id" view=GameWrapper>
+                        <Route path="/replay" view=GameReplay />
+                        <Route path="/" view=GameView />
+                    </Route>
                 </Routes>
                 <ControlsInfoButton set_show_info />
                 <Show when=show_info>

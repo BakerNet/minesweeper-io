@@ -3,21 +3,73 @@ use anyhow::{bail, Result};
 use crate::{
     board::Board,
     cell::{HiddenCell, PlayerCell},
+    client::ClientPlayer,
     game::{Play, PlayOutcome},
 };
+
+#[derive(Debug)]
+pub enum ReplayPosition {
+    End,
+    Beginning,
+    Other(usize),
+}
+
+impl ReplayPosition {
+    pub fn from_pos(pos: usize, len: usize) -> Self {
+        match pos {
+            p if p == len => ReplayPosition::End,
+            0 => ReplayPosition::Beginning,
+            default => ReplayPosition::Other(default),
+        }
+    }
+
+    pub fn to_pos(&self, len: usize) -> usize {
+        match self {
+            ReplayPosition::End => len,
+            ReplayPosition::Beginning => 0,
+            ReplayPosition::Other(default) => *default,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SimplePlayer {
+    score: usize,
+    dead: bool,
+    victory_click: bool,
+}
+
+impl SimplePlayer {
+    pub fn update_client_player(self, cp: &mut ClientPlayer) {
+        cp.top_score = false;
+        cp.score = self.score;
+        cp.dead = self.dead;
+        cp.victory_click = self.victory_click;
+    }
+}
 
 pub struct MinesweeperReplay {
     current_play: Option<Play>,
     current_board: Board<PlayerCell>,
+    current_players: Vec<SimplePlayer>,
+    current_flags: usize,
+    current_revealed_mines: usize,
     log: Vec<(Play, PlayOutcome)>,
     current_pos: usize,
 }
 
 impl MinesweeperReplay {
-    pub fn new(starting_board: Board<PlayerCell>, log: Vec<(Play, PlayOutcome)>) -> Self {
+    pub fn new(
+        starting_board: Board<PlayerCell>,
+        log: Vec<(Play, PlayOutcome)>,
+        players: usize,
+    ) -> Self {
         Self {
             current_board: starting_board,
             current_play: None,
+            current_players: vec![SimplePlayer::default(); players],
+            current_flags: 0,
+            current_revealed_mines: 0,
             log,
             current_pos: 0,
         }
@@ -31,8 +83,8 @@ impl MinesweeperReplay {
         false
     }
 
-    pub fn current_pos(&self) -> usize {
-        self.current_pos
+    pub fn current_pos(&self) -> ReplayPosition {
+        ReplayPosition::from_pos(self.current_pos, self.len() - 1)
     }
 
     pub fn current_play(&self) -> Option<Play> {
@@ -43,7 +95,15 @@ impl MinesweeperReplay {
         &self.current_board
     }
 
-    pub fn advance(&mut self) -> Result<()> {
+    pub fn current_players(&self) -> &Vec<SimplePlayer> {
+        &self.current_players
+    }
+
+    pub fn current_flags_and_revealed_mines(&self) -> usize {
+        self.current_flags + self.current_revealed_mines
+    }
+
+    pub fn advance(&mut self) -> Result<ReplayPosition> {
         if self.current_pos == self.len() - 1 {
             bail!("Called next on end")
         }
@@ -51,27 +111,36 @@ impl MinesweeperReplay {
         self.current_play = Some(play.0);
         match &play.1 {
             PlayOutcome::Success(results) => results.iter().for_each(|rc| {
+                self.current_players[rc.1.player].score += 1;
                 self.current_board[rc.0] = PlayerCell::Revealed(rc.1);
             }),
             PlayOutcome::Failure(rc) => {
+                self.current_players[rc.1.player].dead = true;
+                self.current_revealed_mines += 1;
                 self.current_board[rc.0] = PlayerCell::Revealed(rc.1);
             }
-            PlayOutcome::Victory(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.0] = PlayerCell::Revealed(rc.1);
-            }),
+            PlayOutcome::Victory(results) => {
+                self.current_players[results[0].1.player].victory_click = true;
+                results.iter().for_each(|rc| {
+                    self.current_players[rc.1.player].score += 1;
+                    self.current_board[rc.0] = PlayerCell::Revealed(rc.1);
+                });
+            }
             PlayOutcome::Flag(res) => {
                 if matches!(res.1, PlayerCell::Hidden(HiddenCell::Flag)) {
+                    self.current_flags += 1;
                     self.current_board[res.0] = self.current_board[res.0].add_flag()
                 } else {
+                    self.current_flags -= 1;
                     self.current_board[res.0] = self.current_board[res.0].remove_flag()
                 }
             }
         };
         self.current_pos += 1;
-        Ok(())
+        Ok(self.current_pos())
     }
 
-    pub fn rewind(&mut self) -> Result<()> {
+    pub fn rewind(&mut self) -> Result<ReplayPosition> {
         if self.current_pos == 0 {
             bail!("Called prev on start")
         }
@@ -84,26 +153,35 @@ impl MinesweeperReplay {
         };
         match &play_to_undo.1 {
             PlayOutcome::Success(results) => results.iter().for_each(|rc| {
+                self.current_players[rc.1.player].score -= 1;
                 self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Empty);
             }),
             PlayOutcome::Failure(rc) => {
+                self.current_players[rc.1.player].dead = false;
+                self.current_revealed_mines -= 1;
                 self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Mine);
             }
-            PlayOutcome::Victory(results) => results.iter().for_each(|rc| {
-                self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Empty);
-            }),
+            PlayOutcome::Victory(results) => {
+                self.current_players[results[0].1.player].victory_click = false;
+                results.iter().for_each(|rc| {
+                    self.current_players[rc.1.player].score -= 1;
+                    self.current_board[rc.0] = PlayerCell::Hidden(HiddenCell::Empty);
+                });
+            }
             PlayOutcome::Flag(res) => {
                 if matches!(res.1, PlayerCell::Hidden(HiddenCell::Flag)) {
+                    self.current_flags -= 1;
                     self.current_board[res.0] = self.current_board[res.0].remove_flag()
                 } else {
+                    self.current_flags += 1;
                     self.current_board[res.0] = self.current_board[res.0].add_flag()
                 }
             }
         };
-        Ok(())
+        Ok(self.current_pos())
     }
 
-    pub fn to_pos(&mut self, pos: usize) -> Result<()> {
+    pub fn to_pos(&mut self, pos: usize) -> Result<ReplayPosition> {
         if pos >= self.len() {
             bail!(
                 "Called to_pos with pos out of bounds (max {}): {}",
@@ -117,7 +195,7 @@ impl MinesweeperReplay {
         while pos > self.current_pos {
             let _ = self.advance();
         }
-        Ok(())
+        Ok(self.current_pos())
     }
 }
 
@@ -282,30 +360,44 @@ mod test {
                     PlayOutcome::Failure(PLAY_4_RES),
                 ),
             ]),
+            2,
         );
 
-        // test advance
+        // test defaults
+        assert_eq!(replay.current_players.len(), 2);
+        assert_eq!(
+            replay
+                .current_players
+                .iter()
+                .map(|p| p.score)
+                .sum::<usize>(),
+            0
+        );
+        assert_eq!(replay.current_flags, 0);
+        assert_eq!(replay.current_revealed_mines, 0);
         assert_eq!(replay.len(), 5);
-        assert!(matches!(replay.advance(), Ok(())));
+
+        // test advance
+        assert!(matches!(replay.advance(), Ok(ReplayPosition::Other(1))));
         assert_eq!(replay.current_board(), &expected_board_1);
-        assert!(matches!(replay.advance(), Ok(())));
+        assert!(matches!(replay.advance(), Ok(ReplayPosition::Other(2))));
         assert_eq!(replay.current_board(), &expected_board_2);
-        assert!(matches!(replay.advance(), Ok(())));
+        assert!(matches!(replay.advance(), Ok(ReplayPosition::Other(3))));
         assert_eq!(replay.current_board(), &expected_board_3);
-        assert!(matches!(replay.advance(), Ok(())));
+        assert!(matches!(replay.advance(), Ok(ReplayPosition::End)));
         assert_eq!(replay.current_board(), &expected_final_board);
 
         // should error on advance at end
         assert!(replay.advance().is_err());
 
         // test rewind
-        assert!(matches!(replay.rewind(), Ok(())));
+        assert!(matches!(replay.rewind(), Ok(ReplayPosition::Other(3))));
         assert_eq!(replay.current_board(), &expected_board_3);
-        assert!(matches!(replay.rewind(), Ok(())));
+        assert!(matches!(replay.rewind(), Ok(ReplayPosition::Other(2))));
         assert_eq!(replay.current_board(), &expected_board_2);
-        assert!(matches!(replay.rewind(), Ok(())));
+        assert!(matches!(replay.rewind(), Ok(ReplayPosition::Other(1))));
         assert_eq!(replay.current_board(), &expected_board_1);
-        assert!(matches!(replay.rewind(), Ok(())));
+        assert!(matches!(replay.rewind(), Ok(ReplayPosition::Beginning)));
         assert_eq!(replay.current_board(), &expected_starting_board);
 
         // should error on rewind at beginning
