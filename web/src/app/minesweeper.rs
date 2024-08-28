@@ -8,7 +8,7 @@ mod widgets;
 
 use chrono::{DateTime, Utc};
 pub use entry::{GameMode, JoinOrCreateGame};
-pub use game::{GameReplay, GameView};
+pub use game::{GameReplay, GameView, GameWrapper};
 
 use serde::{Deserialize, Serialize};
 

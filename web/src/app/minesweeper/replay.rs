@@ -242,7 +242,6 @@ pub fn ReplayControls(
                     >
                         "Prev"
                     </button>
-                    // TODO
                     <input
                         type="range"
                         min=min

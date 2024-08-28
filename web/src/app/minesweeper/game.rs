@@ -190,6 +190,19 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
 }
 
 #[component]
+pub fn GameWrapper() -> impl IntoView {
+    let params = use_params_map();
+    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+
+    view! {
+        <div class="text-center">
+            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">"Game: "{game_id}</h3>
+            <Outlet />
+        </div>
+    }
+}
+
+#[component]
 pub fn GameView() -> impl IntoView {
     let params = use_params_map();
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
@@ -389,51 +402,46 @@ where
     let players = players_context.players.clone();
 
     view! {
-        <div class="text-center">
-            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{&game_info.game_id}
-            </h3>
-            <ActivePlayers players>
-                <PlayerButtons players_context />
-            </ActivePlayers>
-            <GameWidgets>
-                <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
-                <CopyGameLink game_id=game_info.game_id />
-                <ActiveTimer sync_time=game.sync_time completed=game.completed />
-            </GameWidgets>
-            <GameBorder set_active=set_game_is_active>
-                {game
-                    .cells
-                    .iter()
-                    .enumerate()
-                    .map(move |(row, vec)| {
-                        view! {
-                            <div class="whitespace-nowrap">
-                                {vec
-                                    .iter()
-                                    .copied()
-                                    .enumerate()
-                                    .map(move |(col, cell)| {
-                                        view! {
-                                            <ActiveCell
-                                                row=row
-                                                col=col
-                                                cell=cell
-                                                set_active=set_active_cell
-                                                mousedown_handler=handle_mousedown
-                                                mouseup_handler=handle_mouseup
-                                            />
-                                        }
-                                    })
-                                    .collect_view()}
-                            </div>
-                        }
-                    })
-                    .collect_view()}
+        <ActivePlayers players title="Players">
+            <PlayerButtons players_context />
+        </ActivePlayers>
+        <GameWidgets>
+            <ActiveMines num_mines=game_info.num_mines flag_count=game.flag_count />
+            <CopyGameLink game_id=game_info.game_id />
+            <ActiveTimer sync_time=game.sync_time completed=game.completed />
+        </GameWidgets>
+        <GameBorder set_active=set_game_is_active>
+            {game
+                .cells
+                .iter()
+                .enumerate()
+                .map(move |(row, vec)| {
+                    view! {
+                        <div class="whitespace-nowrap">
+                            {vec
+                                .iter()
+                                .copied()
+                                .enumerate()
+                                .map(move |(col, cell)| {
+                                    view! {
+                                        <ActiveCell
+                                            row=row
+                                            col=col
+                                            cell=cell
+                                            set_active=set_active_cell
+                                            mousedown_handler=handle_mousedown
+                                            mouseup_handler=handle_mouseup
+                                        />
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                })
+                .collect_view()}
 
-            </GameBorder>
-            <div class="text-red-600 h-8">{error}</div>
-        </div>
+        </GameBorder>
+        <div class="text-red-600 h-8">{error}</div>
     }
 }
 
@@ -447,42 +455,45 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         .flatten()
         .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
         .count();
+    let is_victory = game_info
+        .players
+        .iter()
+        .filter_map(|cp| cp.as_ref())
+        .any(|cp| cp.victory_click);
 
     view! {
-        <div class="text-center">
-            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{&game_info.game_id}
-            </h3>
-            <InactivePlayers players=game_info.players />
-            <GameWidgets>
-                <InactiveMines num_mines=num_mines />
-                <CopyGameLink game_id=game_info.game_id />
-                <InactiveTimer game_time />
-            </GameWidgets>
-            <GameBorder set_active=move |_| {}>
-                {game_info
-                    .final_board
-                    .into_iter()
-                    .enumerate()
-                    .map(move |(row, vec)| {
-                        view! {
-                            <div class="whitespace-nowrap">
-                                {vec
-                                    .iter()
-                                    .copied()
-                                    .enumerate()
-                                    .map(move |(col, cell)| {
-                                        view! { <InactiveCell row=row col=col cell=cell /> }
-                                    })
-                                    .collect_view()}
-                            </div>
-                        }
-                    })
-                    .collect_view()}
-            </GameBorder>
-            <ReCreateGame game_settings />
-            <OpenReplay />
-        </div>
+        <InactivePlayers
+            players=game_info.players
+            title=if is_victory { "Complete" } else { "Game Over" }
+        />
+        <GameWidgets>
+            <InactiveMines num_mines=num_mines />
+            <CopyGameLink game_id=game_info.game_id />
+            <InactiveTimer game_time />
+        </GameWidgets>
+        <GameBorder set_active=move |_| {}>
+            {game_info
+                .final_board
+                .into_iter()
+                .enumerate()
+                .map(move |(row, vec)| {
+                    view! {
+                        <div class="whitespace-nowrap">
+                            {vec
+                                .iter()
+                                .copied()
+                                .enumerate()
+                                .map(move |(col, cell)| {
+                                    view! { <InactiveCell row=row col=col cell=cell /> }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                })
+                .collect_view()}
+        </GameBorder>
+        <ReCreateGame game_settings />
+        <OpenReplay />
     }
 }
 
@@ -515,54 +526,51 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let cells = cell_read_signals.clone();
 
     view! {
-        <div class="text-center">
-            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "Game: "{&game_info.game_id}
-            </h3>
-            <ActivePlayers players=player_read_signals>{}</ActivePlayers>
-            <GameWidgets>
-                <ActiveMines num_mines=game_info.num_mines flag_count />
-                <CopyGameLink game_id=game_info.game_id />
-                <InactiveTimer game_time />
-            </GameWidgets>
-            <GameBorder set_active=move |_| ()>
-                {cells
-                    .iter()
-                    .enumerate()
-                    .map(move |(row, vec)| {
-                        view! {
-                            <div class="whitespace-nowrap">
-                                {vec
-                                    .iter()
-                                    .copied()
-                                    .enumerate()
-                                    .map(move |(col, cell)| {
-                                        view! {
-                                            <ActiveCell
-                                                row=row
-                                                col=col
-                                                cell=cell
-                                                set_active=set_active_cell
-                                                mousedown_handler=move |_, _, _| ()
-                                                mouseup_handler=move |_, _, _| ()
-                                            />
-                                        }
-                                    })
-                                    .collect_view()}
-                            </div>
-                        }
-                    })
-                    .collect_view()}
+        <ActivePlayers players=player_read_signals title="Replay">
+            {}
+        </ActivePlayers>
+        <GameWidgets>
+            <ActiveMines num_mines=game_info.num_mines flag_count />
+            <CopyGameLink game_id=game_info.game_id />
+            <InactiveTimer game_time />
+        </GameWidgets>
+        <GameBorder set_active=move |_| ()>
+            {cells
+                .iter()
+                .enumerate()
+                .map(move |(row, vec)| {
+                    view! {
+                        <div class="whitespace-nowrap">
+                            {vec
+                                .iter()
+                                .copied()
+                                .enumerate()
+                                .map(move |(col, cell)| {
+                                    view! {
+                                        <ActiveCell
+                                            row=row
+                                            col=col
+                                            cell=cell
+                                            set_active=set_active_cell
+                                            mousedown_handler=move |_, _, _| ()
+                                            mouseup_handler=move |_, _, _| ()
+                                        />
+                                    }
+                                })
+                                .collect_view()}
+                        </div>
+                    }
+                })
+                .collect_view()}
 
-            </GameBorder>
-            <ReplayControls
-                replay
-                cell_read_signals
-                cell_write_signals
-                set_flag_count
-                player_write_signals
-            />
-        </div>
+        </GameBorder>
+        <ReplayControls
+            replay
+            cell_read_signals
+            cell_write_signals
+            set_flag_count
+            player_write_signals
+        />
     }
 }
 

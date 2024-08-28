@@ -39,11 +39,12 @@ fn Scoreboard(children: Children) -> impl IntoView {
 #[component]
 pub fn ActivePlayers(
     players: Vec<ReadSignal<Option<ClientPlayer>>>,
+    title: &'static str,
     children: Children,
 ) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Players"</h4>
+            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
             <Scoreboard>
                 {players
                     .into_iter()
@@ -105,16 +106,10 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
 }
 
 #[component]
-pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
-    let is_victory = players
-        .iter()
-        .filter_map(|cp| cp.as_ref())
-        .any(|cp| cp.victory_click);
+pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>, title: &'static str) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">
-                {if is_victory { "Complete" } else { "Game Over" }}
-            </h4>
+            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
             <Scoreboard>
 
                 {players
