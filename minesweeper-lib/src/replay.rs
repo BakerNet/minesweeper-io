@@ -7,6 +7,7 @@ use crate::{
     game::{Play, PlayOutcome},
 };
 
+#[derive(Debug)]
 pub enum ReplayPosition {
     End,
     Beginning,
@@ -14,16 +15,24 @@ pub enum ReplayPosition {
 }
 
 impl ReplayPosition {
-    fn from_pos(pos: usize, len: usize) -> Self {
+    pub fn from_pos(pos: usize, len: usize) -> Self {
         match pos {
             p if p == len => ReplayPosition::End,
             0 => ReplayPosition::Beginning,
             default => ReplayPosition::Other(default),
         }
     }
+
+    pub fn to_pos(&self, len: usize) -> usize {
+        match self {
+            ReplayPosition::End => len,
+            ReplayPosition::Beginning => 0,
+            ReplayPosition::Other(default) => *default,
+        }
+    }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct SimplePlayer {
     score: usize,
     dead: bool,
@@ -122,7 +131,7 @@ impl MinesweeperReplay {
                     self.current_flags += 1;
                     self.current_board[res.0] = self.current_board[res.0].add_flag()
                 } else {
-                    self.current_flags += 1;
+                    self.current_flags -= 1;
                     self.current_board[res.0] = self.current_board[res.0].remove_flag()
                 }
             }
@@ -172,7 +181,7 @@ impl MinesweeperReplay {
         Ok(self.current_pos())
     }
 
-    pub fn to_pos(&mut self, pos: usize) -> Result<()> {
+    pub fn to_pos(&mut self, pos: usize) -> Result<ReplayPosition> {
         if pos >= self.len() {
             bail!(
                 "Called to_pos with pos out of bounds (max {}): {}",
@@ -186,7 +195,7 @@ impl MinesweeperReplay {
         while pos > self.current_pos {
             let _ = self.advance();
         }
-        Ok(())
+        Ok(self.current_pos())
     }
 }
 

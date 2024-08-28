@@ -1,5 +1,6 @@
 use anyhow::Result;
 use leptos::*;
+use leptos_router::*;
 use std::{cell::RefCell, rc::Rc};
 
 use crate::components::button_class;
@@ -41,6 +42,11 @@ impl ReplayStore {
         replay.rewind()
     }
 
+    fn to_pos(&self, pos: usize) -> Result<ReplayPosition> {
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        replay.to_pos(pos)
+    }
+
     fn flags(&self) -> usize {
         let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
         replay.current_flags_and_revealed_mines()
@@ -61,9 +67,12 @@ pub fn ReplayControls(
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
 ) -> impl IntoView {
     log::debug!("replay log length: {}", replay.len());
+    let min = 0;
+    let max = replay.len() - 1;
+    let slider_el: NodeRef<html::Input> = create_node_ref();
 
     let (replay_started, set_replay_started) = create_signal(false);
-    let (hide_mines, set_hide_mine) = create_signal(false);
+    let (hide_mines, set_hide_mines) = create_signal(false);
     let (is_beginning, set_beginning) = create_signal(true);
     let (is_end, set_end) = create_signal(false);
     let (current_play, set_current_play) = create_signal::<Option<Play>>(None);
@@ -127,11 +136,16 @@ pub fn ReplayControls(
     let next = move || {
         let replay = replay.get_untracked();
         let res = replay.next();
-        if res.is_ok() {
+        let slider = slider_el
+            .get_untracked()
+            .expect("Slider reference should be set");
+        if let Ok(res) = &res {
             render_current();
-        }
-        if matches!(res, Ok(ReplayPosition::End)) {
-            set_end(true);
+            let new_pos = res.to_pos(max);
+            slider.set_value(&format!("{}", new_pos));
+            if matches!(res, ReplayPosition::End) {
+                set_end(true);
+            }
         }
         set_beginning(false);
     };
@@ -139,13 +153,48 @@ pub fn ReplayControls(
     let prev = move || {
         let replay = replay.get_untracked();
         let res = replay.prev();
+        let slider = slider_el
+            .get_untracked()
+            .expect("Slider reference should be set");
+        if let Ok(res) = &res {
+            render_current();
+            let new_pos = res.to_pos(max);
+            slider.set_value(&format!("{}", new_pos));
+            if matches!(res, ReplayPosition::Beginning) {
+                set_beginning(true);
+            }
+        }
+        set_end(false);
+    };
+
+    let to_pos = move || {
+        let replay = replay.get_untracked();
+        let slider = slider_el
+            .get_untracked()
+            .expect("Slider reference should be set")
+            .value();
+        let pos = slider
+            .parse::<usize>()
+            .expect("Slider value should be number");
+        let res = replay.to_pos(pos);
         if res.is_ok() {
             render_current();
         }
-        if matches!(res, Ok(ReplayPosition::Beginning)) {
-            set_beginning(true);
+        log::debug!("Slider: {} / {}", pos, max);
+        match res {
+            Ok(ReplayPosition::Beginning) => {
+                set_beginning(true);
+                set_end(false);
+            }
+            Ok(ReplayPosition::End) => {
+                set_beginning(false);
+                set_end(true);
+            }
+            _ => {
+                set_beginning(false);
+                set_end(false);
+            }
         }
-        set_end(false);
     };
 
     view! {
@@ -154,7 +203,7 @@ pub fn ReplayControls(
                 <button
                     type="button"
                     class=button_class(
-                        Some("w-full max-w-xs h-8"),
+                        Some("max-w-xs h-10 rounded-lg text-lg"),
                         Some("bg-green-700 hover:bg-green-800/90 text-white"),
                     )
                     on:click=move |_| {
@@ -166,18 +215,21 @@ pub fn ReplayControls(
                 </button>
             </Show>
             <Show when=replay_started>
-                <button
-                    type="button"
-                    class=button_class(
-                        Some("max-w-xs h-8 select-none"),
-                        Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
-                    )
-                    on:click=move |_| {
-                        set_hide_mine.update(|b| *b = !*b);
-                    }
-                >
-                    "Toggle Mines"
-                </button>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        value=""
+                        class="sr-only peer"
+                        checked
+                        on:change=move |ev| {
+                            set_hide_mines(!event_target_checked(&ev));
+                        }
+                    />
+                    <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                        "Toggle Mines"
+                    </span>
+                </label>
                 <div>
                     <button
                         type="button"
@@ -191,9 +243,17 @@ pub fn ReplayControls(
                         "Prev"
                     </button>
                     // TODO
-                    <span data-hk="1-3-2-8" class="text-xl my-4 text-gray-900 dark:text-gray-200">
-                        "Slider Goes Here"
-                    </span>
+                    <input
+                        type="range"
+                        min=min
+                        max=max
+                        value="0"
+                        step="1"
+                        class="w-fill h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-200"
+                        node_ref=slider_el
+                        on:input=move |_| to_pos()
+                        on:change=move |_| to_pos()
+                    />
                     <button
                         type="button"
                         class=button_class(
@@ -227,6 +287,23 @@ pub fn ReplayControls(
                         })
                 }}
             </Show>
+        </div>
+    }
+}
+
+#[component]
+pub fn OpenReplay() -> impl IntoView {
+    view! {
+        <div class="flex flex-col items-center space-y-4 mb-8">
+            <A
+                href="replay"
+                class=button_class(
+                    Some("w-full max-w-xs h-8"),
+                    Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
+                )
+            >
+                "Open Replay"
+            </A>
         </div>
     }
 }

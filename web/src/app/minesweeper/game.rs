@@ -18,7 +18,7 @@ use super::{
     client::{signals_from_board, FrontendGame, PlayersContext},
     entry::ReCreateGame,
     players::{ActivePlayers, InactivePlayers, PlayerButtons},
-    replay::ReplayControls,
+    replay::{OpenReplay, ReplayControls},
     widgets::{ActiveMines, ActiveTimer, CopyGameLink, GameWidgets, InactiveMines, InactiveTimer},
     {GameInfo, GameInfoWithLog, GameSettings},
 };
@@ -481,6 +481,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
                     .collect_view()}
             </GameBorder>
             <ReCreateGame game_settings />
+            <OpenReplay />
         </div>
     }
 }
@@ -517,9 +518,6 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         <div class="text-center">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
                 "Game: "{&game_info.game_id}
-            </h3>
-            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">
-                "REPLAY FEATURE COMING SOON"
             </h3>
             <ActivePlayers players=player_read_signals>{}</ActivePlayers>
             <GameWidgets>
