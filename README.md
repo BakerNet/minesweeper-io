@@ -10,7 +10,21 @@ Deployed on [Fly.io](https://fly.io/)
 
 ## Project Status
 
-Early development - very much lacking in features, but in a playable demo state
+Early development - but in a very playable demo state
+
+Features:
+
+- Log in with OAuth2 - Google, Reddit, and Github Providers
+  - Only username/login is used as an internal ID.  No other user data is used or stored (and internal ID is not accessible via UI)
+- Create Multiplayer & Singleplayers games
+  - Any Custom game with 1 max player is considered Singleplayer
+- Spectate any active game
+- Join Multiplayers games created by someone else
+- Watch Replay of a game
+  - Singleplayer Replays always show flags
+  - Multiplayer Replays only logged-in users their own flags
+- Logged in users have profile page to see their game history or set their display name
+- Basic keyboard commands (not yet mappable) as alternative to mouse buttons
 
 ## Minesweeper-lib
 
