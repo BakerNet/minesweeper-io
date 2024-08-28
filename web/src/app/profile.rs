@@ -287,48 +287,48 @@ fn GameHistory() -> impl IntoView {
     view! {
         <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Game History"</h4>
         <div class="max-w-full overflow-x-auto">
-        <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
-            <thead>
-                <tr>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Game"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Date"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Game Mode"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Duration"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Status"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Score"
-                    </th>
-                </tr>
-            </thead>
-            <tbody>
-                <Suspense fallback=move || {
-                    (0..5).map(loading_row).collect_view()
-                }>
+            <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
+                <thead>
+                    <tr>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Game"
+                        </th>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Date"
+                        </th>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Game Mode"
+                        </th>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Duration"
+                        </th>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Status"
+                        </th>
+                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
+                            "Score"
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <Suspense fallback=move || {
+                        (0..5).map(loading_row).collect_view()
+                    }>
 
-                    {move || {
-                        player_games
-                            .get()
-                            .map(|games| {
-                                games
-                                    .map(move |games| {
-                                        games.into_iter().map(game_view).collect_view()
-                                    })
-                            })
-                    }}
+                        {move || {
+                            player_games
+                                .get()
+                                .map(|games| {
+                                    games
+                                        .map(move |games| {
+                                            games.into_iter().map(game_view).collect_view()
+                                        })
+                                })
+                        }}
 
-                </Suspense>
-            </tbody>
-        </table>
+                    </Suspense>
+                </tbody>
+            </table>
         </div>
     }
 }
