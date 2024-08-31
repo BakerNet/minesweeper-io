@@ -1,0 +1,43 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: "Install wasm32-unknown-unknown"
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        toolchain: "nightly"
+        targets: "wasm32-unknown-unknown"
+        components: "clippy"
+    - name: Install cargo-leptos
+      uses: baptiste0928/cargo-install@v3.1.1
+      with:
+        crate: cargo-leptos
+    - name: Install leptosfmt
+      uses: baptiste0928/cargo-install@v3.1.1
+      with:
+        crate: leptosfmt
+    - name: Run build
+      run: cargo leptos build --release
+    - name: Run tests
+      run: cargo test --verbose
+    - name: Run clippy
+      run: |
+        cargo clippy
+        cargo clippy --features=ssr
+        cargo clippy --features=hydrate
+    - name: Run formatter
+      run: leptosfmt web --check
