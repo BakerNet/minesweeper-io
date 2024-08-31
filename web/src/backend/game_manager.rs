@@ -503,7 +503,6 @@ impl GameHandler {
         }
     }
 
-    #[allow(unused)]
     async fn handle_message(&mut self, msg: &str) -> Option<()> {
         if !self.game.is_started {
             return None;
