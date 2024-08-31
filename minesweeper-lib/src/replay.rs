@@ -404,11 +404,11 @@ mod test {
         assert!(replay.rewind().is_err());
 
         // try to_pos (auto advance/rewind)
-        assert!(matches!(replay.to_pos(2), Ok(())));
+        assert!(matches!(replay.to_pos(2), Ok(ReplayPosition::Other(2))));
         assert_eq!(replay.current_board(), &expected_board_2);
-        assert!(matches!(replay.to_pos(4), Ok(())));
+        assert!(matches!(replay.to_pos(4), Ok(ReplayPosition::End)));
         assert_eq!(replay.current_board(), &expected_final_board);
-        assert!(matches!(replay.to_pos(1), Ok(())));
+        assert!(matches!(replay.to_pos(1), Ok(ReplayPosition::Other(1))));
         assert_eq!(replay.current_board(), &expected_board_1);
 
         assert!(replay.to_pos(5).is_err());
