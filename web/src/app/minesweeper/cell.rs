@@ -131,7 +131,8 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
                     <Mine />
                 </span>
             },
-            Cell::Empty(_) => view! { <span>{format!("{:?}", cell)}</span> },
+            Cell::Empty(0) => view! { <span></span> },
+            Cell::Empty(n) => view! { <span>{n}</span> },
         },
     }
 }

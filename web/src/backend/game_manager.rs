@@ -26,7 +26,7 @@ use tokio::{
 
 use crate::{
     app::FrontendUser,
-    messages::GameMessage,
+    messages::{ClientMessage, GameMessage},
     models::{
         game::{Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser},
         user::User,
@@ -417,7 +417,11 @@ async fn handle_message(
     if !started {
         return None;
     }
-    let play = serde_json::from_str::<Play>(msg).ok()?;
+    let play = serde_json::from_str::<ClientMessage>(msg).ok()?;
+    let play = match play {
+        ClientMessage::Play(p) => p,
+        _ => return None,
+    };
     if play.player > player_handles.len() {
         return None;
     }
@@ -625,21 +629,23 @@ pub async fn websocket(
                 _ = (&mut send_task) => break,
                 recvd = receiver.next() => {
                     match recvd {
-                        Some(Ok(Message::Text(msg))) if msg == "Play" => {
-                            log::debug!("Trying to Play");
-                            let resp = game_manager.play_game(game_id, &user, Arc::clone(&sender)).await;
-                            match resp {
-                                Ok(tx) => {
-                                    game_sender = Some(tx);
-                                    break;
-                                },
-                                Err(e) => {log::error!("Error playing game: {}", e)},
+                        Some(Ok(Message::Text(msg))) => {
+                            let client_message = serde_json::from_str::<ClientMessage>(&msg);
+                            match &client_message {
+                                Ok(ClientMessage::PlayGame) => {
+                                    log::debug!("Trying to Play");
+                                    let resp = game_manager.play_game(game_id, &user, Arc::clone(&sender)).await;
+                                    match resp {
+                                        Ok(tx) => {
+                                            game_sender = Some(tx);
+                                            break;
+                                        },
+                                        Err(e) => {log::error!("Error playing game: {}", e)},
+                                    }
+                                }
+                                _ => log::debug!("Non PlayGame message: {:?}: {:?}", client_message, msg),
                             }
-
                         }
-                        Some(msg) => {
-                            log::debug!("Non Play message: {:?}", msg);
-                        },
                         _ => break,
                     }
                 },

@@ -1,6 +1,13 @@
-use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
-use minesweeper_lib::{cell::PlayerCell, client::ClientPlayer, game::PlayOutcome};
+use serde::{Deserialize, Serialize};
+use serde_json::Error as SerdeJsonError;
+
+use minesweeper_lib::{
+    cell::PlayerCell,
+    client::ClientPlayer,
+    game::{Play, PlayOutcome},
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "game_message", content = "data")]
@@ -21,4 +28,20 @@ impl GameMessage {
         serde_json::to_string::<GameMessage>(&self)
             .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {:?}", self))
     }
+}
+
+impl FromStr for GameMessage {
+    type Err = SerdeJsonError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str::<GameMessage>(s)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "client_message", content = "data")]
+pub enum ClientMessage {
+    Join(String),
+    PlayGame,
+    Play(Play),
 }

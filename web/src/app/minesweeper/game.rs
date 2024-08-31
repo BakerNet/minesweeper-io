@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use codee::string::FromToStringCodec;
+use codee::string::JsonSerdeWasmCodec;
 use leptos::*;
 use leptos_router::*;
 use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebSocketReturn};
@@ -25,6 +25,7 @@ use super::{
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
+use crate::messages::{ClientMessage, GameMessage};
 #[cfg(feature = "ssr")]
 use minesweeper_lib::client::ClientPlayer;
 
@@ -297,7 +298,7 @@ where
         message,
         send,
         ..
-    } = use_websocket::<String, FromToStringCodec>(&format!(
+    } = use_websocket::<ClientMessage, GameMessage, JsonSerdeWasmCodec>(&format!(
         "/api/websocket/game/{}",
         &game_info.game_id
     ));
@@ -318,7 +319,7 @@ where
         let state = ready_state();
         if state == ConnectionReadyState::Open {
             log::debug!("ready_state Open");
-            game_signal().send(&game_id);
+            game_signal().send(ClientMessage::Join(game_id.clone()));
         } else if state == ConnectionReadyState::Closed {
             log::debug!("ready_state Closed");
             refetch();
@@ -328,8 +329,8 @@ where
     create_effect(move |_| {
         log::debug!("before message");
         if let Some(msg) = message() {
-            log::debug!("after message {}", msg);
-            let res = game_signal().handle_message(&msg);
+            log::debug!("after message {:?}", msg);
+            let res = game_signal().handle_message(msg);
             if let Err(e) = res {
                 (game_signal().err_signal)(Some(format!("{:?}", e)))
             } else {
@@ -343,7 +344,7 @@ where
         log::debug!("join_trigger rec: {last:?}");
         if let Some(sent) = last {
             if !sent {
-                game_signal().send(&String::from("Play"));
+                game_signal().send(ClientMessage::PlayGame);
                 return true;
             }
         }

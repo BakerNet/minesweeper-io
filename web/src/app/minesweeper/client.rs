@@ -9,7 +9,7 @@ use minesweeper_lib::{
     game::{Action as PlayAction, Play},
 };
 
-use crate::messages::GameMessage;
+use crate::messages::{ClientMessage, GameMessage};
 
 use super::GameInfo;
 
@@ -64,14 +64,14 @@ pub struct FrontendGame {
     set_sync_time: WriteSignal<Option<usize>>,
     set_flag_count: WriteSignal<usize>,
     game: Rc<RefCell<MinesweeperClient>>,
-    send: Rc<dyn Fn(&String)>,
+    send: Rc<dyn Fn(&ClientMessage)>,
 }
 
 impl FrontendGame {
     pub fn new(
         game_info: &GameInfo,
         err_signal: WriteSignal<Option<String>>,
-        send: Rc<dyn Fn(&String)>,
+        send: Rc<dyn Fn(&ClientMessage)>,
     ) -> Self {
         let (read_signals, write_signals) = signals_from_board(&game_info.final_board);
         let mut players = Vec::with_capacity(game_info.players.len());
@@ -140,12 +140,12 @@ impl FrontendGame {
         if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
             bail!("Tried to click revealed cell")
         }
-        let play_json = serde_json::to_string(&Play {
+        let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::Reveal,
             point: BoardPoint { row, col },
-        })?;
-        self.send(&play_json);
+        });
+        self.send(play_message);
         Ok(())
     }
 
@@ -155,12 +155,12 @@ impl FrontendGame {
         if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
             return Ok(());
         }
-        let play_json = serde_json::to_string(&Play {
+        let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::Flag,
             point: BoardPoint { row, col },
-        })?;
-        self.send(&play_json);
+        });
+        self.send(play_message);
         Ok(())
     }
 
@@ -174,19 +174,16 @@ impl FrontendGame {
         if !game.neighbors_flagged(BoardPoint { row, col }) {
             bail!("Tried to reveal adjacent with wrong number of flags")
         }
-        let play_json = serde_json::to_string(&Play {
+        let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::RevealAdjacent,
             point: BoardPoint { row, col },
-        })?;
-        self.send(&play_json);
+        });
+        self.send(play_message);
         Ok(())
     }
 
-    pub fn handle_message(&self, msg: &str) -> Result<()> {
-        log::debug!("{}", msg);
-        let game_message = serde_json::from_str::<GameMessage>(msg)?;
-        log::debug!("{:?}", game_message);
+    pub fn handle_message(&self, game_message: GameMessage) -> Result<()> {
         let game: &mut MinesweeperClient = &mut (*self.game).borrow_mut();
         match game_message {
             GameMessage::PlayerId(player_id) => {
@@ -274,9 +271,9 @@ impl FrontendGame {
         self.cell_signals[point.row][point.col](cell);
     }
 
-    pub fn send(&self, s: &String) {
-        log::debug!("before send {s}");
-        (self.send)(s)
+    pub fn send(&self, m: ClientMessage) {
+        log::debug!("before send {m:?}");
+        (self.send)(&m)
     }
 }
 

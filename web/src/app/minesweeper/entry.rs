@@ -1,4 +1,4 @@
-use codee::string::JsonSerdeCodec;
+use codee::string::JsonSerdeWasmCodec;
 use leptos::*;
 use leptos_router::*;
 use leptos_use::storage::use_local_storage;
@@ -384,10 +384,10 @@ pub fn JoinOrCreateGame() -> impl IntoView {
     let new_game = create_server_action::<NewGame>();
 
     let (selected_mode, set_selected_mode, _) =
-        use_local_storage::<GameMode, JsonSerdeCodec>("game_mode_settings");
+        use_local_storage::<GameMode, JsonSerdeWasmCodec>("game_mode_settings");
 
     let (custom_settings, set_custom_settings, _) =
-        use_local_storage::<GameSettings, JsonSerdeCodec>("custom_game_settings");
+        use_local_storage::<GameSettings, JsonSerdeWasmCodec>("custom_game_settings");
 
     let defaults = GameSettings::default();
     let (rows, set_rows) = create_signal(defaults.rows);
