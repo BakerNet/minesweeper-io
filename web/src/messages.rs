@@ -41,7 +41,7 @@ impl FromStr for GameMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "client_message", content = "data")]
 pub enum ClientMessage {
-    Join(String),
+    Join,
     PlayGame,
     Play(Play),
 }

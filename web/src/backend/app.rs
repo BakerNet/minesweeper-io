@@ -23,8 +23,8 @@ use tower_sessions_sqlx_store::SqliteStore;
 use crate::{app::App as FrontendApp, app::OAuthTarget, models::game::Game};
 
 use super::{
-    auth, auth::REDIRECT_URL, fileserv::file_and_error_handler, game_manager,
-    game_manager::GameManager, users, users::AuthSession,
+    auth, auth::REDIRECT_URL, fileserv::file_and_error_handler, game_manager::GameManager, users,
+    users::AuthSession, websocket,
 };
 
 /// This takes advantage of Axum's SubStates feature by deriving FromRef. This is the only way to have more than one
@@ -209,7 +209,7 @@ impl App {
             .leptos_routes_with_handler(routes, get(leptos_routes_handler))
             .fallback(file_and_error_handler)
             .merge(auth::router())
-            .merge(game_manager::router())
+            .merge(websocket::router())
             .layer(auth_service)
             .with_state(app_state);
         (app, addr)

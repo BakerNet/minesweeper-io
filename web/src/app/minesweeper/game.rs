@@ -313,13 +313,12 @@ where
 
     let (game_signal, _) = create_signal(game);
 
-    let game_id = game_info.game_id.clone();
     create_effect(move |_| {
         log::debug!("before ready_state");
         let state = ready_state();
         if state == ConnectionReadyState::Open {
             log::debug!("ready_state Open");
-            game_signal().send(ClientMessage::Join(game_id.clone()));
+            game_signal().send(ClientMessage::Join);
         } else if state == ConnectionReadyState::Closed {
             log::debug!("ready_state Closed");
             refetch();
