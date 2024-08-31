@@ -114,7 +114,8 @@ impl GameManager {
         };
         games.insert(game_id.to_string(), handle);
         let self_clone = self.clone();
-        tokio::spawn(async move { handle_game(game, self_clone, bc_tx, mp_rx, ch_rx).await });
+        let game_handler = GameHandler::new(game, self_clone, bc_tx, mp_rx, ch_rx);
+        tokio::spawn(async move { game_handler.handle_game().await });
         Ok(())
     }
 
@@ -313,246 +314,254 @@ impl GameManager {
     }
 }
 
-fn handles_to_client_players(
-    player_handles: &[Option<PlayerHandle>],
-    minesweeper: &Minesweeper,
-) -> Vec<Option<ClientPlayer>> {
-    let current_top_score = minesweeper.current_top_score();
-    player_handles
-        .iter()
-        .map(|item| {
-            item.as_ref().map(|player| {
-                let player_score = minesweeper.player_score(player.player_id).unwrap_or(0);
-                ClientPlayer {
-                    player_id: player.player_id,
-                    username: player.display_name.to_owned(),
-                    dead: minesweeper.player_dead(player.player_id).unwrap_or(false),
-                    victory_click: minesweeper
-                        .player_victory_click(player.player_id)
-                        .unwrap_or(false),
-                    top_score: current_top_score
-                        .map(|s| s == player_score)
-                        .unwrap_or(false),
-                    score: player_score,
-                }
-            })
-        })
-        .collect()
-}
-
-async fn save_game_state(
-    game_manager: &GameManager,
-    game_id: &str,
-    player_handles: &[Option<PlayerHandle>],
-    minesweeper: &Minesweeper,
-) {
-    let players = handles_to_client_players(player_handles, minesweeper)
-        .into_iter()
-        .flatten()
-        .collect();
-    log::debug!("Saving game - players: {:?}", &players);
-    let _ = game_manager
-        .update_players(game_id, players)
-        .await
-        .map_err(|e| log::error!("Error updating players: {e}"));
-    let _ = game_manager
-        .save_game(game_id, minesweeper.viewer_board())
-        .await
-        .map_err(|e| log::error!("Error saving game: {e}"));
-}
-
-async fn handle_game_event(
-    event: GameEvent,
-    player_handles: &mut [Option<PlayerHandle>],
-    minesweeper: &mut Minesweeper,
-    broadcaster: &mut broadcast::Sender<String>,
-    started: &mut bool,
-) {
-    match event {
-        GameEvent::Player(player) => {
-            let player_sender = Arc::clone(&player.ws_sender);
-            let player_id = player.player_id;
-            let player_board = minesweeper.player_board(player_id);
-            player_handles[player_id] = Some(player);
-            {
-                let mut player_sender = player_sender.lock().await;
-                let player_msg = GameMessage::GameState(player_board).into_json();
-                log::debug!("Sending player_msg {:?}", player_msg);
-                let _ = player_sender.send(Message::Text(player_msg)).await;
-            }
-
-            let players = handles_to_client_players(player_handles, minesweeper);
-            let players_msg = GameMessage::PlayersState(players).into_json();
-            log::debug!("Sending players_msg {:?}", players_msg);
-            let _ = broadcaster.send(players_msg);
-        }
-        GameEvent::Viewer(viewer) => {
-            let viewer_board = minesweeper.viewer_board();
-            {
-                let mut viewer_sender = viewer.ws_sender.lock().await;
-                let viewer_msg = GameMessage::GameState(viewer_board).into_json();
-                log::debug!("Sending viewer_msg {:?}", viewer_msg);
-                let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
-                let players = handles_to_client_players(player_handles, minesweeper);
-                let players_msg = GameMessage::PlayersState(players).into_json();
-                let _ = viewer_sender.send(Message::Text(players_msg)).await;
-            }
-        }
-        GameEvent::Start => {
-            *started = true;
-            let start_msg = GameMessage::GameStarted.into_json();
-            let _ = broadcaster.send(start_msg);
-        }
-    }
-}
-
-#[allow(unused)]
-async fn handle_message(
-    msg: &str,
-    player_handles: &[Option<PlayerHandle>],
-    minesweeper: &mut Minesweeper,
-    broadcaster: &mut broadcast::Sender<String>,
-    started: bool,
-) -> Option<()> {
-    if !started {
-        return None;
-    }
-    let play = serde_json::from_str::<ClientMessage>(msg).ok()?;
-    let play = match play {
-        ClientMessage::Play(p) => p,
-        _ => return None,
-    };
-    if play.player > player_handles.len() {
-        return None;
-    }
-    let player = if let Some(player) = &player_handles[play.player] {
-        player
-    } else {
-        return None;
-    };
-    let outcome = minesweeper.play(play);
-    let res = match outcome {
-        Ok(res) => res,
-        Err(e) => {
-            let err_msg = GameMessage::Error(format!("{:?}", e)).into_json();
-            {
-                let mut player_sender = player.ws_sender.lock().await;
-                let _ = player_sender.send(Message::Text(err_msg)).await;
-            }
-            return None;
-        }
-    };
-    match res {
-        PlayOutcome::Flag(flag) => {
-            let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).into_json();
-            {
-                let mut player_sender = player.ws_sender.lock().await;
-                let _ = player_sender.send(Message::Text(flag_msg)).await;
-            }
-            None
-        }
-        default => {
-            let victory_click = matches!(default, PlayOutcome::Victory(_));
-            let outcome_msg = GameMessage::PlayOutcome(default).into_json();
-            let score = minesweeper.player_score(player.player_id).unwrap();
-            let dead = minesweeper.player_dead(player.player_id).unwrap();
-            let top_score = minesweeper.player_top_score(player.player_id).unwrap();
-            let player_state = ClientPlayer {
-                player_id: player.player_id,
-                username: player.display_name.to_owned(),
-                dead,
-                victory_click,
-                top_score,
-                score,
-            };
-            let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
-            let _ = broadcaster.send(outcome_msg);
-            let _ = broadcaster.send(player_state_message);
-            Some(())
-        }
-    }
-}
-
-async fn handle_game(
+struct GameHandler {
     game: Game,
     game_manager: GameManager,
     broadcaster: broadcast::Sender<String>,
     receiver: mpsc::Receiver<String>,
     game_events: mpsc::Receiver<GameEvent>,
-) {
-    let mut receiver = receiver;
-    let mut game_events = game_events;
-    let mut broadcaster = broadcaster;
-    let timeout = sleep(Duration::from_secs(999)); // timeout after 999 seconds
-    tokio::pin!(timeout);
-    let mut save_interval = interval(Duration::from_secs(20)); // save every 20 seconds
+    player_handles: Vec<Option<PlayerHandle>>,
+    minesweeper: Minesweeper,
+}
 
-    let mut player_handles = vec![None; game.max_players as usize];
-    let mut minesweeper = MinesweeperBuilder::new(MinesweeperOpts {
-        rows: game.rows as usize,
-        cols: game.cols as usize,
-        num_mines: game.num_mines as usize,
-    })
-    .unwrap()
-    .with_superclick()
-    .with_log();
-    if game.max_players > 1 {
-        minesweeper = minesweeper.with_multiplayer(game.max_players as usize);
-    }
-    let mut minesweeper = minesweeper.init();
-
-    let mut started = game.is_started; // false for multiplayer, true for single player
-    let mut first_play = false;
-    let mut needs_save = false;
-
-    loop {
-        tokio::select! {
-            Some(msg) = receiver.recv() => {
-                log::debug!("Message received: {}", msg);
-                let played = handle_message(&msg, &player_handles, &mut minesweeper, &mut broadcaster, started).await.is_some();
-                needs_save = played;
-                if played && !first_play {
-                    first_play = true;
-                    let _ = game_manager.set_start_time(&game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}"));
-                    let sync_msg = GameMessage::SyncTimer(0).into_json();
-                    log::debug!("Sending sync_msg {:?}", sync_msg);
-                    let _ = broadcaster.send(sync_msg);
-                }
-                if minesweeper.is_over() {
-                    break;
-                }
-            },
-            Some(event) = game_events.recv() => {
-                log::debug!("Game update received: {:?}", event);
-                handle_game_event(event, &mut player_handles, &mut minesweeper, &mut broadcaster, &mut started).await;
-            }
-            _ = save_interval.tick() => {
-                log::debug!("Checking for game save");
-                if needs_save {
-                    save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
-                    needs_save = false;
-                }
-            },
-            () = &mut timeout => {
-                log::debug!("Game timeout reached {}", game.game_id);
-                break;
-            },
+impl GameHandler {
+    fn new(
+        game: Game,
+        game_manager: GameManager,
+        broadcaster: broadcast::Sender<String>,
+        receiver: mpsc::Receiver<String>,
+        game_events: mpsc::Receiver<GameEvent>,
+    ) -> Self {
+        let player_handles = vec![None; game.max_players as usize];
+        let mut minesweeper = MinesweeperBuilder::new(MinesweeperOpts {
+            rows: game.rows as usize,
+            cols: game.cols as usize,
+            num_mines: game.num_mines as usize,
+        })
+        .unwrap()
+        .with_superclick()
+        .with_log();
+        if game.max_players > 1 {
+            minesweeper = minesweeper.with_multiplayer(game.max_players as usize);
+        }
+        let minesweeper = minesweeper.init();
+        Self {
+            game,
+            game_manager,
+            broadcaster,
+            receiver,
+            game_events,
+            player_handles,
+            minesweeper,
         }
     }
 
-    if needs_save {
-        save_game_state(&game_manager, &game.game_id, &player_handles, &minesweeper).await;
-    }
-    let minesweeper = minesweeper.complete();
-    let _ = game_manager
-        .complete_game(&game.game_id, minesweeper.viewer_board_final())
-        .await
-        .map_err(|e| log::error!("Error completing game: {e}"));
-    if let Some(game_log) = minesweeper.get_log() {
-        let _ = game_manager
-            .save_game_log(&game.game_id, game_log)
+    async fn handle_game(mut self) {
+        let timeout = sleep(Duration::from_secs(1200)); // timeout >999 seconds
+        tokio::pin!(timeout);
+        let mut save_interval = interval(Duration::from_secs(20)); // save every 20 seconds
+
+        let mut first_play = false;
+        let mut needs_save = false;
+
+        loop {
+            tokio::select! {
+                Some(msg) = self.receiver.recv() => {
+                    log::debug!("Message received: {}", msg);
+                    let played = self.handle_message(&msg).await.is_some();
+                    needs_save = played;
+                    if played && !first_play {
+                        first_play = true;
+                        let _ = self.game_manager.set_start_time(&self.game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}"));
+                        let sync_msg = GameMessage::SyncTimer(0).into_json();
+                        log::debug!("Sending sync_msg {:?}", sync_msg);
+                        let _ = self.broadcaster.send(sync_msg);
+                    }
+                    if self.minesweeper.is_over() {
+                        break;
+                    }
+                },
+                Some(event) = self.game_events.recv() => {
+                    log::debug!("Game update received: {:?}", event);
+                    self.handle_game_event(event).await;
+                }
+                _ = save_interval.tick() => {
+                    log::debug!("Checking for game save");
+                    if needs_save {
+                        self.save_game_state().await;
+                        needs_save = false;
+                    }
+                },
+                () = &mut timeout => {
+                    log::debug!("Game timeout reached {}", self.game.game_id);
+                    break;
+                },
+            }
+        }
+
+        if needs_save {
+            self.save_game_state().await;
+        }
+        let minesweeper = self.minesweeper.complete();
+        let _ = self
+            .game_manager
+            .complete_game(&self.game.game_id, minesweeper.viewer_board_final())
             .await
-            .map_err(|e| log::error!("Error saving game log: {e}"));
+            .map_err(|e| log::error!("Error completing game: {e}"));
+        if let Some(game_log) = minesweeper.get_log() {
+            let _ = self
+                .game_manager
+                .save_game_log(&self.game.game_id, game_log)
+                .await
+                .map_err(|e| log::error!("Error saving game log: {e}"));
+        }
+    }
+
+    fn handles_to_client_players(&self) -> Vec<Option<ClientPlayer>> {
+        let current_top_score = self.minesweeper.current_top_score();
+        self.player_handles
+            .iter()
+            .map(|item| {
+                item.as_ref().map(|player| {
+                    let player_score = self.minesweeper.player_score(player.player_id).unwrap_or(0);
+                    ClientPlayer {
+                        player_id: player.player_id,
+                        username: player.display_name.to_owned(),
+                        dead: self
+                            .minesweeper
+                            .player_dead(player.player_id)
+                            .unwrap_or(false),
+                        victory_click: self
+                            .minesweeper
+                            .player_victory_click(player.player_id)
+                            .unwrap_or(false),
+                        top_score: current_top_score
+                            .map(|s| s == player_score)
+                            .unwrap_or(false),
+                        score: player_score,
+                    }
+                })
+            })
+            .collect()
+    }
+
+    async fn save_game_state(&self) {
+        let players = self
+            .handles_to_client_players()
+            .into_iter()
+            .flatten()
+            .collect();
+        log::debug!("Saving game - players: {:?}", &players);
+        let _ = self
+            .game_manager
+            .update_players(&self.game.game_id, players)
+            .await
+            .map_err(|e| log::error!("Error updating players: {e}"));
+        let _ = self
+            .game_manager
+            .save_game(&self.game.game_id, self.minesweeper.viewer_board())
+            .await
+            .map_err(|e| log::error!("Error saving game: {e}"));
+    }
+
+    async fn handle_game_event(&mut self, event: GameEvent) {
+        match event {
+            GameEvent::Player(player) => {
+                let player_sender = Arc::clone(&player.ws_sender);
+                let player_id = player.player_id;
+                let player_board = self.minesweeper.player_board(player_id);
+                self.player_handles[player_id] = Some(player);
+                {
+                    let mut player_sender = player_sender.lock().await;
+                    let player_msg = GameMessage::GameState(player_board).into_json();
+                    log::debug!("Sending player_msg {:?}", player_msg);
+                    let _ = player_sender.send(Message::Text(player_msg)).await;
+                }
+
+                let players = self.handles_to_client_players();
+                let players_msg = GameMessage::PlayersState(players).into_json();
+                log::debug!("Sending players_msg {:?}", players_msg);
+                let _ = self.broadcaster.send(players_msg);
+            }
+            GameEvent::Viewer(viewer) => {
+                let viewer_board = self.minesweeper.viewer_board();
+                {
+                    let mut viewer_sender = viewer.ws_sender.lock().await;
+                    let viewer_msg = GameMessage::GameState(viewer_board).into_json();
+                    log::debug!("Sending viewer_msg {:?}", viewer_msg);
+                    let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
+                    let players = self.handles_to_client_players();
+                    let players_msg = GameMessage::PlayersState(players).into_json();
+                    let _ = viewer_sender.send(Message::Text(players_msg)).await;
+                }
+            }
+            GameEvent::Start => {
+                self.game.is_started = true;
+                let start_msg = GameMessage::GameStarted.into_json();
+                let _ = self.broadcaster.send(start_msg);
+            }
+        }
+    }
+
+    #[allow(unused)]
+    async fn handle_message(&mut self, msg: &str) -> Option<()> {
+        if !self.game.is_started {
+            return None;
+        }
+        let play = serde_json::from_str::<ClientMessage>(msg).ok()?;
+        let play = match play {
+            ClientMessage::Play(p) => p,
+            _ => return None,
+        };
+        if play.player > self.player_handles.len() {
+            return None;
+        }
+        let player = if let Some(player) = &self.player_handles[play.player] {
+            player
+        } else {
+            return None;
+        };
+        let outcome = self.minesweeper.play(play);
+        let res = match outcome {
+            Ok(res) => res,
+            Err(e) => {
+                let err_msg = GameMessage::Error(format!("{:?}", e)).into_json();
+                {
+                    let mut player_sender = player.ws_sender.lock().await;
+                    let _ = player_sender.send(Message::Text(err_msg)).await;
+                }
+                return None;
+            }
+        };
+        match res {
+            PlayOutcome::Flag(flag) => {
+                let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).into_json();
+                {
+                    let mut player_sender = player.ws_sender.lock().await;
+                    let _ = player_sender.send(Message::Text(flag_msg)).await;
+                }
+                None
+            }
+            default => {
+                let victory_click = matches!(default, PlayOutcome::Victory(_));
+                let outcome_msg = GameMessage::PlayOutcome(default).into_json();
+                let score = self.minesweeper.player_score(player.player_id).unwrap();
+                let dead = self.minesweeper.player_dead(player.player_id).unwrap();
+                let top_score = self.minesweeper.player_top_score(player.player_id).unwrap();
+                let player_state = ClientPlayer {
+                    player_id: player.player_id,
+                    username: player.display_name.to_owned(),
+                    dead,
+                    victory_click,
+                    top_score,
+                    score,
+                };
+                let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
+                let _ = self.broadcaster.send(outcome_msg);
+                let _ = self.broadcaster.send(player_state_message);
+                Some(())
+            }
+        }
     }
 }
 
