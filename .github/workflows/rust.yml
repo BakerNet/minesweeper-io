@@ -16,6 +16,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: "Install wasm32-unknown-unknown"
       uses: dtolnay/rust-toolchain@nightly
       with:
