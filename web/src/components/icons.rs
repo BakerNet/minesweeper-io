@@ -1,19 +1,35 @@
 use leptos::*;
 
-pub fn player_icon_holder(bg_color: &str, has_tooltip: bool) -> String {
-    let mut class = format!("inline-block align-text-top {bg_color} h-5 w-5 p-0.5 mx-1 rounded");
-    if has_tooltip {
-        class += " has-tooltip relative"
-    }
-    class
+#[macro_export]
+macro_rules! player_icon_holder {
+    ($bg:literal) => {
+        concat!(
+            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded ",
+            $bg
+        )
+    };
+    ($bg:literal, true) => {
+        concat!(
+            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded has-tooltip relative ",
+            $bg
+        )
+    };
 }
 
-pub fn widget_icon_holder(bg_color: &str, has_tooltip: bool) -> String {
-    let mut class = format!("inline-block align-text-top {bg_color} h-6 w-6 p-0.5 mx-1 rounded");
-    if has_tooltip {
-        class += " has-tooltip relative"
-    }
-    class
+#[macro_export]
+macro_rules! widget_icon_holder {
+    ($bg:literal) => {
+        concat!(
+            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded ",
+            $bg
+        )
+    };
+    ($bg:literal, true) => {
+        concat!(
+            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded relative ",
+            $bg
+        )
+    };
 }
 
 #[component]

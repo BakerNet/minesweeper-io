@@ -1,16 +1,17 @@
 use leptos::*;
+use leptos_meta::*;
 use leptos_router::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    auth::{FrontendUser, LogOut},
+    auth::{FrontendUser, LogOut, LogOutForm},
     minesweeper::GameMode,
 };
-use crate::components::{
+use crate::{
     button_class,
-    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
-    input_class, player_class,
+    components::icons::{IconTooltip, Mine, Star, Trophy},
+    input_class, player_class, player_icon_holder,
 };
 
 #[cfg(feature = "ssr")]
@@ -34,7 +35,7 @@ fn validate_display_name(name: &str) -> bool {
 }
 
 #[component]
-pub fn Profile<S>(
+pub fn ProfileView<S>(
     user: Resource<S, Option<FrontendUser>>,
     logout: Action<LogOut, Result<(), ServerFnError>>,
     user_updated: WriteSignal<String>,
@@ -42,33 +43,38 @@ pub fn Profile<S>(
 where
     S: PartialEq + Clone + 'static,
 {
-    let user_profile = move |user: Option<FrontendUser>| match user {
-        Some(user) => View::from(view! {
-            <>
-                <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-                    <SetDisplayName user user_updated />
-                    <div class="w-full max-w-xs h-6">
-                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                            <hr class="w-full" />
-                        </span>
+    let user_profile = move |user: Option<FrontendUser>| {
+        match user {
+            Some(user) => view! {
+                <>
+                    <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
+                        <SetDisplayName user user_updated />
+                        <div class="w-full max-w-xs h-6">
+                            <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                                <hr class="w-full" />
+                            </span>
+                        </div>
+                        <LogOutForm logout />
+                        <div class="w-full max-w-xs h-6">
+                            <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                                <hr class="w-full" />
+                            </span>
+                        </div>
+                        <GameHistory />
                     </div>
-                    <LogOut logout />
-                    <div class="w-full max-w-xs h-6">
-                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                            <hr class="w-full" />
-                        </span>
-                    </div>
-                    <GameHistory />
-                </div>
-            </>
-        }),
-        _ => view! { <Redirect path="/auth/login" /> },
+                </>
+            }.into_view(),
+            _ => view! { <Redirect path="/auth/login" /> }.into_view(),
+        }
     };
 
-    view! { <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense> }
+    view! {
+        <Title text="Profile" />
+        <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense>
+    }
 }
 
-#[server(SetDisplayName, "/api")]
+#[server]
 async fn set_display_name(display_name: String) -> Result<String, ServerFnError> {
     if !validate_display_name(&display_name) {
         return Err(ServerFnError::new("Display name not valid".to_string()));
@@ -103,7 +109,7 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
         }
     };
 
-    create_effect(move |_| match set_display_name.value().get() {
+    Effect::new(move |_| match set_display_name.value().get() {
         Some(Ok(name)) => {
             user_updated(name);
             set_name_err(None);
@@ -119,7 +125,7 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
     view! {
         <div class="flex flex-col space-y-2 w-full max-w-xs">
             <span class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
-                {&curr_name}
+                {curr_name.clone()}
             </span>
             {move || {
                 name_err
@@ -134,20 +140,16 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
             <ActionForm
                 action=set_display_name
                 on:submit=move |e| on_submit(e.into())
-                class="flex space-x-2"
+                attr:class="flex space-x-2"
             >
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="text"
                     id="set_display_name_display_name"
                     name="display_name"
                     placeholder=curr_name
                 />
-                <button
-                    btn_type="submit"
-                    class=button_class(None, None)
-                    disabled=set_display_name.pending()
-                >
+                <button type="submit" class=button_class!() disabled=set_display_name.pending()>
                     "Set display name"
                 </button>
             </ActionForm>
@@ -168,7 +170,7 @@ pub struct PlayerGame {
     game_mode: GameMode,
 }
 
-#[server(GetPlayerGames, "/api")]
+#[server]
 async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -213,11 +215,11 @@ async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
 
 #[component]
 fn GameHistory() -> impl IntoView {
-    let player_games = create_resource(|| (), move |_| async { get_player_games().await });
+    let player_games = Resource::new(|| (), move |_| async { get_player_games().await });
     let td_class = "border border-slate-100 dark:border-slate-700 p-1";
 
     let loading_row = move |num: usize| {
-        let player_class = player_class(0) + " text-black";
+        let player_class = player_class!(0).to_owned() + " text-black";
         view! {
             <tr class=player_class>
                 <td class=td_class>"Game "{num}</td>
@@ -230,12 +232,12 @@ fn GameHistory() -> impl IntoView {
         }
     };
     let game_view = move |game: PlayerGame| {
-        let player_class = player_class(game.player as usize) + " text-black";
+        let player_class = player_class!(game.player as usize).to_owned() + " text-black";
         view! {
             <tr class=player_class>
                 <td class=td_class>
                     <A
-                        class="text-sky-800 hover:text-sky-500 font-medium"
+                        attr:class="text-sky-800 hover:text-sky-500 font-medium"
                         href=format!("/game/{}", game.game_id)
                     >
                         {game.game_id}
@@ -246,35 +248,32 @@ fn GameHistory() -> impl IntoView {
                 <td class=td_class>{game.game_time}</td>
                 <td class=td_class>
                     {if game.dead {
-                        view! {
-                            <span class=player_icon_holder("bg-red-600", true)>
-                                <Mine />
-                                <IconTooltip>"Dead"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                            view! {
+                                <span class=player_icon_holder!("bg-red-600", true)>
+                                    <Mine />
+                                    <IconTooltip>"Dead"</IconTooltip>
+                                </span>
+                            }.into_view()
                     } else {
-                        ().into_view()
+                ().into_view()
                     }}
                     {if game.top_score {
-                        view! {
-                            <span class=player_icon_holder("bg-green-800", true)>
-                                <Trophy />
-                                <IconTooltip>"Top Score"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                            view! {
+                                <span class=player_icon_holder!("bg-green-800", true)>
+                                    <Trophy />
+                                    <IconTooltip>"Top Score"</IconTooltip>
+                                </span>
+                            }.into_view()
                     } else {
-                        ().into_view()
+                ().into_view()
                     }}
                     {if game.victory_click {
-                        view! {
-                            <span class=player_icon_holder("bg-black", true)>
-                                <Star />
-                                <IconTooltip>"Victory Click"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                            view! {
+                                <span class=player_icon_holder!("bg-black", true)>
+                                    <Star />
+                                    <IconTooltip>"Victory Click"</IconTooltip>
+                                </span>
+                            }.into_view()
                     } else {
                         ().into_view()
                     }}
@@ -316,14 +315,12 @@ fn GameHistory() -> impl IntoView {
                     }>
 
                         {move || {
-                            player_games
-                                .get()
-                                .map(|games| {
-                                    games
-                                        .map(move |games| {
-                                            games.into_iter().map(game_view).collect_view()
-                                        })
-                                })
+                                player_games.get()
+                                    .map(|games| {
+                    games.map(move |games|{
+                                        games.into_iter().map(game_view).collect_view()
+                                    })
+                })
                         }}
 
                     </Suspense>
