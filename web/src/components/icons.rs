@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 pub fn player_icon_holder(bg_color: &str, has_tooltip: bool) -> String {
     let mut class = format!("inline-block align-text-top {bg_color} h-5 w-5 p-0.5 mx-1 rounded");

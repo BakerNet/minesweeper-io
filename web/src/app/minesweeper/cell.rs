@@ -1,4 +1,5 @@
-use leptos::*;
+use leptos::either::*;
+use leptos::prelude::*;
 use web_sys::MouseEvent;
 
 use minesweeper_lib::{
@@ -103,18 +104,18 @@ pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl 
 fn CellContents(cell: PlayerCell) -> impl IntoView {
     match cell {
         PlayerCell::Hidden(hc) => match hc {
-            HiddenCell::Empty => view! { <span>""</span> },
-            HiddenCell::Flag => view! {
+            HiddenCell::Empty => EitherOf7::A(view! { <span>""</span> }),
+            HiddenCell::Flag => EitherOf7::B(view! {
                 <span class="flag">
                     <Flag />
                 </span>
-            },
-            HiddenCell::Mine => view! {
+            }),
+            HiddenCell::Mine => EitherOf7::C(view! {
                 <span>
                     <Mine />
                 </span>
-            },
-            HiddenCell::FlagMine => view! {
+            }),
+            HiddenCell::FlagMine => EitherOf7::D(view! {
                 <span class="block w-full h-full relative">
                     <span class="inline-block h-6 w-6 bottom-0 left-0 absolute">
                         <Mine />
@@ -123,16 +124,16 @@ fn CellContents(cell: PlayerCell) -> impl IntoView {
                         <FlagContrast />
                     </span>
                 </span>
-            },
+            }),
         },
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Mine => view! {
+            Cell::Mine => EitherOf7::E(view! {
                 <span>
                     <Mine />
                 </span>
-            },
-            Cell::Empty(0) => view! { <span></span> },
-            Cell::Empty(n) => view! { <span>{n}</span> },
+            }),
+            Cell::Empty(0) => EitherOf7::F(view! { <span></span> }),
+            Cell::Empty(n) => EitherOf7::G(view! { <span>{n}</span> }),
         },
     }
 }

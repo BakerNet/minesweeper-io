@@ -1,5 +1,5 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::ActionForm;
+use leptos::prelude::*;
 use leptos_use::use_window;
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,7 @@ pub async fn get_user() -> Result<Option<User>, ServerFnError> {
     Ok(auth_session.user)
 }
 
-#[server(GetUser, "/api")]
+#[server]
 pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -52,7 +52,7 @@ pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> 
     }))
 }
 
-#[server(LogIn, "/api")]
+#[server]
 pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -79,10 +79,7 @@ pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, 
 }
 
 #[component]
-pub fn Login(
-    login: Action<LogIn, Result<String, ServerFnError>>,
-    target: OAuthTarget,
-) -> impl IntoView {
+pub fn LoginForm(login: ServerAction<Login>, target: OAuthTarget) -> impl IntoView {
     let (target_str, target_readable, target_colors) = match target {
         OAuthTarget::Google => (
             "Google",
@@ -101,7 +98,7 @@ pub fn Login(
         ),
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         if let Some(Ok(url)) = login.value().get() {
             let window = use_window();
             let window = window.as_ref();
@@ -112,7 +109,7 @@ pub fn Login(
     });
 
     view! {
-        <ActionForm action=login class="w-full max-w-xs h-8">
+        <ActionForm action=login attr:class="w-full max-w-xs h-8">
             <input type="hidden" name="target" value=target_str />
             <button
                 type="submit"
@@ -125,7 +122,7 @@ pub fn Login(
     }
 }
 
-#[server(LogOut, "/api")]
+#[server]
 pub async fn logout() -> Result<(), ServerFnError> {
     let mut auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -140,9 +137,9 @@ pub async fn logout() -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn LogOut(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoView {
+pub fn LogOutForm(logout: ServerAction<Logout>) -> impl IntoView {
     view! {
-        <ActionForm action=logout class="w-full max-w-xs h-12">
+        <ActionForm action=logout attr:class="w-full max-w-xs h-12">
             <button
                 type="submit"
                 class=button_class(

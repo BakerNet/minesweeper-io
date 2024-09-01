@@ -6,11 +6,11 @@ use axum::{
     http::{Request, Response, StatusCode, Uri},
     response::IntoResponse,
 };
-use leptos::*;
+use leptos::prelude::*;
 use tower::ServiceExt;
 use tower_http::services::ServeDir;
 
-use crate::app::App;
+use crate::app::shell;
 
 pub async fn file_and_error_handler(
     uri: Uri,
@@ -23,12 +23,12 @@ pub async fn file_and_error_handler(
     if res.status() == StatusCode::OK {
         res.into_response()
     } else {
-        let handler =
-            leptos_axum::render_app_to_stream(options.to_owned(), move || view! { <App /> });
+        let handler = leptos_axum::render_app_to_stream(move || shell(options.clone()));
         handler(req).await
     }
 }
 
+#[allow(unreachable_patterns)]
 async fn get_static_file(uri: Uri, root: &str) -> Result<Response<Body>, (StatusCode, String)> {
     let req = Request::builder().uri(uri).body(Body::empty()).unwrap();
     // `ServeDir` implements `tower::Service` so we can call it with `tower::ServiceExt::oneshot`

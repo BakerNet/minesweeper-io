@@ -1,7 +1,7 @@
 use anyhow::Result;
-use leptos::*;
-use leptos_router::*;
-use std::rc::Rc;
+use leptos::either::*;
+use leptos::prelude::*;
+use std::sync::Arc;
 
 use minesweeper_lib::client::ClientPlayer;
 
@@ -39,21 +39,22 @@ fn Scoreboard(children: Children) -> impl IntoView {
 
 #[component]
 pub fn ActivePlayers(
-    players: Rc<Vec<ReadSignal<Option<ClientPlayer>>>>,
+    players: Arc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     title: &'static str,
     children: Children,
 ) -> impl IntoView {
+    let players_view = players
+        .iter()
+        .enumerate()
+        .map(move |(n, player)| {
+            view! { <ActivePlayer player_num=n player=*player /> }
+        })
+        .collect_view();
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
             <Scoreboard>
-                {players
-                    .iter()
-                    .enumerate()
-                    .map(move |(n, player)| {
-                        view! { <ActivePlayer player_num=n player=*player /> }
-                    })
-                    .collect_view()}
+                {players_view}
             </Scoreboard>
             {children()}
         </div>
@@ -62,7 +63,7 @@ pub fn ActivePlayers(
 
 #[component]
 pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
-    let start_game = create_server_action::<StartGame>();
+    let start_game = ServerAction::<StartGame>::new();
 
     let PlayersContext {
         game_id,
@@ -88,19 +89,19 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
 
     if num_players == 1 {
         log::debug!("num players 1");
-        create_effect(move |_| {
+        Effect::new(move |_| {
             if players_loaded() {
                 log::debug!("join_trigger");
-                join_trigger.notify();
+                join_trigger(true);
             }
         });
     }
 
     view! {
-        <Show when=show_play fallback=move || ()>
+        <Show when=show_play fallback=move || () >
             <PlayForm join_trigger />
         </Show>
-        <Show when=show_start fallback=move || () clone:game_id>
+        <Show when=show_start>
             <StartForm start_game game_id=game_id.to_string() />
         </Show>
     }
@@ -169,37 +170,34 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
             <td class="border border-slate-100 dark:border-slate-700 p-1">
                 {username}
                 {if is_dead {
-                    view! {
+                    Either::Left(view! {
                         <span class=player_icon_holder("bg-red-600", true)>
                             <Mine />
                             <IconTooltip>"Dead"</IconTooltip>
                         </span>
-                    }
-                        .into_view()
+                    })
                 } else {
-                    ().into_view()
+                    Either::Right(())
                 }}
                 {if top_score {
-                    view! {
+                    Either::Left(view! {
                         <span class=player_icon_holder("bg-green-800", true)>
                             <Trophy />
                             <IconTooltip>"Top Score"</IconTooltip>
                         </span>
-                    }
-                        .into_view()
+                    })
                 } else {
-                    ().into_view()
+                    Either::Right(())
                 }}
                 {if victory_click {
-                    view! {
+                    Either::Left(view! {
                         <span class=player_icon_holder("bg-black", true)>
                             <Star />
                             <IconTooltip>"Victory Click"</IconTooltip>
                         </span>
-                    }
-                        .into_view()
+                    })
                 } else {
-                    ().into_view()
+                    Either::Right(())
                 }}
 
             </td>
@@ -209,40 +207,33 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
 }
 
 #[component]
-fn PlayForm(join_trigger: Trigger) -> impl IntoView {
-    let (show, set_show) = create_signal(true);
+fn PlayForm(join_trigger: WriteSignal<bool>) -> impl IntoView {
+    let (show, set_show) = signal(true);
 
     let join_game = move || {
-        join_trigger.notify();
+        join_trigger(true);
         set_show(false);
     };
 
     view! {
-        {move || {
-            if show() {
-                view! {
-                    <form
-                        on:submit=move |ev| {
-                            ev.prevent_default();
-                            join_game();
-                        }
-
-                        class="w-full max-w-xs h-8"
-                    >
-                        <button type="submit" class=button_class(Some("w-full max-w-xs h-8"), None)>
-                            "Play Game"
-                        </button>
-                    </form>
+        <Show when=show fallback=move || {view! { <div>"Joining..."</div> }} >
+            <form
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    join_game();
                 }
-                    .into_view()
-            } else {
-                view! { <div>"Joining..."</div> }.into_view()
-            }
-        }}
+
+                class="w-full max-w-xs h-8"
+            >
+                <button type="submit" class=button_class(Some("w-full max-w-xs h-8"), None)>
+                    "Play Game"
+                </button>
+            </form>
+        </Show>
     }
 }
 
-#[server(StartGame, "/api")]
+#[server]
 async fn start_game(game_id: String) -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -257,12 +248,9 @@ async fn start_game(game_id: String) -> Result<(), ServerFnError> {
 }
 
 #[component]
-fn StartForm(
-    start_game: Action<StartGame, Result<(), ServerFnError>>,
-    game_id: String,
-) -> impl IntoView {
+fn StartForm(start_game: ServerAction<StartGame>, game_id: String) -> impl IntoView {
     view! {
-        <ActionForm action=start_game class="w-full max-w-xs h-8">
+        <ActionForm action=start_game attr:class="w-full max-w-xs h-8">
             <input type="hidden" name="game_id" value=game_id />
             <button
                 type="submit"

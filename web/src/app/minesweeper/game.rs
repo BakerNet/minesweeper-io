@@ -1,10 +1,11 @@
 use chrono::DateTime;
 use codee::string::JsonSerdeWasmCodec;
-use leptos::*;
-use leptos_router::*;
-use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebSocketReturn};
-use leptos_use::{use_document, use_event_listener};
-use std::rc::Rc;
+use leptos::{either::*, ev, prelude::*};
+use leptos_router::{components::*, hooks::*};
+use leptos_use::{
+    core::ConnectionReadyState, use_document, use_event_listener, use_websocket, UseWebSocketReturn,
+};
+use std::sync::Arc;
 use web_sys::{KeyboardEvent, MouseEvent};
 
 use minesweeper_lib::{
@@ -14,7 +15,7 @@ use minesweeper_lib::{
 };
 
 use super::{
-    cell::{ActiveCell, InactiveCell},
+    cell::{ActiveCell, InactiveCell, ReplayCell},
     client::{signals_from_board, FrontendGame, PlayersContext},
     entry::ReCreateGame,
     players::{ActivePlayers, InactivePlayers, PlayerButtons},
@@ -29,7 +30,7 @@ use crate::messages::{ClientMessage, GameMessage};
 #[cfg(feature = "ssr")]
 use minesweeper_lib::client::ClientPlayer;
 
-#[server(GetGame, "/api")]
+#[server]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -46,6 +47,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     let game_log = game_manager.get_game_log(&game_id).await.ok();
     // we have all the data we need
 
+    log::debug!("one");
     let is_owner = if let Some(user) = &auth_session.user {
         match game.owner {
             None => false,
@@ -54,6 +56,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         false
     };
+    log::debug!("two");
     let user_ref = auth_session.user.as_ref();
     let player_num = if user_ref.is_some() {
         players
@@ -63,6 +66,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         None
     };
+    log::debug!("three");
     let players_simple = players.iter().map(ClientPlayer::from).collect::<Vec<_>>();
     let final_board = match (game.final_board, game_log) {
         (Some(board), Some(game_log)) => {
@@ -84,6 +88,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
             game.rows as usize
         ]),
     };
+    log::debug!("four");
     let players_frontend =
         players
             .into_iter()
@@ -92,6 +97,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
                 acc[index] = Some(ClientPlayer::from(p));
                 acc
             });
+    log::debug!("five");
     Ok(GameInfo {
         game_id: game.game_id,
         has_owner: game.owner.is_some(),
@@ -109,7 +115,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     })
 }
 
-#[server(GetReplay, "/api")]
+#[server]
 pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -193,7 +199,12 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
 #[component]
 pub fn GameWrapper() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+
+    Effect::new(move |_| {
+        log::debug!("Params: {:?}", params.get());
+    });
+
+    let game_id = move || params.get().get("id").unwrap_or_default();
 
     view! {
         <div class="text-center">
@@ -206,13 +217,17 @@ pub fn GameWrapper() -> impl IntoView {
 #[component]
 pub fn GameView() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
-    let game_info = create_resource(game_id, get_game);
+    let game_id = move || params.get().get("id").unwrap_or_default();
+    let game_info = Resource::new(game_id, get_game);
     let refetch = move || game_info.refetch();
 
+    Effect::new(move |_| {
+        log::debug!("Params: {:?}", params.get());
+    });
+
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactiveGame game_info /> },
-        false => view! { <ActiveGame game_info refetch /> },
+        true => Either::Left(view! { <InactiveGame game_info /> }),
+        false => Either::Right(view! { <ActiveGame game_info refetch /> }),
     };
 
     view! {
@@ -220,15 +235,14 @@ pub fn GameView() -> impl IntoView {
             view! { <div>"Loading..."</div> }
         }>
             {move || {
-                game_info
-                    .get()
-                    .map(|game_info| {
-                        view! {
-                            <ErrorBoundary fallback=|_| {
-                                view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)}</ErrorBoundary>
-                        }
-                    })
+                Suspend::new(async move {
+                    let game_info = game_info.await;
+                    view! {
+                        <ErrorBoundary fallback=|_| {
+                            view! { <div class="text-red-600">"Game not found"</div> }
+                        }>{game_info.map(game_view)}</ErrorBoundary>
+                    }
+                })
             }}
 
         </Transition>
@@ -238,12 +252,14 @@ pub fn GameView() -> impl IntoView {
 #[component]
 pub fn GameReplay() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
-    let game_info = create_resource(game_id, get_replay);
+    let game_id = move || params.get().get("id").unwrap_or_default();
+    let game_info = Resource::new(game_id, get_replay);
 
     let game_view = move |replay_data: GameInfoWithLog| match replay_data.game_info.is_completed {
-        true => view! { <ReplayGame replay_data /> },
-        false => view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> },
+        true => Either::Left(view! { <ReplayGame replay_data /> }),
+        false => Either::Right(
+            view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> },
+        ),
     };
 
     view! {
@@ -251,15 +267,14 @@ pub fn GameReplay() -> impl IntoView {
             view! { <div>"Loading..."</div> }
         }>
             {move || {
-                game_info
-                    .get()
-                    .map(|game_info| {
-                        view! {
-                            <ErrorBoundary fallback=|_| {
-                                view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)}</ErrorBoundary>
-                        }
-                    })
+                Suspend::new(async move {
+                    let game_info = game_info.await;
+                    view! {
+                        <ErrorBoundary fallback=|_| {
+                            view! { <div class="text-red-600">"Game not found"</div> }
+                        }>{game_info.map(game_view)}</ErrorBoundary>
+                    }
+                })
             }}
 
         </Transition>
@@ -291,7 +306,7 @@ fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
 where
     F: Fn() + Clone + 'static,
 {
-    let (error, set_error) = create_signal::<Option<String>>(None);
+    let (error, set_error) = signal::<Option<String>>(None);
 
     let UseWebSocketReturn {
         ready_state,
@@ -303,17 +318,17 @@ where
         &game_info.game_id
     ));
 
-    let game = FrontendGame::new(&game_info, set_error, Rc::new(send));
+    let game = FrontendGame::new(&game_info, set_error, Arc::new(send));
     let players_context = PlayersContext::from(&game);
     let flag_count = game.flag_count;
     let completed = game.completed;
     let sync_time = game.sync_time;
-    let cells = Rc::clone(&game.cells);
-    let players = Rc::clone(&game.players);
+    let cells = Arc::clone(&game.cells);
+    let players = Arc::clone(&game.players);
 
-    let (game_signal, _) = create_signal(game);
+    let (game_signal, _) = signal(game);
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         log::debug!("before ready_state");
         let state = ready_state();
         if state == ConnectionReadyState::Open {
@@ -325,7 +340,7 @@ where
         }
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         log::debug!("before message");
         if let Some(msg) = message() {
             log::debug!("after message {:?}", msg);
@@ -338,8 +353,8 @@ where
         }
     });
 
-    create_effect(move |last: Option<bool>| {
-        game_signal().join_trigger.track();
+    Effect::new(move |last: Option<bool>| {
+        game_signal().join.track();
         log::debug!("join_trigger rec: {last:?}");
         if let Some(sent) = last {
             if !sent {
@@ -350,9 +365,9 @@ where
         false
     });
 
-    let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
-    let (game_is_active, set_game_is_active) = create_signal(false);
-    let (active_cell, set_active_cell) = create_signal(BoardPoint { row: 0, col: 0 });
+    let (skip_mouseup, set_skip_mouseup) = signal::<usize>(0);
+    let (game_is_active, set_game_is_active) = signal(false);
+    let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         let res = match pa {
@@ -504,18 +519,17 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
     log::debug!("replay for {:?}", game_info);
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
-    let (flag_count, set_flag_count) = create_signal(0);
-    let (_, set_active_cell) = create_signal(BoardPoint { row: 0, col: 0 });
+    let (flag_count, set_flag_count) = signal(0);
 
     let (player_read_signals, player_write_signals) = game_info
         .players
         .iter()
         .cloned()
-        .map(|p| create_signal(p))
+        .map(|p| signal(p))
         .collect::<(Vec<_>, Vec<_>)>();
 
     let (cell_read_signals, cell_write_signals) = signals_from_board(&game_info.final_board);
-    let cell_read_signals = Rc::new(cell_read_signals);
+    let cell_read_signals = Arc::new(cell_read_signals);
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
         Board::from_vec(game_info.final_board),
@@ -526,7 +540,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .replay(replay_data.player_num.map(|p| p.into()))
         .expect("We are guaranteed log is not None");
 
-    let cells = Rc::clone(&cell_read_signals);
+    let cells = Arc::clone(&cell_read_signals);
 
     view! {
         <ActivePlayers players=player_read_signals.into() title="Replay">
@@ -550,13 +564,10 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
                                 .enumerate()
                                 .map(move |(col, cell)| {
                                     view! {
-                                        <ActiveCell
+                                        <ReplayCell
                                             row=row
                                             col=col
                                             cell=cell
-                                            set_active=set_active_cell
-                                            mousedown_handler=move |_, _, _| ()
-                                            mouseup_handler=move |_, _, _| ()
                                         />
                                     }
                                 })

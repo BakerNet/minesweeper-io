@@ -1,6 +1,5 @@
 use codee::string::JsonSerdeWasmCodec;
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
 use leptos_use::storage::use_local_storage;
 use serde::{Deserialize, Serialize};
 
@@ -155,7 +154,7 @@ fn validate_num_players(num_players: i64) -> bool {
     num_players > 0 && num_players <= 12
 }
 
-#[server(NewGame, "/api")]
+#[server]
 async fn new_game(
     rows: i64,
     cols: i64,
@@ -192,7 +191,7 @@ async fn new_game(
     Ok(())
 }
 
-#[server(JoinGame, "/api")]
+#[server]
 async fn join_game(game_id: String) -> Result<(), ServerFnError> {
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
@@ -302,7 +301,6 @@ where
                         set_rows(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=rows
                 />
             </div>
@@ -324,7 +322,6 @@ where
                         set_cols(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=cols
                 />
             </div>
@@ -348,8 +345,7 @@ where
                         set_num_mines(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
-                    prop:value=num_mines
+                    prop:value=move || num_mines()
                 />
             </div>
             <div class="flex-1">
@@ -370,7 +366,6 @@ where
                         set_max_players(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=max_players
                 />
             </div>
@@ -380,8 +375,8 @@ where
 
 #[component]
 pub fn JoinOrCreateGame() -> impl IntoView {
-    let join_game = create_server_action::<JoinGame>();
-    let new_game = create_server_action::<NewGame>();
+    let join_game = ServerAction::<JoinGame>::new();
+    let new_game = ServerAction::<NewGame>::new();
 
     let (selected_mode, set_selected_mode, _) =
         use_local_storage::<GameMode, JsonSerdeWasmCodec>("game_mode_settings");
@@ -390,12 +385,12 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         use_local_storage::<GameSettings, JsonSerdeWasmCodec>("custom_game_settings");
 
     let defaults = GameSettings::default();
-    let (rows, set_rows) = create_signal(defaults.rows);
-    let (cols, set_cols) = create_signal(defaults.cols);
-    let (num_mines, set_num_mines) = create_signal(defaults.num_mines);
-    let (max_players, set_max_players) = create_signal(defaults.max_players);
-    let (dirty, set_dirty) = create_signal(false);
-    let (errors, set_errors) = create_signal(Vec::new());
+    let (rows, set_rows) = signal(defaults.rows);
+    let (cols, set_cols) = signal(defaults.cols);
+    let (num_mines, set_num_mines) = signal(defaults.num_mines);
+    let (max_players, set_max_players) = signal(defaults.max_players);
+    let (dirty, set_dirty) = signal(false);
+    let (errors, set_errors) = signal(Vec::new());
 
     let load_custom_settings = move || {
         let stored_settings = custom_settings();
@@ -405,7 +400,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         set_max_players(stored_settings.max_players);
     };
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let stored_mode = selected_mode();
         if stored_mode != GameMode::Custom {
             let mode_settings = GameSettings::from(stored_mode);
@@ -419,7 +414,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         }
     });
 
-    create_effect(move |_| {
+    Effect::new(move |_| {
         let rows = rows();
         let cols = cols();
         let max_mines = num_mines();
@@ -457,7 +452,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         <div class="space-y-4 w-80">
             <ActionForm
                 action=new_game
-                class="w-full max-w-xs space-y-2"
+                attr:class="w-full max-w-xs space-y-2"
                 on:submit=move |ev| {
                     if selected_mode() == GameMode::Custom {
                         set_custom_settings(GameSettings {
@@ -511,7 +506,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     <span>"-- or --"</span>
                 </span>
             </div>
-            <ActionForm action=join_game class="w-full max-w-xs">
+            <ActionForm action=join_game attr:class="w-full max-w-xs">
                 <div class="flex flex-col space-y-2">
                     <label
                         class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
@@ -543,11 +538,11 @@ pub fn JoinOrCreateGame() -> impl IntoView {
 
 #[component]
 pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
-    let new_game = create_server_action::<NewGame>();
+    let new_game = ServerAction::<NewGame>::new();
 
     view! {
         <div class="flex flex-col items-center space-y-4 mb-8">
-            <ActionForm action=new_game class="w-full max-w-xs space-y-2">
+            <ActionForm action=new_game attr:class="w-full max-w-xs space-y-2">
                 <input type="hidden" name="rows" prop:value=game_settings.rows />
                 <input type="hidden" name="cols" prop:value=game_settings.cols />
                 <input type="hidden" name="num_mines" prop:value=game_settings.num_mines />

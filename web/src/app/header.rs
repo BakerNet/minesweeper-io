@@ -1,5 +1,7 @@
-use leptos::*;
-use leptos_router::*;
+use codee::string::JsonSerdeCodec;
+use leptos::either::*;
+use leptos::prelude::*;
+use leptos_router::components::*;
 
 use crate::components::{cell_class, dark_mode::DarkModeToggle, icons::Flag, number_class};
 
@@ -14,56 +16,51 @@ fn logo() -> impl IntoView {
     let cell_class_flag = cell_class("", "bg-neutral-500 hover:bg-neutral-600/90");
     view! {
         <span class="whitespace-nowrap">
-            <span class=&cell_class_4>M</span>
-            <span class=&cell_class_2>i</span>
-            <span class=&cell_class_3>n</span>
+            <span class=cell_class_4.clone()>M</span>
+            <span class=cell_class_2.clone()>i</span>
+            <span class=cell_class_3.clone()>n</span>
             <span class=cell_class_3>e</span>
             <span class=cell_class_4>s</span>
-            <span class=&cell_class_2>w</span>
+            <span class=cell_class_2.clone()>w</span>
             <span class=cell_class_2>e</span>
-            <span class=&cell_class_1>e</span>
+            <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_flag>
                 <Flag />
             </span>
-            <span class=&cell_class_1>e</span>
+            <span class=cell_class_1.clone()>e</span>
             <span class=cell_class_1>r</span>
         </span>
     }
 }
 
 #[component]
-pub fn Header<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
-where
-    S: PartialEq + Clone + 'static,
-{
+pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl IntoView {
     let user_info = move |user: Option<FrontendUser>| {
         let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
         match user {
-            None => view! {
+            None => Either::Left(view! {
                 "Guest ("
-                <A href="/auth/login" class=aclass>
+                <A href="/auth/login" attr:class=aclass>
                     "Log in"
                 </A>
                 ")"
-            }
-            .into_view(),
+            }),
             Some(user) => {
                 let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
-                view! {
+                Either::Right(view! {
                     {name}
                     " ("
-                    <A href="/profile" class=aclass>
+                    <A href="/profile" attr:class=aclass>
                         "Profile"
                     </A>
                     ")"
-                }
-                .into_view()
+                })
             }
         }
     };
     view! {
         <header class="flex flex-wrap space-y-2 items-center justify-between px-4 py-2 border-b border-gray-800">
-            <A href="/" class="flex items-center space-x-2">
+            <A href="/" attr:class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
             </A>
             <div class="flex grow justify-end items-center space-x-2">

@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_use::{
     use_clipboard, use_interval_fn_with_options, use_timeout_fn, use_window, UseClipboardReturn,
     UseIntervalFnOptions, UseTimeoutFnReturn,
@@ -20,8 +20,8 @@ pub fn ActiveTimer(
     sync_time: ReadSignal<Option<usize>>,
     completed: ReadSignal<bool>,
 ) -> impl IntoView {
-    let (start_time, set_start_time) = create_signal::<Option<f64>>(None);
-    let (display_time, set_display_time) = create_signal::<usize>(0);
+    let (start_time, set_start_time) = signal::<Option<f64>>(None);
+    let (display_time, set_display_time) = signal::<usize>(0);
 
     let performance = move || {
         let window = use_window();
@@ -47,7 +47,7 @@ pub fn ActiveTimer(
         },
     );
 
-    create_effect(move |prev: Option<Option<usize>>| {
+    Effect::new(move |prev: Option<Option<usize>>| {
         let completed = completed.get();
         let sync_time = sync_time.get();
         if sync_time.is_some() && sync_time != prev.flatten() {
@@ -122,7 +122,7 @@ pub fn InactiveTimer(game_time: usize) -> impl IntoView {
 
 #[component]
 pub fn CopyGameLink(game_id: String) -> impl IntoView {
-    let (show_tooltip, set_show_tooltip) = create_signal(false);
+    let (show_tooltip, set_show_tooltip) = signal(false);
     let UseClipboardReturn { copy, .. } = use_clipboard();
     let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
         move |_| {
@@ -143,7 +143,7 @@ pub fn CopyGameLink(game_id: String) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center justify-center border-2 rounded-full border-slate-400 bg-neutral-200 text-neutral-800 font-medium px-2">
             <button
-                class=move || { if show_tooltip.get() { Some("show-tooltip") } else { None } }
+                prop:class=move || { if show_tooltip.get() { Some("show-tooltip") } else { None } }
                 on:click=move |_| {
                     copy(&url);
                     set_show_tooltip(true);

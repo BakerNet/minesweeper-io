@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::{ev, prelude::*};
 use leptos_use::{use_document, use_event_listener};
 use web_sys::KeyboardEvent;
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use leptos::*;
-use leptos_router::*;
-use std::{cell::RefCell, rc::Rc};
+use leptos::{html::Input, prelude::*};
+use leptos_router::components::*;
+use std::sync::{Arc, RwLock};
 
 use crate::components::button_class;
 use minesweeper_lib::{
@@ -15,45 +15,45 @@ use minesweeper_lib::{
 #[derive(Clone)]
 #[allow(dead_code)]
 struct ReplayStore {
-    replay: Rc<RefCell<MinesweeperReplay>>,
-    cell_read_signals: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
-    cell_write_signals: Rc<Vec<Vec<WriteSignal<PlayerCell>>>>,
-    player_write_signals: Rc<Vec<WriteSignal<Option<ClientPlayer>>>>,
+    replay: Arc<RwLock<MinesweeperReplay>>,
+    cell_read_signals: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_write_signals: Arc<Vec<Vec<WriteSignal<PlayerCell>>>>,
+    player_write_signals: Arc<Vec<WriteSignal<Option<ClientPlayer>>>>,
 }
 
 impl ReplayStore {
     fn with_current_board(&self, f: impl FnOnce(&Board<PlayerCell>)) {
-        let replay: &MinesweeperReplay = &mut (*self.replay).borrow();
+        let replay: &MinesweeperReplay = &mut (*self.replay).read().unwrap();
         f(replay.current_board())
     }
 
     fn with_current_players(&self, f: impl FnOnce(&Vec<SimplePlayer>)) {
-        let replay: &MinesweeperReplay = &mut (*self.replay).borrow();
+        let replay: &MinesweeperReplay = &mut (*self.replay).read().unwrap();
         f(replay.current_players())
     }
 
     fn next(&self) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
         replay.advance()
     }
 
     fn prev(&self) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
         replay.rewind()
     }
 
     fn to_pos(&self, pos: usize) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
         replay.to_pos(pos)
     }
 
     fn flags(&self) -> usize {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
         replay.current_flags_and_revealed_mines()
     }
 
     fn current_play(&self) -> Option<Play> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).borrow_mut();
+        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
         replay.current_play()
     }
 }
@@ -61,7 +61,7 @@ impl ReplayStore {
 #[component]
 pub fn ReplayControls(
     replay: MinesweeperReplay,
-    cell_read_signals: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_read_signals: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
     cell_write_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_flag_count: WriteSignal<usize>,
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
@@ -69,21 +69,21 @@ pub fn ReplayControls(
     log::debug!("replay log length: {}", replay.len());
     let min = 0;
     let max = replay.len() - 1;
-    let slider_el: NodeRef<html::Input> = create_node_ref();
+    let slider_el = NodeRef::<Input>::new();
 
-    let (replay_started, set_replay_started) = create_signal(false);
-    let (hide_mines, set_hide_mines) = create_signal(false);
-    let (is_beginning, set_beginning) = create_signal(true);
-    let (is_end, set_end) = create_signal(false);
-    let (current_play, set_current_play) = create_signal::<Option<Play>>(None);
+    let (replay_started, set_replay_started) = signal(false);
+    let (hide_mines, set_hide_mines) = signal(false);
+    let (is_beginning, set_beginning) = signal(true);
+    let (is_end, set_end) = signal(false);
+    let (current_play, set_current_play) = signal::<Option<Play>>(None);
 
     let replay = ReplayStore {
-        replay: Rc::new(RefCell::new(replay)),
+        replay: Arc::new(RwLock::new(replay)),
         cell_read_signals,
         cell_write_signals: cell_write_signals.into(),
         player_write_signals: player_write_signals.into(),
     };
-    let (replay, _) = create_signal(replay);
+    let (replay, _) = signal(replay);
 
     let render_current = move || {
         let replay = replay.get_untracked();
@@ -125,7 +125,7 @@ pub fn ReplayControls(
         set_current_play(replay.current_play());
     };
 
-    create_effect(move |prev| {
+    Effect::new(move |prev| {
         let hide_mines = hide_mines();
         if replay_started() && prev != Some(hide_mines) {
             render_current();
@@ -296,7 +296,7 @@ pub fn OpenReplay() -> impl IntoView {
         <div class="flex flex-col items-center space-y-4 mb-8">
             <A
                 href="replay"
-                class=button_class(
+                attr:class=button_class(
                     Some("w-full max-w-xs h-8"),
                     Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
                 )

@@ -4,7 +4,7 @@ pub mod info;
 
 pub fn input_class(exta_classes: Option<&str>) -> String {
     let extra_classes = exta_classes.unwrap_or_default();
-    format!("flex h-10 w-full border border-blue-950 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1 {}", extra_classes)
+    format!("flex h-10 w-full border border-blue-950 bg-white text-black px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1 {}", extra_classes)
 }
 
 pub fn button_class(extra_classes: Option<&str>, custom_colors: Option<&str>) -> String {
