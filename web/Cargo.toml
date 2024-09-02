@@ -24,7 +24,7 @@ leptos = { version = "0.7.0-beta", features = ["nightly"] }
 leptos_axum = { version = "0.7.0-beta", optional = true }
 leptos_meta = { version = "0.7.0-beta" }
 leptos_router = { version = "0.7.0-beta", features = ["nightly"] }
-leptos-use = { git = "https://github.com/bakernet/leptos-use", branch = "leptos-0.7" }
+leptos-use = { git = "https://github.com/bakernet/leptos-use", branch = "merge-main-0901" }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
 oauth2 = { version = "4.4", optional = true }

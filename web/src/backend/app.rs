@@ -108,14 +108,17 @@ async fn leptos_routes_handler(
     session: Session,
     req: Request<Body>,
 ) -> Response {
+    let routes = app_state.routes.clone();
+    let game_manager = app_state.game_manager.clone();
+    let options = app_state.leptos_options.clone();
     let handler = leptos_axum::render_route_with_context(
-        app_state.routes.clone(),
+        routes,
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
-            provide_context(app_state.game_manager.clone());
+            provide_context(game_manager.clone());
         },
-        move || shell(app_state.leptos_options.clone()),
+        move || shell(options.clone()),
     );
     handler(req).await.into_response()
 }

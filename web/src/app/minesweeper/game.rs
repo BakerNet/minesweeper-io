@@ -326,39 +326,46 @@ where
     let cells = Arc::clone(&game.cells);
     let players = Arc::clone(&game.players);
 
-    let (game_signal, _) = signal(game);
+    let (game_signal, _) = signal_local(game);
 
     Effect::new(move |_| {
         log::debug!("before ready_state");
         let state = ready_state();
+        let game = game_signal.get_untracked();
         if state == ConnectionReadyState::Open {
             log::debug!("ready_state Open");
-            game_signal().send(ClientMessage::Join);
+            game.send(ClientMessage::Join);
         } else if state == ConnectionReadyState::Closed {
             log::debug!("ready_state Closed");
             refetch();
         }
     });
 
-    Effect::new(move |_| {
-        log::debug!("before message");
-        if let Some(msg) = message() {
-            log::debug!("after message {:?}", msg);
-            let res = game_signal().handle_message(msg);
-            if let Err(e) = res {
-                (game_signal().err_signal)(Some(format!("{:?}", e)))
-            } else {
-                (game_signal().err_signal)(None)
+    Effect::watch(
+        move || message.get(),
+        move |msg, _, _| {
+            log::debug!("before message");
+            let game = game_signal.get_untracked();
+            if let Some(msg) = msg {
+                log::debug!("after message {:?}", msg);
+                let res = game.handle_message(msg.clone());
+                if let Err(e) = res {
+                    (game.err_signal)(Some(format!("{:?}", e)));
+                } else {
+                    (game.err_signal)(None);
+                }
             }
-        }
-    });
+        },
+        false,
+    );
 
     Effect::new(move |last: Option<bool>| {
-        game_signal().join.track();
+        let game = game_signal.get_untracked();
+        game.join.track();
         log::debug!("join_trigger rec: {last:?}");
         if let Some(sent) = last {
             if !sent {
-                game_signal().send(ClientMessage::PlayGame);
+                game.send(ClientMessage::PlayGame);
                 return true;
             }
         }
@@ -370,12 +377,13 @@ where
     let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
+        let game = game_signal.get_untracked();
         let res = match pa {
-            PlayAction::Reveal => game_signal.get().try_reveal(row, col),
-            PlayAction::Flag => game_signal.get().try_flag(row, col),
-            PlayAction::RevealAdjacent => game_signal.get().try_reveal_adjacent(row, col),
+            PlayAction::Reveal => game.try_reveal(row, col),
+            PlayAction::Flag => game.try_flag(row, col),
+            PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
         };
-        res.unwrap_or_else(|e| (game_signal.get().err_signal)(Some(format!("{:?}", e))));
+        res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
     };
 
     let handle_keydown = move |ev: KeyboardEvent| {

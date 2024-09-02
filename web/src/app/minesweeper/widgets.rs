@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_use::{
-    use_clipboard, use_interval_fn_with_options, use_timeout_fn, use_window, UseClipboardReturn,
-    UseIntervalFnOptions, UseTimeoutFnReturn,
+    use_clipboard, use_interval_fn_with_options, use_timeout_fn, use_window, utils::Pausable,
+    UseClipboardReturn, UseIntervalFnOptions, UseTimeoutFnReturn,
 };
 
 use crate::components::icons::{widget_icon_holder, Copy, IconTooltip, Mine, StopWatch};
@@ -29,7 +29,11 @@ pub fn ActiveTimer(
         window.and_then(|w| w.performance())
     };
 
-    let interval = use_interval_fn_with_options(
+    let Pausable {
+        is_active,
+        pause,
+        resume,
+    } = use_interval_fn_with_options(
         move || {
             if let Some(st) = start_time.get() {
                 if let Some(p) = performance() {
@@ -47,24 +51,29 @@ pub fn ActiveTimer(
         },
     );
 
-    Effect::new(move |prev: Option<Option<usize>>| {
-        let completed = completed.get();
-        let sync_time = sync_time.get();
-        if sync_time.is_some() && sync_time != prev.flatten() {
-            if let Some(st) = sync_time {
-                set_display_time(st);
-                if let Some(p) = performance() {
-                    set_start_time(Some(p.now()));
+    Effect::watch(
+        move || (completed.get(), sync_time.get()),
+        move |curr, _, prev| {
+            log::debug!("Timer effect");
+            let completed = curr.0;
+            let sync_time = curr.1;
+            if sync_time.is_some() && sync_time != prev.flatten() {
+                if let Some(st) = sync_time {
+                    set_display_time(st);
+                    if let Some(p) = performance() {
+                        set_start_time(Some(p.now()));
+                    };
                 };
-            };
-        }
-        if !(interval.is_active)() && !completed && sync_time.is_some() {
-            (interval.resume)();
-        } else if completed {
-            (interval.pause)();
-        }
-        sync_time
-    });
+            }
+            if !is_active.get_untracked() && !completed && sync_time.is_some() {
+                resume();
+            } else if completed {
+                pause();
+            }
+            sync_time
+        },
+        true,
+    );
 
     view! {
         <div class="flex items-center">

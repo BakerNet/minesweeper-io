@@ -120,14 +120,14 @@ impl FrontendGame {
     }
 
     fn play_protections(&self) -> Result<usize> {
-        if !(self.started).get() || (self.completed).get() {
+        if !(self.started).get_untracked() || (self.completed).get_untracked() {
             bail!("Tried to play when game not active")
         }
-        let Some(player) =  self.player_id.get() else {
+        let Some(player) =  self.player_id.get_untracked() else {
             bail!("Tried to play when not a player")
         };
         let Some(player_info) = self.players[player]
-            .get() else {
+            .get_untracked() else {
             bail!("Tried to play when player info not available")
         };
         if player_info.dead {
@@ -197,10 +197,10 @@ impl FrontendGame {
                 plays.iter().for_each(|(point, cell)| {
                     log::debug!("Play outcome: {:?} {:?}", point, cell);
                     self.update_cell(*point, *cell);
-                    if game.game_over {
-                        (self.set_completed)(true);
-                    }
                 });
+                if game.game_over {
+                    (self.set_completed)(true);
+                }
                 Ok(())
             }
             GameMessage::PlayerUpdate(pu) => {
@@ -248,7 +248,7 @@ impl FrontendGame {
     }
 
     pub fn update_cell(&self, point: BoardPoint, cell: PlayerCell) {
-        let curr_cell = self.cells[point.row][point.col]();
+        let curr_cell = self.cells[point.row][point.col].get_untracked();
         match (curr_cell, cell) {
             (PlayerCell::Hidden(HiddenCell::Flag), PlayerCell::Hidden(HiddenCell::Empty)) => {
                 self.set_flag_count.update(|nm| *nm -= 1);
