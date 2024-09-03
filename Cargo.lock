@@ -1457,8 +1457,9 @@ dependencies = [
 
 [[package]]
 name = "leptos-use"
-version = "0.13.1"
-source = "git+https://github.com/bakernet/leptos-use?branch=merge-main-0901#f6f93aed0911c716a3dec5571a8d19a5cf613afd"
+version = "0.14.0-beta1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf3e115ec6c90ccd031c1f94918372af602f105e0b3b252363f0ef887d15a1aa"
 dependencies = [
  "cfg-if",
  "codee",
@@ -1469,7 +1470,6 @@ dependencies = [
  "js-sys",
  "lazy_static",
  "leptos",
- "log",
  "paste",
  "send_wrapper",
  "thiserror",

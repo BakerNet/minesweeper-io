@@ -2,7 +2,10 @@ use leptos::{ev, prelude::*};
 use leptos_use::{use_document, use_event_listener};
 use web_sys::KeyboardEvent;
 
-use crate::components::icons::{player_icon_holder, Mine, Star, Trophy};
+use crate::{
+    components::icons::{Mine, Star, Trophy},
+    player_icon_holder,
+};
 
 #[component]
 pub fn ControlsInfoButton(set_show_info: WriteSignal<bool>) -> impl IntoView {
@@ -62,21 +65,21 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                 </div>
                 <h2 class="text-2xl font-bold tracking-wide my-3">"Player Badges"</h2>
                 <div class="text-l my-2">
-                    <span class=player_icon_holder("bg-red-600", false)>
+                    <span class=player_icon_holder!("bg-red-600")>
                         <Mine />
                     </span>
                     <span class="font-medium">"Dead"</span>
                     " - the player died by revealing a mine"
                 </div>
                 <div class="text-l my-2">
-                    <span class=player_icon_holder("bg-green-800", false)>
+                    <span class=player_icon_holder!("bg-green-800")>
                         <Trophy />
                     </span>
                     <span class="font-medium">"Top Score"</span>
                     " - the player had the highest score in a multiplayer minesweeper game"
                 </div>
                 <div class="text-l my-2">
-                    <span class=player_icon_holder("bg-black", false)>
+                    <span class=player_icon_holder!("bg-black")>
                         <Star />
                     </span>
                     <span class="font-medium">"Victory Click"</span>

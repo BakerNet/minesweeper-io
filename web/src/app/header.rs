@@ -3,17 +3,21 @@ use leptos::either::*;
 use leptos::prelude::*;
 use leptos_router::components::*;
 
-use crate::components::{cell_class, dark_mode::DarkModeToggle, icons::Flag, number_class};
+use crate::{
+    cell_class,
+    components::{dark_mode::DarkModeToggle, icons::Flag},
+    number_class,
+};
 
 use super::auth::FrontendUser;
 
 fn logo() -> impl IntoView {
     let white_bg = "bg-white hover:bg-neutral-300";
-    let cell_class_1 = cell_class(&number_class(1), white_bg);
-    let cell_class_2 = cell_class(&number_class(2), white_bg);
-    let cell_class_3 = cell_class(&number_class(3), white_bg);
-    let cell_class_4 = cell_class(&number_class(4), white_bg);
-    let cell_class_flag = cell_class("", "bg-neutral-500 hover:bg-neutral-600/90");
+    let cell_class_1 = cell_class!(number_class!(1), white_bg);
+    let cell_class_2 = cell_class!(number_class!(2), white_bg);
+    let cell_class_3 = cell_class!(number_class!(3), white_bg);
+    let cell_class_4 = cell_class!(number_class!(4), white_bg);
+    let cell_class_flag = cell_class!("", "bg-neutral-500 hover:bg-neutral-600/90");
     view! {
         <span class="whitespace-nowrap">
             <span class=cell_class_4.clone()>M</span>
@@ -39,21 +43,20 @@ pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl Into
         let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
         match user {
             None => Either::Left(view! {
-                "Guest ("
-                <A href="/auth/login" attr:class=aclass>
-                    "Log in"
-                </A>
-                ")"
+                <span>
+                    "Guest (" <A href="/auth/login" attr:class=aclass>
+                        "Log in"
+                    </A> ")"
+                </span>
             }),
             Some(user) => {
                 let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
                 Either::Right(view! {
-                    {name}
-                    " ("
-                    <A href="/profile" attr:class=aclass>
-                        "Profile"
-                    </A>
-                    ")"
+                    <span>
+                        {name} " (" <A href="/profile" attr:class=aclass>
+                            "Profile"
+                        </A> ")"
+                    </span>
                 })
             }
         }
@@ -64,13 +67,15 @@ pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl Into
                 <h1>{logo()}</h1>
             </A>
             <div class="flex grow justify-end items-center space-x-2">
-                <Transition fallback=move || {
-                    view! {}
-                }>
-                    <span class="text-lg text-gray-900 dark:text-gray-200">
-                        {user.get().map(user_info)}
+                <Transition fallback=move || () >
+                    {move || Suspend::new(async move {
+                        let user = user.await;
+                        let user = user_info(user);
+                        view! {
+                            <span class="text-lg text-gray-900 dark:text-gray-200">{user}</span>
+                        }
+                    })}
 
-                    </span>
                 </Transition>
                 <DarkModeToggle />
             </div>

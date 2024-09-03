@@ -20,13 +20,13 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
         <!DOCTYPE html>
         <html lang="en">
             <head>
-                <meta charset="utf-8"/>
-                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <meta name="title" content="Welcome to Minesweeper" />
-                <AutoReload options=options.clone()/>
-                <HydrationScripts options/>
-                <meta name="color-scheme" content="dark light"/>
-                <link rel="shortcut icon" type="image/ico" href="/favicon.ico"/>
+                <AutoReload options=options.clone() />
+                <HydrationScripts options />
+                <meta name="color-scheme" content="dark light" />
+                <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
                 <link rel="stylesheet" id="leptos" href="/pkg/minesweeper-web.css" />
                 <script>
                     r#"
@@ -41,9 +41,10 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                     }
                     "#
                 </script>
+                <MetaTags />
             </head>
             <body>
-                <App/>
+                <App />
             </body>
         </html>
     }
@@ -67,11 +68,7 @@ pub fn App() -> impl IntoView {
     provide_meta_context();
 
     view! {
-
-        // sets the document title
-
-        // content for this welcome page
-        <Router >
+        <Router>
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user />
                 <Routes fallback=|| {

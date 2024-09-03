@@ -3,7 +3,7 @@ use leptos::{html::Input, prelude::*};
 use leptos_router::components::*;
 use std::sync::{Arc, RwLock};
 
-use crate::components::button_class;
+use crate::button_class;
 use minesweeper_lib::{
     board::Board,
     cell::{HiddenCell, PlayerCell},
@@ -125,13 +125,16 @@ pub fn ReplayControls(
         set_current_play(replay.current_play());
     };
 
-    Effect::new(move |prev| {
-        let hide_mines = hide_mines();
-        if replay_started() && prev != Some(hide_mines) {
-            render_current();
-        }
-        hide_mines
-    });
+    Effect::watch(
+        hide_mines,
+        move |hide_mines, _, prev| {
+            if replay_started.get_untracked() && prev != Some(*hide_mines) {
+                render_current();
+            }
+            *hide_mines
+        },
+        false,
+    );
 
     let next = move || {
         let replay = replay.get_untracked();
@@ -202,9 +205,9 @@ pub fn ReplayControls(
             <Show when=move || !replay_started()>
                 <button
                     type="button"
-                    class=button_class(
-                        Some("max-w-xs h-10 rounded-lg text-lg"),
-                        Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                    class=button_class!(
+                        "max-w-xs h-10 rounded-lg text-lg",
+                        "bg-green-700 hover:bg-green-800/90 text-white"
                     )
                     on:click=move |_| {
                         set_replay_started(true);
@@ -233,9 +236,9 @@ pub fn ReplayControls(
                 <div class="w-full max-w-xs flex justify-between items-center">
                     <button
                         type="button"
-                        class=button_class(
-                            Some("max-w-xs h-8 select-none rounded-l-md"),
-                            Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
+                        class=button_class!(
+                            "max-w-xs h-8 select-none rounded-l-md",
+                            "bg-neutral-700 hover:bg-neutral-800/90 text-white"
                         )
                         on:click=move |_| prev()
                         disabled=is_beginning
@@ -255,9 +258,9 @@ pub fn ReplayControls(
                     />
                     <button
                         type="button"
-                        class=button_class(
-                            Some("max-w-xs h-8 select-none rounded-r-md"),
-                            Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
+                        class=button_class!(
+                            "max-w-xs h-8 select-none rounded-r-md",
+                            "bg-neutral-700 hover:bg-neutral-800/90 text-white"
                         )
                         on:click=move |_| next()
                         disabled=is_end
@@ -296,9 +299,9 @@ pub fn OpenReplay() -> impl IntoView {
         <div class="flex flex-col items-center space-y-4 mb-8">
             <A
                 href="replay"
-                attr:class=button_class(
-                    Some("w-full max-w-xs h-8"),
-                    Some("bg-neutral-700 hover:bg-neutral-800/90 text-white"),
+                attr:class=button_class!(
+                    "w-full max-w-xs h-8",
+                    "bg-neutral-700 hover:bg-neutral-800/90 text-white"
                 )
             >
                 "Open Replay"

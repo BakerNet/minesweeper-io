@@ -1,9 +1,8 @@
 use leptos::prelude::ActionForm;
 use leptos::prelude::*;
-use leptos_use::use_window;
 use serde::{Deserialize, Serialize};
 
-use crate::components::button_class;
+use crate::button_class;
 #[cfg(feature = "ssr")]
 use crate::{
     backend::{AuthSession, CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET},
@@ -80,42 +79,44 @@ pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, 
 
 #[component]
 pub fn LoginForm(login: ServerAction<Login>, target: OAuthTarget) -> impl IntoView {
-    let (target_str, target_readable, target_colors) = match target {
+    let (target_str, target_readable, target_class) = match target {
         OAuthTarget::Google => (
             "Google",
             "Log in with Google",
-            "bg-blue-400 text-white hover:bg-blue-600",
+            button_class!(
+                "w-full max-w-xs h-8",
+                "bg-blue-400 text-white hover:bg-blue-600"
+            ),
         ),
         OAuthTarget::Reddit => (
             "Reddit",
             "Log in with Reddit",
-            "bg-orange-600 text-white hover:bg-orange-800",
+            button_class!(
+                "w-full max-w-xs h-8",
+                "bg-orange-600 text-white hover:bg-orange-800"
+            ),
         ),
         OAuthTarget::Github => (
             "Github",
             "Log in with Github",
-            "bg-zinc-800 text-white hover:bg-zinc-900",
+            button_class!(
+                "w-full max-w-xs h-8",
+                "bg-zinc-800 text-white hover:bg-zinc-900"
+            ),
         ),
     };
 
     Effect::new(move |_| {
         if let Some(Ok(url)) = login.value().get() {
-            let window = use_window();
-            let window = window.as_ref();
-            if let Some(window) = window {
-                let _ = window.open_with_url_and_target(&url, "_self");
-            }
+            let window = window();
+            let _ = window.open_with_url_and_target(&url, "_self");
         }
     });
 
     view! {
         <ActionForm action=login attr:class="w-full max-w-xs h-8">
             <input type="hidden" name="target" value=target_str />
-            <button
-                type="submit"
-                class=button_class(Some("w-full max-w-xs h-8"), Some(target_colors))
-                disabled=login.pending()
-            >
+            <button type="submit" class=target_class disabled=login.pending()>
                 {target_readable}
             </button>
         </ActionForm>
@@ -142,9 +143,9 @@ pub fn LogOutForm(logout: ServerAction<Logout>) -> impl IntoView {
         <ActionForm action=logout attr:class="w-full max-w-xs h-12">
             <button
                 type="submit"
-                class=button_class(
-                    Some("w-full max-w-xs h-12"),
-                    Some("bg-red-400 text-black hover:bg-red-500/90"),
+                class=button_class!(
+                    "w-full max-w-xs h-12",
+                    "bg-red-400 text-black hover:bg-red-500/90"
                 )
 
                 disabled=logout.pending()

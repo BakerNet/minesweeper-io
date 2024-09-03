@@ -7,10 +7,10 @@ use minesweeper_lib::client::ClientPlayer;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
-use crate::components::{
+use crate::{
     button_class,
-    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
-    player_class,
+    components::icons::{IconTooltip, Mine, Star, Trophy},
+    player_class, player_icon_holder,
 };
 
 use super::client::PlayersContext;
@@ -53,9 +53,7 @@ pub fn ActivePlayers(
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
-            <Scoreboard>
-                {players_view}
-            </Scoreboard>
+            <Scoreboard>{players_view}</Scoreboard>
             {children()}
         </div>
     }
@@ -89,16 +87,21 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
 
     if num_players == 1 {
         log::debug!("num players 1");
-        Effect::new(move |_| {
-            if players_loaded() {
-                log::debug!("join_trigger");
-                join_trigger(true);
-            }
-        });
+        Effect::watch(
+            players_loaded,
+            move |loaded, _, prev| {
+                if *loaded && prev.unwrap_or(true) {
+                    log::debug!("join_trigger");
+                    join_trigger(true);
+                }
+                !*loaded
+            },
+            false,
+        );
     }
 
     view! {
-        <Show when=show_play fallback=move || () >
+        <Show when=show_play fallback=move || ()>
             <PlayForm join_trigger />
         </Show>
         <Show when=show_start>
@@ -141,7 +144,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     let (mut player_class, username, is_dead, victory_click, top_score, score) =
         if let Some(player) = player {
             (
-                player_class(player.player_id),
+                player_class!(player.player_id).to_owned(),
                 player.username,
                 player.dead,
                 player.victory_click,
@@ -170,32 +173,38 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
             <td class="border border-slate-100 dark:border-slate-700 p-1">
                 {username}
                 {if is_dead {
-                    Either::Left(view! {
-                        <span class=player_icon_holder("bg-red-600", true)>
-                            <Mine />
-                            <IconTooltip>"Dead"</IconTooltip>
-                        </span>
-                    })
+                    Either::Left(
+                        view! {
+                            <span class=player_icon_holder!("bg-red-600", true)>
+                                <Mine />
+                                <IconTooltip>"Dead"</IconTooltip>
+                            </span>
+                        },
+                    )
                 } else {
                     Either::Right(())
                 }}
                 {if top_score {
-                    Either::Left(view! {
-                        <span class=player_icon_holder("bg-green-800", true)>
-                            <Trophy />
-                            <IconTooltip>"Top Score"</IconTooltip>
-                        </span>
-                    })
+                    Either::Left(
+                        view! {
+                            <span class=player_icon_holder!("bg-green-800", true)>
+                                <Trophy />
+                                <IconTooltip>"Top Score"</IconTooltip>
+                            </span>
+                        },
+                    )
                 } else {
                     Either::Right(())
                 }}
                 {if victory_click {
-                    Either::Left(view! {
-                        <span class=player_icon_holder("bg-black", true)>
-                            <Star />
-                            <IconTooltip>"Victory Click"</IconTooltip>
-                        </span>
-                    })
+                    Either::Left(
+                        view! {
+                            <span class=player_icon_holder!("bg-black", true)>
+                                <Star />
+                                <IconTooltip>"Victory Click"</IconTooltip>
+                            </span>
+                        },
+                    )
                 } else {
                     Either::Right(())
                 }}
@@ -216,7 +225,12 @@ fn PlayForm(join_trigger: WriteSignal<bool>) -> impl IntoView {
     };
 
     view! {
-        <Show when=show fallback=move || {view! { <div>"Joining..."</div> }} >
+        <Show
+            when=show
+            fallback=move || {
+                view! { <div>"Joining..."</div> }
+            }
+        >
             <form
                 on:submit=move |ev| {
                     ev.prevent_default();
@@ -225,7 +239,7 @@ fn PlayForm(join_trigger: WriteSignal<bool>) -> impl IntoView {
 
                 class="w-full max-w-xs h-8"
             >
-                <button type="submit" class=button_class(Some("w-full max-w-xs h-8"), None)>
+                <button type="submit" class=button_class!("w-full max-w-xs h-8")>
                     "Play Game"
                 </button>
             </form>
@@ -254,9 +268,9 @@ fn StartForm(start_game: ServerAction<StartGame>, game_id: String) -> impl IntoV
             <input type="hidden" name="game_id" value=game_id />
             <button
                 type="submit"
-                class=button_class(
-                    Some("w-full max-w-xs h-8"),
-                    Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                class=button_class!(
+                    "w-full max-w-xs h-8",
+                    "bg-green-700 hover:bg-green-800/90 text-white"
                 )
 
                 disabled=start_game.pending()

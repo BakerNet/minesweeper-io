@@ -9,10 +9,10 @@ use super::{
     auth::{FrontendUser, LogOutForm, Logout},
     minesweeper::GameMode,
 };
-use crate::components::{
+use crate::{
     button_class,
-    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
-    input_class, player_class,
+    components::icons::{IconTooltip, Mine, Star, Trophy},
+    input_class, player_class, player_icon_holder,
 };
 
 #[cfg(feature = "ssr")]
@@ -138,17 +138,13 @@ fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl
                 attr:class="flex space-x-2"
             >
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="text"
                     id="set_display_name_display_name"
                     name="display_name"
                     placeholder=curr_name
                 />
-                <button
-                    type="submit"
-                    class=button_class(None, None)
-                    disabled=set_display_name.pending()
-                >
+                <button type="submit" class=button_class!() disabled=set_display_name.pending()>
                     "Set display name"
                 </button>
             </ActionForm>
@@ -218,7 +214,7 @@ fn GameHistory() -> impl IntoView {
     let td_class = "border border-slate-100 dark:border-slate-700 p-1";
 
     let loading_row = move |num: usize| {
-        let player_class = player_class(0) + " text-black";
+        let player_class = player_class!(0).to_owned() + " text-black";
         view! {
             <tr class=player_class>
                 <td class=td_class>"Game "{num}</td>
@@ -231,7 +227,7 @@ fn GameHistory() -> impl IntoView {
         }
     };
     let game_view = move |game: PlayerGame| {
-        let player_class = player_class(game.player as usize) + " text-black";
+        let player_class = player_class!(game.player as usize).to_owned() + " text-black";
         view! {
             <tr class=player_class>
                 <td class=td_class>
@@ -247,32 +243,38 @@ fn GameHistory() -> impl IntoView {
                 <td class=td_class>{game.game_time}</td>
                 <td class=td_class>
                     {if game.dead {
-                        Either::Left(view! {
-                            <span class=player_icon_holder("bg-red-600", true)>
-                                <Mine />
-                                <IconTooltip>"Dead"</IconTooltip>
-                            </span>
-                        })
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-red-600", true)>
+                                    <Mine />
+                                    <IconTooltip>"Dead"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
                         Either::Right(())
                     }}
                     {if game.top_score {
-                        Either::Left(view! {
-                            <span class=player_icon_holder("bg-green-800", true)>
-                                <Trophy />
-                                <IconTooltip>"Top Score"</IconTooltip>
-                            </span>
-                        })
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-green-800", true)>
+                                    <Trophy />
+                                    <IconTooltip>"Top Score"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
                         Either::Right(())
                     }}
                     {if game.victory_click {
-                        Either::Left(view! {
-                            <span class=player_icon_holder("bg-black", true)>
-                                <Star />
-                                <IconTooltip>"Victory Click"</IconTooltip>
-                            </span>
-                        })
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-black", true)>
+                                    <Star />
+                                    <IconTooltip>"Victory Click"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
                         Either::Right(())
                     }}
@@ -314,14 +316,12 @@ fn GameHistory() -> impl IntoView {
                     }>
 
                         {move || {
-                            Suspend::new(async move {player_games
-                                .await
-                                .map(|games| {
-                                    games
-                                        .into_iter()
-                                        .map(game_view)
-                                        .collect_view()
-                                })
+                            Suspend::new(async move {
+                                player_games
+                                    .await
+                                    .map(|games| {
+                                        games.into_iter().map(game_view).collect_view()
+                                    })
                             })
                         }}
 

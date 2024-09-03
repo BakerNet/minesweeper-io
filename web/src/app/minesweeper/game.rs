@@ -201,7 +201,7 @@ pub fn GameWrapper() -> impl IntoView {
     let params = use_params_map();
 
     Effect::new(move |_| {
-        log::debug!("Params: {:?}", params.get());
+        log::debug!("Outer Params: {:?}", params.get());
     });
 
     let game_id = move || params.get().get("id").unwrap_or_default();
@@ -222,7 +222,7 @@ pub fn GameView() -> impl IntoView {
     let refetch = move || game_info.refetch();
 
     Effect::new(move |_| {
-        log::debug!("Params: {:?}", params.get());
+        log::debug!("Inner Params: {:?}", params.get());
     });
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
@@ -328,21 +328,28 @@ where
 
     let (game_signal, _) = signal_local(game);
 
-    Effect::new(move |_| {
-        log::debug!("before ready_state");
-        let state = ready_state();
-        let game = game_signal.get_untracked();
-        if state == ConnectionReadyState::Open {
-            log::debug!("ready_state Open");
-            game.send(ClientMessage::Join);
-        } else if state == ConnectionReadyState::Closed {
-            log::debug!("ready_state Closed");
-            refetch();
-        }
-    });
+    Effect::watch(
+        ready_state,
+        move |state, _, _| {
+            log::debug!("before ready_state");
+            let game = game_signal.get_untracked();
+            match state {
+                ConnectionReadyState::Open => {
+                    log::debug!("ready_state Open");
+                    game.send(ClientMessage::Join);
+                }
+                ConnectionReadyState::Closed => {
+                    log::debug!("ready_state Closed");
+                    refetch();
+                }
+                _ => {}
+            }
+        },
+        true,
+    );
 
     Effect::watch(
-        move || message.get(),
+        message,
         move |msg, _, _| {
             log::debug!("before message");
             let game = game_signal.get_untracked();
@@ -359,11 +366,11 @@ where
         false,
     );
 
-    Effect::new(move |last: Option<bool>| {
+    Effect::new(move |prev: Option<bool>| {
         let game = game_signal.get_untracked();
         game.join.track();
-        log::debug!("join_trigger rec: {last:?}");
-        if let Some(sent) = last {
+        log::debug!("join_trigger rec: {prev:?}");
+        if let Some(sent) = prev {
             if !sent {
                 game.send(ClientMessage::PlayGame);
                 return true;
@@ -571,13 +578,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
                                 .copied()
                                 .enumerate()
                                 .map(move |(col, cell)| {
-                                    view! {
-                                        <ReplayCell
-                                            row=row
-                                            col=col
-                                            cell=cell
-                                        />
-                                    }
+                                    view! { <ReplayCell row=row col=col cell=cell /> }
                                 })
                                 .collect_view()}
                         </div>
