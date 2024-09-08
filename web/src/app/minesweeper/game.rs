@@ -1,6 +1,7 @@
 use chrono::DateTime;
 use codee::string::JsonSerdeWasmCodec;
 use leptos::{either::*, ev, prelude::*};
+use leptos_meta::*;
 use leptos_router::{components::*, hooks::*};
 use leptos_use::{
     core::ConnectionReadyState, use_document, use_event_listener, use_websocket, UseWebSocketReturn,
@@ -16,7 +17,7 @@ use minesweeper_lib::{
 
 use super::{
     cell::{ActiveCell, InactiveCell, ReplayCell},
-    client::{signals_from_board, FrontendGame, PlayersContext},
+    client::{signals_from_board, FrontendGame},
     entry::ReCreateGame,
     players::{ActivePlayers, InactivePlayers, PlayerButtons},
     replay::{OpenReplay, ReplayControls},
@@ -218,6 +219,7 @@ pub fn GameWrapper() -> impl IntoView {
 pub fn GameView() -> impl IntoView {
     let params = use_params_map();
     let game_id = move || params.get().get("id").unwrap_or_default();
+    let title = move || format!("Game {}", game_id());
     let game_info = Resource::new(game_id, get_game);
     let refetch = move || game_info.refetch();
 
@@ -231,6 +233,7 @@ pub fn GameView() -> impl IntoView {
     };
 
     view! {
+        <Title text=title />
         <Transition fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
@@ -250,9 +253,10 @@ pub fn GameView() -> impl IntoView {
 }
 
 #[component]
-pub fn GameReplay() -> impl IntoView {
+pub fn ReplayView() -> impl IntoView {
     let params = use_params_map();
     let game_id = move || params.get().get("id").unwrap_or_default();
+    let title = move || format!("Replay {}", game_id());
     let game_info = Resource::new(game_id, get_replay);
 
     let game_view = move |replay_data: GameInfoWithLog| match replay_data.game_info.is_completed {
@@ -263,6 +267,7 @@ pub fn GameReplay() -> impl IntoView {
     };
 
     view! {
+        <Title text=title />
         <Transition fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
@@ -271,7 +276,7 @@ pub fn GameReplay() -> impl IntoView {
                     let game_info = game_info.await;
                     view! {
                         <ErrorBoundary fallback=|_| {
-                            view! { <div class="text-red-600">"Game not found"</div> }
+                            view! { <div class="text-red-600">"Replay not found"</div> }
                         }>{game_info.map(game_view)}</ErrorBoundary>
                     }
                 })
@@ -319,21 +324,19 @@ where
     ));
 
     let game = FrontendGame::new(&game_info, set_error, Arc::new(send));
-    let players_context = PlayersContext::from(&game);
     let flag_count = game.flag_count;
     let completed = game.completed;
     let sync_time = game.sync_time;
-    let cells = Arc::clone(&game.cells);
+    let join = game.join;
     let players = Arc::clone(&game.players);
 
-    let (game_signal, _) = signal_local(game);
+    let game = StoredValue::new(game);
 
     Effect::watch(
         ready_state,
         move |state, _, _| {
             log::debug!("before ready_state");
-            let game = game_signal.get_untracked();
-            match state {
+            game.with_value(|game| match state {
                 ConnectionReadyState::Open => {
                     log::debug!("ready_state Open");
                     game.send(ClientMessage::Join);
@@ -343,7 +346,7 @@ where
                     refetch();
                 }
                 _ => {}
-            }
+            })
         },
         true,
     );
@@ -352,31 +355,33 @@ where
         message,
         move |msg, _, _| {
             log::debug!("before message");
-            let game = game_signal.get_untracked();
-            if let Some(msg) = msg {
-                log::debug!("after message {:?}", msg);
-                let res = game.handle_message(msg.clone());
-                if let Err(e) = res {
-                    (game.err_signal)(Some(format!("{:?}", e)));
-                } else {
-                    (game.err_signal)(None);
+            game.with_value(|game| {
+                if let Some(msg) = msg {
+                    log::debug!("after message {:?}", msg);
+                    let res = game.handle_message(msg.clone());
+                    if let Err(e) = res {
+                        (game.err_signal)(Some(format!("{:?}", e)));
+                    } else {
+                        (game.err_signal)(None);
+                    }
                 }
-            }
+            })
         },
         false,
     );
 
     Effect::new(move |prev: Option<bool>| {
-        let game = game_signal.get_untracked();
-        game.join.track();
-        log::debug!("join_trigger rec: {prev:?}");
-        if let Some(sent) = prev {
-            if !sent {
-                game.send(ClientMessage::PlayGame);
-                return true;
+        join.track();
+        game.with_value(|game| {
+            log::debug!("join_trigger rec: {prev:?}");
+            if let Some(sent) = prev {
+                if !sent {
+                    game.send(ClientMessage::PlayGame);
+                    return true;
+                }
             }
-        }
-        false
+            false
+        })
     });
 
     let (skip_mouseup, set_skip_mouseup) = signal::<usize>(0);
@@ -384,13 +389,14 @@ where
     let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
-        let game = game_signal.get_untracked();
-        let res = match pa {
-            PlayAction::Reveal => game.try_reveal(row, col),
-            PlayAction::Flag => game.try_flag(row, col),
-            PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
-        };
-        res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
+        game.with_value(|game| {
+            let res = match pa {
+                PlayAction::Reveal => game.try_reveal(row, col),
+                PlayAction::Flag => game.try_flag(row, col),
+                PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
+            };
+            res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
+        })
     };
 
     let handle_keydown = move |ev: KeyboardEvent| {
@@ -434,45 +440,42 @@ where
         }
     };
 
+    let active_cell = move |row: usize, col: usize, cell: ReadSignal<PlayerCell>| {
+        view! {
+            <ActiveCell
+                row=row
+                col=col
+                cell=cell
+                set_active=set_active_cell
+                mousedown_handler=handle_mousedown
+                mouseup_handler=handle_mouseup
+            />
+        }
+    };
+    let cell_row = move |(row, vec): (usize, &Vec<ReadSignal<PlayerCell>>)| {
+        view! {
+            <div class="whitespace-nowrap">
+                {vec
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(move |(col, cell)| { active_cell(row, col, cell) })
+                    .collect_view()}
+            </div>
+        }
+    };
+    let cells = view! { {game.with_value(|game| game.cells.iter().enumerate().map(cell_row).collect_view())} };
+
     view! {
         <ActivePlayers players title="Players">
-            <PlayerButtons players_context />
+            <PlayerButtons game />
         </ActivePlayers>
         <GameWidgets>
             <ActiveMines num_mines=game_info.num_mines flag_count />
             <CopyGameLink game_id=game_info.game_id />
             <ActiveTimer sync_time completed />
         </GameWidgets>
-        <GameBorder set_active=set_game_is_active>
-            {cells
-                .iter()
-                .enumerate()
-                .map(move |(row, vec)| {
-                    view! {
-                        <div class="whitespace-nowrap">
-                            {vec
-                                .iter()
-                                .copied()
-                                .enumerate()
-                                .map(move |(col, cell)| {
-                                    view! {
-                                        <ActiveCell
-                                            row=row
-                                            col=col
-                                            cell=cell
-                                            set_active=set_active_cell
-                                            mousedown_handler=handle_mousedown
-                                            mouseup_handler=handle_mouseup
-                                        />
-                                    }
-                                })
-                                .collect_view()}
-                        </div>
-                    }
-                })
-                .collect_view()}
-
-        </GameBorder>
+        <GameBorder set_active=set_game_is_active>{cells}</GameBorder>
         <div class="text-red-600 h-8">{error}</div>
     }
 }
@@ -493,6 +496,23 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         .filter_map(|cp| cp.as_ref())
         .any(|cp| cp.victory_click);
 
+    let cell_row = |(row, vec): (usize, Vec<PlayerCell>)| {
+        view! {
+            <div class="whitespace-nowrap">
+                {vec
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(move |(col, cell)| {
+                        view! { <InactiveCell row=row col=col cell=cell /> }
+                    })
+                    .collect_view()}
+            </div>
+        }
+    };
+    let cells =
+        view! { {game_info.final_board.into_iter().enumerate().map(cell_row).collect_view()} };
+
     view! {
         <InactivePlayers
             players=game_info.players
@@ -503,27 +523,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
             <CopyGameLink game_id=game_info.game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <GameBorder set_active=move |_| {}>
-            {game_info
-                .final_board
-                .into_iter()
-                .enumerate()
-                .map(move |(row, vec)| {
-                    view! {
-                        <div class="whitespace-nowrap">
-                            {vec
-                                .iter()
-                                .copied()
-                                .enumerate()
-                                .map(move |(col, cell)| {
-                                    view! { <InactiveCell row=row col=col cell=cell /> }
-                                })
-                                .collect_view()}
-                        </div>
-                    }
-                })
-                .collect_view()}
-        </GameBorder>
+        <GameBorder set_active=move |_| {}>{cells}</GameBorder>
         <ReCreateGame game_settings />
         <OpenReplay />
     }
@@ -544,7 +544,6 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .collect::<(Vec<_>, Vec<_>)>();
 
     let (cell_read_signals, cell_write_signals) = signals_from_board(&game_info.final_board);
-    let cell_read_signals = Arc::new(cell_read_signals);
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
         Board::from_vec(game_info.final_board),
@@ -555,7 +554,19 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .replay(replay_data.player_num.map(|p| p.into()))
         .expect("We are guaranteed log is not None");
 
-    let cells = Arc::clone(&cell_read_signals);
+    let cell_row = |(row, vec): (usize, &Vec<ReadSignal<PlayerCell>>)| {
+        view! {
+            <div class="whitespace-nowrap">
+                {vec
+                    .iter()
+                    .copied()
+                    .enumerate()
+                    .map(move |(col, cell)| view! { <ReplayCell row=row col=col cell=cell /> })
+                    .collect_view()}
+            </div>
+        }
+    };
+    let cells = view! { {cell_read_signals.iter().enumerate().map(cell_row).collect_view()} };
 
     view! {
         <ActivePlayers players=player_read_signals.into() title="Replay">
@@ -566,27 +577,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             <CopyGameLink game_id=game_info.game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <GameBorder set_active=move |_| ()>
-            {cells
-                .iter()
-                .enumerate()
-                .map(move |(row, vec)| {
-                    view! {
-                        <div class="whitespace-nowrap">
-                            {vec
-                                .iter()
-                                .copied()
-                                .enumerate()
-                                .map(move |(col, cell)| {
-                                    view! { <ReplayCell row=row col=col cell=cell /> }
-                                })
-                                .collect_view()}
-                        </div>
-                    }
-                })
-                .collect_view()}
-
-        </GameBorder>
+        <GameBorder set_active=move |_| ()>{cells}</GameBorder>
         <ReplayControls
             replay
             cell_read_signals

@@ -1,6 +1,7 @@
 use codee::string::JsonSerdeCodec;
 use leptos::either::*;
 use leptos::prelude::*;
+use leptos_meta::*;
 use leptos_router::components::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -36,37 +37,40 @@ fn validate_display_name(name: &str) -> bool {
 }
 
 #[component]
-pub fn Profile(
+pub fn ProfileView(
     user: Resource<Option<FrontendUser>, JsonSerdeCodec>,
     logout: ServerAction<Logout>,
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
     let user_profile = move |user: Option<FrontendUser>| {
         match user {
-        Some(user) => view! {
-            <>
-                <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
-                    <SetDisplayName user user_updated />
-                    <div class="w-full max-w-xs h-6">
-                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                            <hr class="w-full" />
-                        </span>
+            Some(user) => view! {
+                <>
+                    <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
+                        <SetDisplayName user user_updated />
+                        <div class="w-full max-w-xs h-6">
+                            <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                                <hr class="w-full" />
+                            </span>
+                        </div>
+                        <LogOutForm logout />
+                        <div class="w-full max-w-xs h-6">
+                            <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
+                                <hr class="w-full" />
+                            </span>
+                        </div>
+                        <GameHistory />
                     </div>
-                    <LogOutForm logout />
-                    <div class="w-full max-w-xs h-6">
-                        <span class="w-full h-full inline-flex items-center justify-center text-lg font-medium text-gray-800 dark:text-gray-200">
-                            <hr class="w-full" />
-                        </span>
-                    </div>
-                    <GameHistory />
-                </div>
-            </>
-        }.into_any(),
-        _ => view! { <Redirect path="/auth/login" /> }.into_any(),
-    }
+                </>
+            }.into_any(),
+            _ => view! { <Redirect path="/auth/login" /> }.into_any(),
+        }
     };
 
-    view! { <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense> }
+    view! {
+        <Title text="Profile" />
+        <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense>
+    }
 }
 
 #[server]

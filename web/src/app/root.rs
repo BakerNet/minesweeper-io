@@ -8,21 +8,20 @@ use super::{
     auth::{get_frontend_user, Login, Logout},
     error_template::{AppError, ErrorTemplate},
     header::Header,
-    home::HomePage,
-    login::LoginPage,
-    minesweeper::{GameReplay, GameView, GameWrapper},
-    profile::Profile,
+    home::HomeView,
+    login::LoginView,
+    minesweeper::{GameView, GameWrapper, ReplayView},
+    profile::ProfileView,
 };
 
 #[cfg(feature = "ssr")]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
-        <!DOCTYPE html>
+        <!DOCTYPE html> 
         <html lang="en">
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <meta name="title" content="Welcome to Minesweeper" />
                 <AutoReload options=options.clone() />
                 <HydrationScripts options />
                 <meta name="color-scheme" content="dark light" />
@@ -62,12 +61,12 @@ pub fn App() -> impl IntoView {
         move || (login.version().get(), logout.version().get(), user_update()),
         move |_| async { get_frontend_user().await.ok().flatten() },
     );
-    provide_context(user);
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
     view! {
+        <Title formatter=|title| format!("Minesweeper - {title}") />
         <Router>
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user />
@@ -76,16 +75,16 @@ pub fn App() -> impl IntoView {
                     outside_errors.insert_with_default_key(AppError::NotFound);
                     view! { <ErrorTemplate outside_errors /> }.into_view()
                 }>
-                    <Route path=path!("/") view=HomePage />
-                    <Route path=path!("/auth/login") view=move || view! { <LoginPage login /> } />
+                    <Route path=path!("/") view=HomeView />
+                    <Route path=path!("/auth/login") view=move || view! { <LoginView login /> } />
                     <Route
                         path=path!("/profile")
                         view=move || {
-                            view! { <Profile user logout user_updated /> }
+                            view! { <ProfileView user logout user_updated /> }
                         }
                     />
                     <ParentRoute path=path!("/game/:id") view=GameWrapper>
-                        <Route path=path!("/replay") view=GameReplay />
+                        <Route path=path!("/replay") view=ReplayView />
                         <Route path=path!("/") view=GameView />
                     </ParentRoute>
                 </Routes>

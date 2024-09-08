@@ -13,7 +13,7 @@ use crate::{
     player_class, player_icon_holder,
 };
 
-use super::client::PlayersContext;
+use super::client::FrontendGame;
 
 #[component]
 fn Scoreboard(children: Children) -> impl IntoView {
@@ -60,10 +60,10 @@ pub fn ActivePlayers(
 }
 
 #[component]
-pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
+pub fn PlayerButtons(game: StoredValue<FrontendGame>) -> impl IntoView {
     let start_game = ServerAction::<StartGame>::new();
 
-    let PlayersContext {
+    let FrontendGame {
         game_id,
         is_owner,
         has_owner,
@@ -72,7 +72,8 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
         players_loaded,
         started,
         join_trigger,
-    } = players_context;
+        ..
+    } = game.get_value();
     let num_players = players.len();
     let last_slot = *players.last().unwrap();
     let show_play = move || {

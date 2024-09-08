@@ -61,7 +61,7 @@ impl ReplayStore {
 #[component]
 pub fn ReplayControls(
     replay: MinesweeperReplay,
-    cell_read_signals: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_read_signals: Vec<Vec<ReadSignal<PlayerCell>>>,
     cell_write_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
     set_flag_count: WriteSignal<usize>,
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
@@ -79,50 +79,50 @@ pub fn ReplayControls(
 
     let replay = ReplayStore {
         replay: Arc::new(RwLock::new(replay)),
-        cell_read_signals,
+        cell_read_signals: cell_read_signals.into(),
         cell_write_signals: cell_write_signals.into(),
         player_write_signals: player_write_signals.into(),
     };
-    let (replay, _) = signal(replay);
+    let replay = StoredValue::new(replay);
 
+    let render_cell = move |replay: &ReplayStore, row: usize, col: usize, pc: &PlayerCell| {
+        let pc = if hide_mines.get_untracked() {
+            match pc {
+                PlayerCell::Hidden(HiddenCell::Mine) => PlayerCell::Hidden(HiddenCell::Empty),
+                PlayerCell::Hidden(HiddenCell::FlagMine) => PlayerCell::Hidden(HiddenCell::Flag),
+                default => *default,
+            }
+        } else {
+            *pc
+        };
+        if replay.cell_read_signals[row][col].get_untracked() != pc {
+            replay.cell_write_signals[row][col](pc);
+        }
+    };
     let render_current = move || {
-        let replay = replay.get_untracked();
-        replay.with_current_board(|current_board| {
-            current_board
-                .rows_iter()
-                .enumerate()
-                .for_each(|(row, vec)| {
-                    vec.iter().enumerate().for_each(|(col, pc)| {
-                        let pc = if hide_mines.get_untracked() {
-                            match pc {
-                                PlayerCell::Hidden(HiddenCell::Mine) => {
-                                    PlayerCell::Hidden(HiddenCell::Empty)
-                                }
-                                PlayerCell::Hidden(HiddenCell::FlagMine) => {
-                                    PlayerCell::Hidden(HiddenCell::Flag)
-                                }
-                                default => *default,
-                            }
-                        } else {
-                            *pc
-                        };
-                        if replay.cell_read_signals[row][col].get_untracked() != pc {
-                            replay.cell_write_signals[row][col](pc);
-                        }
+        replay.with_value(|replay| {
+            replay.with_current_board(|current_board| {
+                current_board
+                    .rows_iter()
+                    .enumerate()
+                    .for_each(|(row, vec)| {
+                        vec.iter()
+                            .enumerate()
+                            .for_each(|(col, cell)| render_cell(replay, row, col, cell))
                     })
+            });
+            replay.with_current_players(|current_players| {
+                current_players.iter().enumerate().for_each(|(i, p)| {
+                    replay.player_write_signals[i].update(|cp| {
+                        if let Some(cp) = cp.as_mut() {
+                            p.update_client_player(cp);
+                        }
+                    });
                 })
-        });
-        replay.with_current_players(|current_players| {
-            current_players.iter().enumerate().for_each(|(i, p)| {
-                replay.player_write_signals[i].update(|cp| {
-                    if let Some(cp) = cp.as_mut() {
-                        p.update_client_player(cp);
-                    }
-                });
-            })
-        });
-        set_flag_count(replay.flags());
-        set_current_play(replay.current_play());
+            });
+            set_flag_count(replay.flags());
+            set_current_play(replay.current_play());
+        })
     };
 
     Effect::watch(
@@ -137,67 +137,70 @@ pub fn ReplayControls(
     );
 
     let next = move || {
-        let replay = replay.get_untracked();
-        let res = replay.next();
-        let slider = slider_el
-            .get_untracked()
-            .expect("Slider reference should be set");
-        if let Ok(res) = &res {
-            render_current();
-            let new_pos = res.to_pos(max);
-            slider.set_value(&format!("{}", new_pos));
-            if matches!(res, ReplayPosition::End) {
-                set_end(true);
+        replay.with_value(|replay| {
+            let res = replay.next();
+            let slider = slider_el
+                .get_untracked()
+                .expect("Slider reference should be set");
+            if let Ok(res) = &res {
+                render_current();
+                let new_pos = res.to_pos(max);
+                slider.set_value(&format!("{}", new_pos));
+                if matches!(res, ReplayPosition::End) {
+                    set_end(true);
+                }
             }
-        }
-        set_beginning(false);
+            set_beginning(false);
+        })
     };
 
     let prev = move || {
-        let replay = replay.get_untracked();
-        let res = replay.prev();
-        let slider = slider_el
-            .get_untracked()
-            .expect("Slider reference should be set");
-        if let Ok(res) = &res {
-            render_current();
-            let new_pos = res.to_pos(max);
-            slider.set_value(&format!("{}", new_pos));
-            if matches!(res, ReplayPosition::Beginning) {
-                set_beginning(true);
+        replay.with_value(|replay| {
+            let res = replay.prev();
+            let slider = slider_el
+                .get_untracked()
+                .expect("Slider reference should be set");
+            if let Ok(res) = &res {
+                render_current();
+                let new_pos = res.to_pos(max);
+                slider.set_value(&format!("{}", new_pos));
+                if matches!(res, ReplayPosition::Beginning) {
+                    set_beginning(true);
+                }
             }
-        }
-        set_end(false);
+            set_end(false);
+        })
     };
 
     let to_pos = move || {
-        let replay = replay.get_untracked();
-        let slider = slider_el
-            .get_untracked()
-            .expect("Slider reference should be set")
-            .value();
-        let pos = slider
-            .parse::<usize>()
-            .expect("Slider value should be number");
-        let res = replay.to_pos(pos);
-        if res.is_ok() {
-            render_current();
-        }
-        log::debug!("Slider: {} / {}", pos, max);
-        match res {
-            Ok(ReplayPosition::Beginning) => {
-                set_beginning(true);
-                set_end(false);
+        replay.with_value(|replay| {
+            let slider = slider_el
+                .get_untracked()
+                .expect("Slider reference should be set")
+                .value();
+            let pos = slider
+                .parse::<usize>()
+                .expect("Slider value should be number");
+            let res = replay.to_pos(pos);
+            if res.is_ok() {
+                render_current();
             }
-            Ok(ReplayPosition::End) => {
-                set_beginning(false);
-                set_end(true);
+            log::debug!("Slider: {} / {}", pos, max);
+            match res {
+                Ok(ReplayPosition::Beginning) => {
+                    set_beginning(true);
+                    set_end(false);
+                }
+                Ok(ReplayPosition::End) => {
+                    set_beginning(false);
+                    set_end(true);
+                }
+                _ => {
+                    set_beginning(false);
+                    set_end(false);
+                }
             }
-            _ => {
-                set_beginning(false);
-                set_end(false);
-            }
-        }
+        })
     };
 
     view! {

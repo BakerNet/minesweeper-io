@@ -14,33 +14,6 @@ use crate::messages::{ClientMessage, GameMessage};
 use super::GameInfo;
 
 #[derive(Clone)]
-pub struct PlayersContext {
-    pub game_id: Arc<String>,
-    pub is_owner: bool,
-    pub has_owner: bool,
-    pub player_id: ReadSignal<Option<usize>>,
-    pub players: Arc<Vec<ReadSignal<Option<ClientPlayer>>>>,
-    pub players_loaded: ReadSignal<bool>,
-    pub join_trigger: WriteSignal<bool>,
-    pub started: ReadSignal<bool>,
-}
-
-impl PlayersContext {
-    pub fn from(frontend_game: &FrontendGame) -> Self {
-        PlayersContext {
-            game_id: Arc::clone(&frontend_game.game_id),
-            is_owner: frontend_game.is_owner,
-            has_owner: frontend_game.has_owner,
-            player_id: frontend_game.player_id,
-            players: Arc::clone(&frontend_game.players),
-            players_loaded: frontend_game.players_loaded,
-            join_trigger: frontend_game.join_trigger,
-            started: frontend_game.started,
-        }
-    }
-}
-
-#[derive(Clone)]
 pub struct FrontendGame {
     pub game_id: Arc<String>,
     pub is_owner: bool,

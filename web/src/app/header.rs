@@ -67,7 +67,7 @@ pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl Into
                 <h1>{logo()}</h1>
             </A>
             <div class="flex grow justify-end items-center space-x-2">
-                <Transition fallback=move || () >
+                <Transition fallback=move || ()>
                     {move || Suspend::new(async move {
                         let user = user.await;
                         let user = user_info(user);
