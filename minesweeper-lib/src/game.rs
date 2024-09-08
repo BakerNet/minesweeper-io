@@ -1202,7 +1202,7 @@ mod test {
     fn score_works() {
         let mut game = set_up_game();
 
-        let _ = game
+        let res = game
             .play(Play {
                 player: 0,
                 action: Action::Reveal,
@@ -1211,15 +1211,8 @@ mod test {
             .unwrap();
 
         num_mines(&game, 4);
-
-        let cell_point = BoardPoint { row: 0, col: 2 };
-        let res = game.play(Play {
-            player: 0,
-            action: Action::Reveal,
-            point: cell_point,
-        });
-        assert!(matches!(res.unwrap(), PlayOutcome::Success(_)));
-        assert_eq!(game.players[0].score, 5);
+        assert!(matches!(res, PlayOutcome::Success(_)));
+        assert_eq!(game.players[0].score, 4);
     }
 
     #[test]
@@ -1233,13 +1226,16 @@ mod test {
                 point: POINT_0_0,
             })
             .unwrap();
-        let _ = game
+
+        // click mine
+        let res = game
             .play(Play {
                 player: 0,
                 action: Action::Reveal,
                 point: BoardPoint { row: 1, col: 2 },
             })
             .unwrap();
+        assert!(matches!(res, PlayOutcome::Failure(_)));
 
         let res = game.play(Play {
             player: 0,
