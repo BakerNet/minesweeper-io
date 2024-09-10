@@ -541,6 +541,9 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                         </button>
                     </div>
                 </div>
+                <Show when=move || join_game.value().with(|val| matches!(val, Some(Err(_))))>
+                    <div class="text-red-600 w-full">"Game does not exist"</div>
+                </Show>
             </ActionForm>
         </div>
     }

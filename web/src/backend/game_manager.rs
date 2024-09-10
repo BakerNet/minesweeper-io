@@ -104,7 +104,11 @@ impl GameManager {
     }
 
     pub async fn game_exists(&self, game_id: &str) -> bool {
-        Game::get_game(&self.db, game_id).await.is_ok()
+        Game::get_game(&self.db, game_id)
+            .await
+            .ok()
+            .flatten()
+            .is_some()
     }
 
     pub async fn get_game(&self, game_id: &str) -> Result<Game> {

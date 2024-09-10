@@ -120,7 +120,7 @@ async fn leptos_routes_handler(
         },
         move || shell(options.clone()),
     );
-    handler(req).await.into_response()
+    handler(State(app_state), req).await.into_response()
 }
 
 impl App {
