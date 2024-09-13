@@ -114,6 +114,8 @@ pub fn ActiveMines(num_mines: usize, flag_count: ReadSignal<usize>) -> impl Into
 
 #[component]
 pub fn InactiveTimer(game_time: usize) -> impl IntoView {
+    let game_time = 999.min(game_time);
+
     view! {
         <div class="flex items-center">
             <span class=widget_icon_holder!("bg-neutral-200")>
