@@ -242,7 +242,7 @@ impl GameManager {
         Ok(())
     }
 
-    pub async fn set_start_time(&self, game_id: &str) -> Result<()> {
+    pub async fn set_start_time(&self, game_id: &str) -> Result<DateTime<Utc>> {
         let mut games = self.games.write().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
@@ -251,7 +251,7 @@ impl GameManager {
         let handle = games.get_mut(game_id).unwrap();
         handle.start_time = Some(now);
         Game::set_start_time(&self.db, game_id, now).await?;
-        Ok(())
+        Ok(now)
     }
 
     async fn save_game(&self, game_id: &str, board: Vec<Vec<PlayerCell>>) -> Result<()> {
@@ -351,6 +351,7 @@ impl GameHandler {
 
         let mut first_play = false;
         let mut needs_save = false;
+        let mut start_time = None;
 
         loop {
             tokio::select! {
@@ -360,7 +361,9 @@ impl GameHandler {
                     needs_save = played;
                     if played && !first_play {
                         first_play = true;
-                        let _ = self.game_manager.set_start_time(&self.game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}"));
+                        if let Ok(st) = self.game_manager.set_start_time(&self.game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}")) {
+                            start_time = Some(st)
+                        }
                         let sync_msg = GameMessage::SyncTimer(0).into_json();
                         log::debug!("Sending sync_msg {:?}", sync_msg);
                         let _ = self.broadcaster.send(sync_msg);
@@ -378,6 +381,11 @@ impl GameHandler {
                     if needs_save {
                         self.save_game_state().await;
                         needs_save = false;
+                    }
+                    if let Some(st) = start_time {
+                        if Utc::now().signed_duration_since(st).num_seconds() >= 999 {
+                            break;
+                        }
                     }
                 },
                 () = &mut timeout => {
