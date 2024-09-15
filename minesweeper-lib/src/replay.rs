@@ -1,3 +1,5 @@
+mod analysis;
+
 use anyhow::{bail, Result};
 
 use crate::{
@@ -29,6 +31,30 @@ impl ReplayPosition {
             ReplayPosition::Beginning => 0,
             ReplayPosition::Other(default) => *default,
         }
+    }
+}
+
+pub trait Replayable {
+    fn len(&self) -> usize;
+    fn current_pos(&self) -> ReplayPosition;
+    fn advance(&mut self) -> Result<ReplayPosition>;
+    fn rewind(&mut self) -> Result<ReplayPosition>;
+    fn to_pos(&mut self, pos: usize) -> Result<ReplayPosition> {
+        let len = self.len();
+        if pos >= len {
+            bail!(
+                "Called to_pos with pos out of bounds (max {}): {}",
+                self.len() - 1,
+                pos
+            )
+        }
+        while pos < self.current_pos().to_pos(len) {
+            let _ = self.rewind();
+        }
+        while pos > self.current_pos().to_pos(len) {
+            let _ = self.advance();
+        }
+        Ok(self.current_pos())
     }
 }
 
@@ -75,16 +101,8 @@ impl MinesweeperReplay {
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.log.len() + 1
-    }
-
     pub fn is_empty(&self) -> bool {
         false
-    }
-
-    pub fn current_pos(&self) -> ReplayPosition {
-        ReplayPosition::from_pos(self.current_pos, self.len() - 1)
     }
 
     pub fn current_play(&self) -> Option<Play> {
@@ -102,8 +120,18 @@ impl MinesweeperReplay {
     pub fn current_flags_and_revealed_mines(&self) -> usize {
         self.current_flags + self.current_revealed_mines
     }
+}
 
-    pub fn advance(&mut self) -> Result<ReplayPosition> {
+impl Replayable for MinesweeperReplay {
+    fn len(&self) -> usize {
+        self.log.len() + 1
+    }
+
+    fn current_pos(&self) -> ReplayPosition {
+        ReplayPosition::from_pos(self.current_pos, self.len() - 1)
+    }
+
+    fn advance(&mut self) -> Result<ReplayPosition> {
         if self.current_pos == self.len() - 1 {
             bail!("Called next on end")
         }
@@ -140,7 +168,7 @@ impl MinesweeperReplay {
         Ok(self.current_pos())
     }
 
-    pub fn rewind(&mut self) -> Result<ReplayPosition> {
+    fn rewind(&mut self) -> Result<ReplayPosition> {
         if self.current_pos == 0 {
             bail!("Called prev on start")
         }
@@ -178,23 +206,6 @@ impl MinesweeperReplay {
                 }
             }
         };
-        Ok(self.current_pos())
-    }
-
-    pub fn to_pos(&mut self, pos: usize) -> Result<ReplayPosition> {
-        if pos >= self.len() {
-            bail!(
-                "Called to_pos with pos out of bounds (max {}): {}",
-                self.len() - 1,
-                pos
-            )
-        }
-        while pos < self.current_pos {
-            let _ = self.rewind();
-        }
-        while pos > self.current_pos {
-            let _ = self.advance();
-        }
         Ok(self.current_pos())
     }
 }
