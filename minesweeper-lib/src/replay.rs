@@ -62,6 +62,9 @@ impl PartialOrd for ReplayPosition {
 
 pub trait Replayable {
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        false
+    }
     fn current_pos(&self) -> ReplayPosition;
     fn advance(&mut self) -> Result<ReplayPosition>;
     fn rewind(&mut self) -> Result<ReplayPosition>;
@@ -127,10 +130,6 @@ impl MinesweeperReplay {
             log,
             current_pos: 0,
         }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        false
     }
 
     pub fn current_play(&self) -> Option<Play> {
