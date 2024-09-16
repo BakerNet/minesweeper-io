@@ -1,4 +1,4 @@
-mod analysis;
+use std::cmp::Ordering;
 
 use anyhow::{bail, Result};
 
@@ -9,7 +9,11 @@ use crate::{
     game::{Play, PlayOutcome},
 };
 
-#[derive(Debug)]
+mod analysis;
+
+pub use analysis::MinesweeperAnalysis;
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReplayPosition {
     End,
     Beginning,
@@ -25,11 +29,33 @@ impl ReplayPosition {
         }
     }
 
-    pub fn to_pos(&self, len: usize) -> usize {
+    pub fn to_num(&self, len: usize) -> usize {
         match self {
             ReplayPosition::End => len,
             ReplayPosition::Beginning => 0,
             ReplayPosition::Other(default) => *default,
+        }
+    }
+
+    pub fn is_valid(&self, len: usize) -> bool {
+        match self {
+            ReplayPosition::End => true,
+            ReplayPosition::Beginning => true,
+            ReplayPosition::Other(x) => *x != 0 && *x < len,
+        }
+    }
+}
+
+impl PartialOrd for ReplayPosition {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (ReplayPosition::End, ReplayPosition::End) => Some(Ordering::Equal),
+            (ReplayPosition::End, _) => Some(Ordering::Greater),
+            (ReplayPosition::Beginning, ReplayPosition::Beginning) => Some(Ordering::Equal),
+            (ReplayPosition::Beginning, _) => Some(Ordering::Less),
+            (ReplayPosition::Other(_), ReplayPosition::End) => Some(Ordering::Less),
+            (ReplayPosition::Other(_), ReplayPosition::Beginning) => Some(Ordering::Greater),
+            (ReplayPosition::Other(s), ReplayPosition::Other(o)) => Some(s.cmp(o)),
         }
     }
 }
@@ -39,22 +65,24 @@ pub trait Replayable {
     fn current_pos(&self) -> ReplayPosition;
     fn advance(&mut self) -> Result<ReplayPosition>;
     fn rewind(&mut self) -> Result<ReplayPosition>;
-    fn to_pos(&mut self, pos: usize) -> Result<ReplayPosition> {
+    fn to_pos(&mut self, pos: ReplayPosition) -> Result<ReplayPosition> {
         let len = self.len();
-        if pos >= len {
+        if !pos.is_valid(len) {
             bail!(
-                "Called to_pos with pos out of bounds (max {}): {}",
+                "Called to_pos with pos out of bounds (max {}): {:?}",
                 self.len() - 1,
                 pos
             )
         }
-        while pos < self.current_pos().to_pos(len) {
+        while pos < self.current_pos() {
             let _ = self.rewind();
         }
-        while pos > self.current_pos().to_pos(len) {
+        while pos > self.current_pos() {
             let _ = self.advance();
         }
-        Ok(self.current_pos())
+        let new_pos = self.current_pos();
+        assert_eq!(pos, new_pos);
+        Ok(new_pos)
     }
 }
 
@@ -219,13 +247,13 @@ mod test {
         game::Action,
     };
 
-    const MINES: [BoardPoint; 4] = [
+    pub const MINES: [BoardPoint; 4] = [
         BoardPoint { row: 0, col: 3 },
         BoardPoint { row: 3, col: 0 },
         BoardPoint { row: 3, col: 2 },
         BoardPoint { row: 3, col: 3 },
     ];
-    const PLAY_1_RES: [(BoardPoint, RevealedCell); 9] = [
+    pub const PLAY_1_RES: [(BoardPoint, RevealedCell); 9] = [
         (
             BoardPoint { row: 0, col: 0 },
             RevealedCell {
@@ -290,18 +318,18 @@ mod test {
             },
         ),
     ];
-    const PLAY_2_RES: (BoardPoint, PlayerCell) = (
+    pub const PLAY_2_RES: (BoardPoint, PlayerCell) = (
         BoardPoint { row: 3, col: 2 },
         PlayerCell::Hidden(HiddenCell::Flag),
     );
-    const PLAY_3_RES: (BoardPoint, RevealedCell) = (
+    pub const PLAY_3_RES: (BoardPoint, RevealedCell) = (
         BoardPoint { row: 2, col: 3 },
         RevealedCell {
             player: 0,
             contents: Cell::Empty(2),
         },
     );
-    const PLAY_4_RES: (BoardPoint, RevealedCell) = (
+    pub const PLAY_4_RES: (BoardPoint, RevealedCell) = (
         BoardPoint { row: 3, col: 3 },
         RevealedCell {
             player: 0,
@@ -310,7 +338,7 @@ mod test {
     );
 
     #[test]
-    fn name() {
+    fn test_replay() {
         let mut expected_starting_board = Board::new(4, 4, PlayerCell::Hidden(HiddenCell::Empty));
         MINES.iter().for_each(|point| {
             expected_starting_board[*point] = PlayerCell::Hidden(HiddenCell::Mine);
@@ -415,13 +443,41 @@ mod test {
         assert!(replay.rewind().is_err());
 
         // try to_pos (auto advance/rewind)
-        assert!(matches!(replay.to_pos(2), Ok(ReplayPosition::Other(2))));
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::Other(2)),
+            Ok(ReplayPosition::Other(2))
+        ));
         assert_eq!(replay.current_board(), &expected_board_2);
-        assert!(matches!(replay.to_pos(4), Ok(ReplayPosition::End)));
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::End),
+            Ok(ReplayPosition::End)
+        ));
         assert_eq!(replay.current_board(), &expected_final_board);
-        assert!(matches!(replay.to_pos(1), Ok(ReplayPosition::Other(1))));
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::Other(1)),
+            Ok(ReplayPosition::Other(1))
+        ));
         assert_eq!(replay.current_board(), &expected_board_1);
 
-        assert!(replay.to_pos(5).is_err());
+        assert!(replay.to_pos(ReplayPosition::Other(5)).is_err());
+
+        // try to_pos (auto advance/rewind)
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::Other(2)),
+            Ok(ReplayPosition::Other(2))
+        ));
+        assert_eq!(replay.current_board(), &expected_board_2);
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::End),
+            Ok(ReplayPosition::End)
+        ));
+        assert_eq!(replay.current_board(), &expected_final_board);
+        assert!(matches!(
+            replay.to_pos(ReplayPosition::Other(1)),
+            Ok(ReplayPosition::Other(1))
+        ));
+        assert_eq!(replay.current_board(), &expected_board_1);
+
+        assert!(replay.to_pos(ReplayPosition::Other(5)).is_err());
     }
 }

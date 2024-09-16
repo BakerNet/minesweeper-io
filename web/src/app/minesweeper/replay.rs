@@ -9,7 +9,7 @@ use minesweeper_lib::{
     cell::{HiddenCell, PlayerCell},
     client::ClientPlayer,
     game::Play,
-    replay::{MinesweeperReplay, ReplayPosition, SimplePlayer},
+    replay::{MinesweeperReplay, ReplayPosition, Replayable, SimplePlayer},
 };
 
 #[derive(Clone)]
@@ -44,6 +44,7 @@ impl ReplayStore {
 
     fn to_pos(&self, pos: usize) -> Result<ReplayPosition> {
         let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let pos = ReplayPosition::from_pos(pos, replay.len());
         replay.to_pos(pos)
     }
 
@@ -144,7 +145,7 @@ pub fn ReplayControls(
                 .expect("Slider reference should be set");
             if let Ok(res) = &res {
                 render_current();
-                let new_pos = res.to_pos(max);
+                let new_pos = res.to_num(max);
                 slider.set_value(&format!("{}", new_pos));
                 if matches!(res, ReplayPosition::End) {
                     set_end(true);
@@ -162,7 +163,7 @@ pub fn ReplayControls(
                 .expect("Slider reference should be set");
             if let Ok(res) = &res {
                 render_current();
-                let new_pos = res.to_pos(max);
+                let new_pos = res.to_num(max);
                 slider.set_value(&format!("{}", new_pos));
                 if matches!(res, ReplayPosition::Beginning) {
                     set_beginning(true);
