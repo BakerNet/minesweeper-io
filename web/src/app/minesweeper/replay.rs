@@ -9,61 +9,63 @@ use minesweeper_lib::{
     cell::{HiddenCell, PlayerCell},
     client::ClientPlayer,
     game::Play,
-    replay::{MinesweeperReplay, ReplayPosition, Replayable, SimplePlayer},
+    replay::{
+        AnalyzedCell, MinesweeperReplayWithAnalysis, ReplayPosition, Replayable, SimplePlayer,
+    },
 };
 
 #[derive(Clone)]
 #[allow(dead_code)]
 struct ReplayStore {
-    replay: Arc<RwLock<MinesweeperReplay>>,
-    cell_read_signals: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
-    cell_write_signals: Arc<Vec<Vec<WriteSignal<PlayerCell>>>>,
+    replay: Arc<RwLock<MinesweeperReplayWithAnalysis>>,
+    cell_read_signals: Arc<Vec<Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>>>,
+    cell_write_signals: Arc<Vec<Vec<WriteSignal<(PlayerCell, Option<AnalyzedCell>)>>>>,
     player_write_signals: Arc<Vec<WriteSignal<Option<ClientPlayer>>>>,
 }
 
 impl ReplayStore {
-    fn with_current_board(&self, f: impl FnOnce(&Board<PlayerCell>)) {
-        let replay: &MinesweeperReplay = &mut (*self.replay).read().unwrap();
+    fn with_current_board(&self, f: impl FnOnce(&Board<(PlayerCell, Option<AnalyzedCell>)>)) {
+        let replay: &MinesweeperReplayWithAnalysis = &mut (*self.replay).read().unwrap();
         f(replay.current_board())
     }
 
     fn with_current_players(&self, f: impl FnOnce(&Vec<SimplePlayer>)) {
-        let replay: &MinesweeperReplay = &mut (*self.replay).read().unwrap();
+        let replay: &MinesweeperReplayWithAnalysis = &mut (*self.replay).read().unwrap();
         f(replay.current_players())
     }
 
     fn next(&self) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let replay: &mut MinesweeperReplayWithAnalysis = &mut (*self.replay).write().unwrap();
         replay.advance()
     }
 
     fn prev(&self) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let replay: &mut MinesweeperReplayWithAnalysis = &mut (*self.replay).write().unwrap();
         replay.rewind()
     }
 
     fn to_pos(&self, pos: usize) -> Result<ReplayPosition> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let replay: &mut MinesweeperReplayWithAnalysis = &mut (*self.replay).write().unwrap();
         let pos = ReplayPosition::from_pos(pos, replay.len());
         replay.to_pos(pos)
     }
 
     fn flags(&self) -> usize {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let replay: &mut MinesweeperReplayWithAnalysis = &mut (*self.replay).write().unwrap();
         replay.current_flags_and_revealed_mines()
     }
 
     fn current_play(&self) -> Option<Play> {
-        let replay: &mut MinesweeperReplay = &mut (*self.replay).write().unwrap();
+        let replay: &mut MinesweeperReplayWithAnalysis = &mut (*self.replay).write().unwrap();
         replay.current_play()
     }
 }
 
 #[component]
 pub fn ReplayControls(
-    replay: MinesweeperReplay,
-    cell_read_signals: Vec<Vec<ReadSignal<PlayerCell>>>,
-    cell_write_signals: Vec<Vec<WriteSignal<PlayerCell>>>,
+    replay: MinesweeperReplayWithAnalysis,
+    cell_read_signals: Vec<Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>>,
+    cell_write_signals: Vec<Vec<WriteSignal<(PlayerCell, Option<AnalyzedCell>)>>>,
     set_flag_count: WriteSignal<usize>,
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
 ) -> impl IntoView {
@@ -73,7 +75,8 @@ pub fn ReplayControls(
     let slider_el = NodeRef::<Input>::new();
 
     let (replay_started, set_replay_started) = signal(false);
-    let (hide_mines, set_hide_mines) = signal(false);
+    let (show_mines, set_show_mines) = signal(true);
+    let (show_analysis, set_show_analysis) = signal(false);
     let (is_beginning, set_beginning) = signal(true);
     let (is_end, set_end) = signal(false);
     let (current_play, set_current_play) = signal::<Option<Play>>(None);
@@ -86,8 +89,11 @@ pub fn ReplayControls(
     };
     let replay = StoredValue::new(replay);
 
-    let render_cell = move |replay: &ReplayStore, row: usize, col: usize, pc: &PlayerCell| {
-        let pc = if hide_mines.get_untracked() {
+    let render_cell = move |replay: &ReplayStore,
+                            row: usize,
+                            col: usize,
+                            (pc, ac): &(PlayerCell, Option<AnalyzedCell>)| {
+        let pc = if !show_mines.get_untracked() {
             match pc {
                 PlayerCell::Hidden(HiddenCell::Mine) => PlayerCell::Hidden(HiddenCell::Empty),
                 PlayerCell::Hidden(HiddenCell::FlagMine) => PlayerCell::Hidden(HiddenCell::Flag),
@@ -96,8 +102,14 @@ pub fn ReplayControls(
         } else {
             *pc
         };
-        if replay.cell_read_signals[row][col].get_untracked() != pc {
-            replay.cell_write_signals[row][col](pc);
+        let ac = if !show_analysis.get_untracked() {
+            None
+        } else {
+            *ac
+        };
+        let cell = (pc, ac);
+        if replay.cell_read_signals[row][col].get_untracked() != cell {
+            replay.cell_write_signals[row][col](cell);
         }
     };
     let render_current = move || {
@@ -127,12 +139,23 @@ pub fn ReplayControls(
     };
 
     Effect::watch(
-        hide_mines,
-        move |hide_mines, _, prev| {
-            if replay_started.get_untracked() && prev != Some(*hide_mines) {
+        show_mines,
+        move |show_mines, _, prev| {
+            if replay_started.get_untracked() && prev != Some(*show_mines) {
                 render_current();
             }
-            *hide_mines
+            *show_mines
+        },
+        false,
+    );
+
+    Effect::watch(
+        show_analysis,
+        move |show_analysis, _, prev| {
+            if replay_started.get_untracked() && prev != Some(*show_analysis) {
+                render_current();
+            }
+            *show_analysis
         },
         false,
     );
@@ -229,12 +252,26 @@ pub fn ReplayControls(
                         class="sr-only peer"
                         checked
                         on:change=move |ev| {
-                            set_hide_mines(!event_target_checked(&ev));
+                            set_show_mines(event_target_checked(&ev));
                         }
                     />
                     <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
                     <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
                         "Toggle Mines"
+                    </span>
+                </label>
+                <label class="inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        value=""
+                        class="sr-only peer"
+                        on:change=move |ev| {
+                            set_show_analysis(event_target_checked(&ev));
+                        }
+                    />
+                    <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                        "Toggle Analysis"
                     </span>
                 </label>
                 <div class="w-full max-w-xs flex justify-between items-center">

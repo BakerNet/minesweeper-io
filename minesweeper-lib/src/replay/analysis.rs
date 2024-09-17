@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::{HashMap, HashSet};
 
 // remove when done
@@ -51,6 +52,7 @@ impl MinesweeperAnalysis {
             AnalysisCell::Hidden(AnalyzedCell::Undetermined),
         );
         let mut log: Vec<Vec<(BoardPoint, LogEntry)>> = vec![Vec::new(); replay.log.len()];
+        let mut fifty_fiftys = HashMap::new();
         // loop over replay, updating log
         for (i, current_log_entry) in log.iter_mut().enumerate() {
             let current_play = &replay.log[i].1;
@@ -118,7 +120,7 @@ impl MinesweeperAnalysis {
                 points_to_analyze,
                 &mut analysis_board,
                 current_log_entry,
-                HashMap::new(),
+                &mut fifty_fiftys,
             );
         }
 
@@ -139,9 +141,8 @@ impl MinesweeperAnalysis {
         points_to_analyze: Vec<BoardPoint>,
         analysis_board: &mut Board<AnalysisCell>,
         current_log_entry: &mut Vec<(BoardPoint, LogEntry)>,
-        fifty_fiftys: HashMap<BoardPoint, BoardPoint>,
+        fifty_fiftys: &mut HashMap<BoardPoint, BoardPoint>,
     ) {
-        let mut fifty_fiftys = fifty_fiftys;
         let mut has_updates = false;
         let mut points_to_reanalyze = HashSet::new();
 
@@ -167,35 +168,11 @@ impl MinesweeperAnalysis {
                 has_updates = true;
             }
 
-            let mut plays_from_overlap = Vec::new();
-            let mut handle_overlaping_fifty_fifty =
-                |overlap_point: BoardPoint,
-                 outer_point1: BoardPoint,
-                 outer_point2: BoardPoint,
-                 analysis_board: &mut Board<AnalysisCell>| {
-                    let overlap_res = Self::handle_overlapping_fifty_fifty(
-                        overlap_point,
-                        outer_point1,
-                        outer_point2,
-                        analysis_board,
-                    );
-                    overlap_res
-                        .guaranteed_plays
-                        .into_iter()
-                        .for_each(|x| plays_from_overlap.push(x));
-                };
-
             res.found_fifty_fiftys
                 .into_iter()
                 .for_each(|(point1, point2)| {
-                    let old = fifty_fiftys.insert(point1, point2);
-                    if let Some(obp) = old {
-                        handle_overlaping_fifty_fifty(point1, point2, obp, analysis_board);
-                    }
-                    let old = fifty_fiftys.insert(point2, point1);
-                    if let Some(obp) = old {
-                        handle_overlaping_fifty_fifty(point2, point1, obp, analysis_board);
-                    }
+                    fifty_fiftys.insert(point1, point2);
+                    fifty_fiftys.insert(point2, point1);
                     // add neighbors to points_to_reanalyze
                     analysis_board.neighbors(point1).iter().for_each(|nbp| {
                         add_to_reanalyze_if_has_unrevealed_neighbors(
@@ -233,27 +210,6 @@ impl MinesweeperAnalysis {
                     )
                 });
             });
-            plays_from_overlap.into_iter().for_each(|(point, ac)| {
-                let other = fifty_fiftys.remove(&point);
-                if let Some(obp) = other {
-                    fifty_fiftys.remove(&obp);
-                }
-                let from = match analysis_board[point] {
-                    AnalysisCell::Hidden(AnalyzedCell::Empty) => Some(AnalyzedCell::Empty),
-                    AnalysisCell::Hidden(AnalyzedCell::Mine) => Some(AnalyzedCell::Mine),
-                    _ => None,
-                };
-                analysis_board[point] = AnalysisCell::Hidden(ac);
-                current_log_entry.push((point, LogEntry { from, to: Some(ac) }));
-                // add neighbors to points_to_reanalyze
-                analysis_board.neighbors(point).iter().for_each(|nbp| {
-                    add_to_reanalyze_if_has_unrevealed_neighbors(
-                        *nbp,
-                        analysis_board,
-                        &mut points_to_reanalyze,
-                    )
-                });
-            })
         });
         if !has_updates {
             return;
@@ -292,7 +248,7 @@ impl MinesweeperAnalysis {
         (if let AnalysisCell::Revealed(Cell::Empty(x)) = cell {
             x
         } else {
-            255
+            panic!("How did we get here")
         }) as usize
     }
 
@@ -313,12 +269,6 @@ impl MinesweeperAnalysis {
                 }
                 acc
             })
-        };
-
-        let reduce_by_neighbor_mines = move |point: BoardPoint, start: usize| {
-            let (num_mines, _, undetermined_pairs) = Self::neighbor_info(point, analysis_board);
-            let fifty_fifty_pairs = find_fifty_fifty_pairs(&undetermined_pairs);
-            start - num_mines - fifty_fifty_pairs.len()
         };
 
         let (num_mines, revealed_points, undetermined_points) =
@@ -393,91 +343,41 @@ impl MinesweeperAnalysis {
                 found_fifty_fiftys: vec![(undetermined_points[0], undetermined_points[1])],
             };
         }
-        if cell_num == num_undetermined - 1 && num_fifty_fiftys == 0 {
-            // check for "1" next to 2 undetermined cells - it's a 5050
-            // find all revealed with 2 undetermined cells as neighbors
-            // filter to ones that have value 1 - there should only be one
-            // rest are guaranteed mine
-            let ff_points = revealed_points
-                .iter()
-                .filter_map(|&p| {
-                    let neighbor_points = undetermined_points
-                        .iter()
-                        .filter(|&p2| p.is_neighbor(*p2))
-                        .collect::<Vec<_>>();
-                    if neighbor_points.len() == 2 {
-                        Some((p, (*neighbor_points[0], *neighbor_points[1])))
-                    } else {
-                        None
-                    }
-                })
-                .filter(|(p, _)| {
-                    let pcell = analysis_board[*p];
-                    let pcell_num = Self::cell_to_num(pcell);
-                    pcell_num == 1 || reduce_by_neighbor_mines(*p, pcell_num) == 1
-                })
+        // // check for "1" next to 2 undetermined cells - it's a local 5050
+        // // find all revealed with 2 undetermined cells as neighbors
+        // // filter to ones that have value 1 - there should only be one
+        // // rest are guaranteed mine
+        let local_ff_points = revealed_points
+            .into_iter()
+            .filter(|p| matches!(analysis_board[*p], AnalysisCell::Revealed(Cell::Empty(1))))
+            .filter(|p| {
+                let neighbor_points = undetermined_points
+                    .iter()
+                    .filter(|&p2| p.is_neighbor(*p2))
+                    .collect::<Vec<_>>();
+                neighbor_points.len() == 2
+            })
+            .collect::<Vec<_>>();
+        if !local_ff_points.is_empty()
+            && local_ff_points.len() * 2 == num_undetermined - 1
+            && cell_num > 1
+        {
+            let not_ff = undetermined_points
+                .into_iter()
+                .filter(|p| !local_ff_points.iter().any(|p2| p.is_neighbor(*p2)))
+                .map(|p| (p, AnalyzedCell::Mine))
                 .collect::<Vec<_>>();
-            if !ff_points.is_empty() {
-                let ff = ff_points.iter().map(|(_, v)| v.to_owned()).collect();
-                let not_ff = undetermined_points
-                    .into_iter()
-                    .filter(|p| !ff_points.iter().any(|(_, ff)| *p == ff.0 || *p == ff.1))
-                    .map(|p| (p, AnalyzedCell::Mine))
-                    .collect();
+            if not_ff.len() == 1 {
                 return AnalysisResult {
                     guaranteed_plays: not_ff,
-                    found_fifty_fiftys: ff,
+                    found_fifty_fiftys: Vec::new(),
                 };
-            };
-        }
+            }
+        };
         // exhausted all strategies
         AnalysisResult {
             guaranteed_plays: Vec::new(),
             found_fifty_fiftys: Vec::new(),
-        }
-    }
-
-    fn handle_overlapping_fifty_fifty(
-        overlap_point: BoardPoint,
-        outer_point1: BoardPoint,
-        outer_point2: BoardPoint,
-        analysis_board: &Board<AnalysisCell>,
-    ) -> AnalysisResult {
-        let neighbors = analysis_board.neighbors(overlap_point);
-        let mut common_points = neighbors
-            .into_iter()
-            .filter(|p| p.is_neighbor(outer_point1) && p.is_neighbor(outer_point2))
-            .map(|p| {
-                let (num_mines, _, _) = Self::neighbor_info(p, analysis_board);
-                let common_cell = analysis_board[p];
-                Self::cell_to_num(common_cell) - num_mines
-            })
-            .collect::<Vec<_>>();
-        common_points.sort();
-        if common_points.is_empty() {
-            return AnalysisResult {
-                guaranteed_plays: Vec::new(),
-                found_fifty_fiftys: Vec::new(),
-            };
-        }
-        if common_points[0] == 1 {
-            AnalysisResult {
-                guaranteed_plays: vec![
-                    (overlap_point, AnalyzedCell::Mine),
-                    (outer_point1, AnalyzedCell::Empty),
-                    (outer_point2, AnalyzedCell::Empty),
-                ],
-                found_fifty_fiftys: Vec::new(),
-            }
-        } else {
-            AnalysisResult {
-                guaranteed_plays: vec![
-                    (overlap_point, AnalyzedCell::Empty),
-                    (outer_point1, AnalyzedCell::Mine),
-                    (outer_point2, AnalyzedCell::Mine),
-                ],
-                found_fifty_fiftys: Vec::new(),
-            }
         }
     }
 }

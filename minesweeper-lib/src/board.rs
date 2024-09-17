@@ -202,12 +202,16 @@ pub struct BoardPoint {
 }
 impl BoardPoint {
     pub(crate) fn is_neighbor(&self, p2: BoardPoint) -> bool {
+        if self.row == p2.row && self.col == p2.col {
+            // not neighbor to self
+            return false;
+        }
         if (self.row >= p2.row && self.row - p2.row <= 1)
             || (self.row < p2.row && p2.row - self.row <= 1)
         {
             // rows in range
-            if (self.col >= p2.col && self.col - p2.col < 1)
-                || (self.col < p2.col && p2.col - self.col < 1)
+            if (self.col >= p2.col && self.col - p2.col <= 1)
+                || (self.col < p2.col && p2.col - self.col <= 1)
             {
                 // cols in range
                 true

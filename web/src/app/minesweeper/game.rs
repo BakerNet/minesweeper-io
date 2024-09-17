@@ -13,11 +13,12 @@ use minesweeper_lib::{
     board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     game::{Action as PlayAction, CompletedMinesweeper},
+    replay::AnalyzedCell,
 };
 
 use super::{
     cell::{ActiveCell, InactiveCell, ReplayCell},
-    client::{signals_from_board, FrontendGame},
+    client::FrontendGame,
     entry::ReCreateGame,
     players::{ActivePlayers, InactivePlayers, PlayerButtons},
     replay::{OpenReplay, ReplayControls},
@@ -48,7 +49,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     let game_log = game_manager.get_game_log(&game_id).await.ok();
     // we have all the data we need
 
-    log::debug!("one");
     let is_owner = if let Some(user) = &auth_session.user {
         match game.owner {
             None => false,
@@ -57,7 +57,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         false
     };
-    log::debug!("two");
     let user_ref = auth_session.user.as_ref();
     let player_num = if user_ref.is_some() {
         players
@@ -67,7 +66,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     } else {
         None
     };
-    log::debug!("three");
     let players_simple = players.iter().map(ClientPlayer::from).collect::<Vec<_>>();
     let final_board = match (game.final_board, game_log) {
         (Some(board), Some(game_log)) => {
@@ -89,7 +87,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
             game.rows as usize
         ]),
     };
-    log::debug!("four");
     let players_frontend =
         players
             .into_iter()
@@ -98,7 +95,6 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
                 acc[index] = Some(ClientPlayer::from(p));
                 acc
             });
-    log::debug!("five");
     Ok(GameInfo {
         game_id: game.game_id,
         has_owner: game.owner.is_some(),
@@ -543,8 +539,6 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .map(|p| signal(p))
         .collect::<(Vec<_>, Vec<_>)>();
 
-    let (cell_read_signals, cell_write_signals) = signals_from_board(&game_info.final_board);
-
     let completed_minesweeper = CompletedMinesweeper::from_log(
         Board::from_vec(game_info.final_board),
         replay_data.log,
@@ -552,21 +546,37 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     );
     let replay = completed_minesweeper
         .replay(replay_data.player_num.map(|p| p.into()))
-        .expect("We are guaranteed log is not None");
+        .expect("We are guaranteed log is not None")
+        .with_analysis();
 
-    let cell_row = |(row, vec): (usize, &Vec<ReadSignal<PlayerCell>>)| {
+    let (cell_read_signals, cell_write_signals) = replay
+        .current_board()
+        .rows_iter()
+        .map(|col| {
+            col.iter()
+                .cloned()
+                .map(signal)
+                .collect::<(Vec<_>, Vec<_>)>()
+        })
+        .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
+
+    let cell_row = |(row, cells): (usize, &Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>)| {
         view! {
             <div class="whitespace-nowrap">
-                {vec
-                    .iter()
-                    .copied()
+                {cells
+                    .into_iter()
                     .enumerate()
-                    .map(move |(col, cell)| view! { <ReplayCell row=row col=col cell=cell /> })
+                    .map(move |(col, &cell)| view! { <ReplayCell row=row col=col cell=cell /> })
                     .collect_view()}
             </div>
         }
     };
-    let cells = view! { {cell_read_signals.iter().enumerate().map(cell_row).collect_view()} };
+    let cells = view! { {
+        cell_read_signals
+            .iter()
+            .enumerate()
+            .map(cell_row).collect_view()
+    } };
 
     view! {
         <ActivePlayers players=player_read_signals.into() title="Replay">

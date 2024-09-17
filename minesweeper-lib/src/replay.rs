@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use anyhow::{bail, Result};
 
 use crate::{
-    board::Board,
+    board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     client::ClientPlayer,
     game::{Play, PlayOutcome},
@@ -11,7 +11,7 @@ use crate::{
 
 mod analysis;
 
-pub use analysis::MinesweeperAnalysis;
+pub use analysis::{AnalyzedCell, MinesweeperAnalysis};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReplayPosition {
@@ -132,6 +132,33 @@ impl MinesweeperReplay {
         }
     }
 
+    pub fn with_analysis(self) -> MinesweeperReplayWithAnalysis {
+        let mut replay = self;
+        let _ = replay.to_pos(ReplayPosition::Beginning);
+        let analysis = MinesweeperAnalysis::from_replay(&replay);
+        let mut current_board = Board::new(
+            replay.current_board.rows(),
+            replay.current_board.cols(),
+            (PlayerCell::Hidden(HiddenCell::Empty), None::<AnalyzedCell>),
+        );
+        replay
+            .current_board
+            .rows_iter()
+            .enumerate()
+            .for_each(|(row, v)| {
+                v.iter().enumerate().for_each(|(col, c)| {
+                    let point = BoardPoint { row, col };
+                    let curr = current_board[point];
+                    current_board[point] = (*c, curr.1);
+                })
+            });
+        MinesweeperReplayWithAnalysis {
+            replay,
+            analysis,
+            current_board,
+        }
+    }
+
     pub fn current_play(&self) -> Option<Play> {
         self.current_play
     }
@@ -234,6 +261,71 @@ impl Replayable for MinesweeperReplay {
             }
         };
         Ok(self.current_pos())
+    }
+}
+
+pub struct MinesweeperReplayWithAnalysis {
+    replay: MinesweeperReplay,
+    analysis: MinesweeperAnalysis,
+    current_board: Board<(PlayerCell, Option<AnalyzedCell>)>,
+}
+
+impl MinesweeperReplayWithAnalysis {
+    pub fn current_play(&self) -> Option<Play> {
+        self.replay.current_play
+    }
+
+    pub fn current_board(&self) -> &Board<(PlayerCell, Option<AnalyzedCell>)> {
+        &self.current_board
+    }
+
+    pub fn current_players(&self) -> &Vec<SimplePlayer> {
+        &self.replay.current_players
+    }
+
+    pub fn current_flags_and_revealed_mines(&self) -> usize {
+        self.replay.current_flags + self.replay.current_revealed_mines
+    }
+
+    fn update_current_board(&mut self) {
+        let replay_board = self.replay.current_board();
+        let analysis_board = self.analysis.current_board();
+        replay_board
+            .iter()
+            .zip(analysis_board.iter())
+            .enumerate()
+            .for_each(|(i, (pc, ac))| {
+                let point = self.current_board.point_from_index(i);
+                self.current_board[point] = (pc.to_owned(), ac.to_owned());
+            });
+    }
+}
+
+impl Replayable for MinesweeperReplayWithAnalysis {
+    fn len(&self) -> usize {
+        self.replay.len()
+    }
+
+    fn current_pos(&self) -> ReplayPosition {
+        self.replay.current_pos()
+    }
+
+    fn advance(&mut self) -> Result<ReplayPosition> {
+        let _ = self.analysis.advance();
+        let ret = self.replay.advance();
+        if matches!(ret, Ok(_)) {
+            self.update_current_board()
+        }
+        ret
+    }
+
+    fn rewind(&mut self) -> Result<ReplayPosition> {
+        let _ = self.analysis.rewind();
+        let ret = self.replay.rewind();
+        if matches!(ret, Ok(_)) {
+            self.update_current_board()
+        }
+        ret
     }
 }
 

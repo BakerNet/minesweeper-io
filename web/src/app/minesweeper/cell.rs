@@ -1,5 +1,6 @@
 use leptos::either::*;
 use leptos::prelude::*;
+use minesweeper_lib::replay::AnalyzedCell;
 use web_sys::MouseEvent;
 
 use minesweeper_lib::{
@@ -16,6 +17,23 @@ use crate::{
 fn cell_contents_class(cell: PlayerCell, active: bool) -> &'static str {
     match cell {
         PlayerCell::Hidden(HiddenCell::Flag) if !active => "bg-red-400/40",
+        PlayerCell::Hidden(_) => "bg-neutral-500",
+        PlayerCell::Revealed(rc) => match rc.contents {
+            Cell::Mine => "bg-red-600",
+            Cell::Empty(x) => number_class!(x),
+        },
+    }
+}
+
+fn cell_replay_class(cell: PlayerCell, analysis: Option<AnalyzedCell>) -> &'static str {
+    match cell {
+        PlayerCell::Hidden(HiddenCell::Flag) if matches!(analysis, Some(AnalyzedCell::Empty)) => {
+            "bg-red-400/40"
+        }
+        PlayerCell::Hidden(HiddenCell::Empty) if matches!(analysis, Some(AnalyzedCell::Empty)) => {
+            "bg-green-400/40"
+        }
+        PlayerCell::Hidden(_) if matches!(analysis, Some(AnalyzedCell::Mine)) => "bg-yellow-400/40",
         PlayerCell::Hidden(_) => "bg-neutral-500",
         PlayerCell::Revealed(rc) => match rc.contents {
             Cell::Mine => "bg-red-600",
@@ -83,17 +101,21 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 }
 
 #[component]
-pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+pub fn ReplayCell(
+    row: usize,
+    col: usize,
+    cell: ReadSignal<(PlayerCell, Option<AnalyzedCell>)>,
+) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let class = move || {
-        let item = cell();
-        cell_class!(cell_contents_class(item, true), cell_player_class(item))
+        let (item, analysis) = cell();
+        cell_class!(cell_replay_class(item, analysis), cell_player_class(item))
     };
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
             {move || {
-                let item = cell();
+                let (item, _) = cell();
                 view! { <CellContents cell=item /> }
             }}
         </span>
