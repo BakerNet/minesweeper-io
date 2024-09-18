@@ -564,7 +564,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         view! {
             <div class="whitespace-nowrap">
                 {cells
-                    .into_iter()
+                    .iter()
                     .enumerate()
                     .map(move |(col, &cell)| view! { <ReplayCell row=row col=col cell=cell /> })
                     .collect_view()}

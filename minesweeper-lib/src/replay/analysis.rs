@@ -195,7 +195,7 @@ impl MinesweeperAnalysis {
             };
 
         points_to_analyze.into_iter().for_each(|bp| {
-            let res = Self::perform_checks(&bp, analysis_board, &fifty_fiftys);
+            let res = Self::perform_checks(&bp, analysis_board, fifty_fiftys);
             if !res.found_fifty_fiftys.is_empty() || !res.guaranteed_plays.is_empty() {
                 has_updates = true;
             }
@@ -458,17 +458,13 @@ impl MinesweeperAnalysis {
             .collect::<Vec<_>>();
 
         if cell_num > num_undetermined / 2
-            && !local_ff_points.is_empty()
-            && cell_num - local_ff_points.len() == 1
-        {
-            if not_ff.len() == 1 {
-                return AnalysisResult {
-                    guaranteed_plays: not_ff,
-                    found_fifty_fiftys: Vec::new(),
-                };
-            }
+            && !local_ff_points.is_empty() && cell_num - local_ff_points.len() == 1 && not_ff.len() == 1 {
+            return AnalysisResult {
+                guaranteed_plays: not_ff,
+                found_fifty_fiftys: Vec::new(),
+            };
         };
-        if cell_num == 1 && local_ff_points.len() == 1 && not_ff.len() == 0 {
+        if cell_num == 1 && local_ff_points.len() == 1 && not_ff.is_empty() {
             // reveal the neighbors of local_ff_points that aren't in undetermined_points
             return AnalysisResult {
                 guaranteed_plays: analysis_board

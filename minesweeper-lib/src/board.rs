@@ -254,10 +254,6 @@ impl BoardPoint {
             // not neighbor to self
             return false;
         }
-        if unsigned_diff(self.row, p2.row) <= 1 && unsigned_diff(self.col, p2.col) <= 1 {
-            true
-        } else {
-            false
-        }
+        unsigned_diff(self.row, p2.row) <= 1 && unsigned_diff(self.col, p2.col) <= 1
     }
 }

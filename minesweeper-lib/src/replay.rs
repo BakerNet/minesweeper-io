@@ -313,7 +313,7 @@ impl Replayable for MinesweeperReplayWithAnalysis {
     fn advance(&mut self) -> Result<ReplayPosition> {
         let _ = self.analysis.advance();
         let ret = self.replay.advance();
-        if matches!(ret, Ok(_)) {
+        if ret.is_ok() {
             self.update_current_board()
         }
         ret
@@ -322,7 +322,7 @@ impl Replayable for MinesweeperReplayWithAnalysis {
     fn rewind(&mut self) -> Result<ReplayPosition> {
         let _ = self.analysis.rewind();
         let ret = self.replay.rewind();
-        if matches!(ret, Ok(_)) {
+        if ret.is_ok() {
             self.update_current_board()
         }
         ret

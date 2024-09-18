@@ -162,8 +162,8 @@ impl Minesweeper {
         if cell_state.revealed {
             bail!("Tried to play already revealed cell")
         }
-        let player_cell = if self.players[player].flags.contains(&cell_point) {
-            self.players[player].flags.remove(&cell_point);
+        let player_cell = if self.players[player].flags.contains(cell_point) {
+            self.players[player].flags.remove(cell_point);
             PlayerCell::Hidden(HiddenCell::Empty)
         } else {
             self.players[player].flags.insert(*cell_point);
@@ -177,7 +177,7 @@ impl Minesweeper {
         if cell_state.revealed {
             bail!("Tried to play already revealed cell")
         }
-        if self.players[player].flags.contains(&cell_point) {
+        if self.players[player].flags.contains(cell_point) {
             bail!("Tried to play flagged cell")
         }
         let mut update_revealed = None::<Vec<BoardPoint>>;
