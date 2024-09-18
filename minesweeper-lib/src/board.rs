@@ -33,17 +33,14 @@ where
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Board<T> {
     rows: usize,
     cols: usize,
     board: Vec<T>,
 }
 
-impl<T> Display for Board<T>
-where
-    T: Debug,
-{
+impl<T: Debug> Debug for Board<T> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let rows = (0..self.rows)
             .collect::<Vec<usize>>()
@@ -61,6 +58,43 @@ where
             });
         let row_trim = rows.trim_end();
         write!(f, "{}", row_trim)
+    }
+}
+
+impl<T: Display> Display for Board<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let rows = (0..self.rows)
+            .collect::<Vec<usize>>()
+            .iter()
+            .map(|row| {
+                let row_slice = &self.board[(row * self.cols)..(row * self.cols + self.cols)];
+                let row_flat = row_slice
+                    .iter()
+                    .fold(String::new(), |acc, item| acc + &format!("{}", item));
+                row_flat
+            })
+            .fold(String::new(), |mut acc, s| {
+                acc.push_str(&format!("{}\n", s));
+                acc
+            });
+        let row_trim = rows.trim_end();
+        write!(f, "{}", row_trim)
+    }
+}
+
+impl<T> Index<&BoardPoint> for Board<T> {
+    type Output = T;
+
+    fn index(&self, point: &BoardPoint) -> &Self::Output {
+        let index = point.row * self.cols + point.col;
+        &self.board[index]
+    }
+}
+
+impl<T> IndexMut<&BoardPoint> for Board<T> {
+    fn index_mut(&mut self, point: &BoardPoint) -> &mut Self::Output {
+        let index = point.row * self.cols + point.col;
+        &mut self.board[index]
     }
 }
 
@@ -150,7 +184,7 @@ impl<T> Board<T> {
         point.row < self.rows && point.col < self.cols
     }
 
-    pub fn neighbors(&self, point: BoardPoint) -> Vec<BoardPoint> {
+    pub fn neighbors(&self, point: &BoardPoint) -> Vec<BoardPoint> {
         let mut neighbors = Vec::<BoardPoint>::new();
 
         let row = point.row;
@@ -195,29 +229,33 @@ impl<T> Board<T> {
     }
 }
 
+fn unsigned_diff<T>(first: T, second: T) -> usize
+where
+    T: Into<usize>,
+{
+    let first = first.into();
+    let second = second.into();
+    if first >= second {
+        first - second
+    } else {
+        second - first
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct BoardPoint {
     pub row: usize,
     pub col: usize,
 }
+
 impl BoardPoint {
-    pub(crate) fn is_neighbor(&self, p2: BoardPoint) -> bool {
-        if self.row == p2.row && self.col == p2.col {
+    pub(crate) fn is_neighbor(&self, p2: &BoardPoint) -> bool {
+        if self == p2 {
             // not neighbor to self
             return false;
         }
-        if (self.row >= p2.row && self.row - p2.row <= 1)
-            || (self.row < p2.row && p2.row - self.row <= 1)
-        {
-            // rows in range
-            if (self.col >= p2.col && self.col - p2.col <= 1)
-                || (self.col < p2.col && p2.col - self.col <= 1)
-            {
-                // cols in range
-                true
-            } else {
-                false
-            }
+        if unsigned_diff(self.row, p2.row) <= 1 && unsigned_diff(self.col, p2.col) <= 1 {
+            true
         } else {
             false
         }

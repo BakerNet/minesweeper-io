@@ -94,7 +94,7 @@ impl MinesweeperClient {
         updated
     }
 
-    pub fn neighbors_flagged(&self, cell_point: BoardPoint) -> bool {
+    pub fn neighbors_flagged(&self, cell_point: &BoardPoint) -> bool {
         if let PlayerCell::Revealed(rc) = self.board[cell_point] {
             if let Cell::Empty(x) = rc.contents {
                 let neighbors = self.board.neighbors(cell_point);

@@ -73,7 +73,7 @@ impl MinesweeperBuilder {
             .collect();
         available.shuffle(&mut thread_rng());
         let points_to_plant = &available[0..self.opts.num_mines];
-        points_to_plant.iter().for_each(|&x| {
+        points_to_plant.iter().for_each(|x| {
             board[x].0 = board[x].0.plant().unwrap();
 
             let neighbors = board.neighbors(x);
@@ -157,7 +157,7 @@ pub struct Minesweeper {
 }
 
 impl Minesweeper {
-    fn handle_flag(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
+    fn handle_flag(&mut self, player: usize, cell_point: &BoardPoint) -> Result<PlayOutcome> {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
             bail!("Tried to play already revealed cell")
@@ -166,13 +166,13 @@ impl Minesweeper {
             self.players[player].flags.remove(&cell_point);
             PlayerCell::Hidden(HiddenCell::Empty)
         } else {
-            self.players[player].flags.insert(cell_point);
+            self.players[player].flags.insert(*cell_point);
             PlayerCell::Hidden(HiddenCell::Flag)
         };
-        Ok(PlayOutcome::Flag((cell_point, player_cell)))
+        Ok(PlayOutcome::Flag((*cell_point, player_cell)))
     }
 
-    fn handle_click(&mut self, player: usize, cell_point: BoardPoint) -> Result<PlayOutcome> {
+    fn handle_click(&mut self, player: usize, cell_point: &BoardPoint) -> Result<PlayOutcome> {
         let (_, cell_state) = &self.board[cell_point];
         if cell_state.revealed {
             bail!("Tried to play already revealed cell")
@@ -192,7 +192,7 @@ impl Minesweeper {
                 self.reveal(player, cell_point);
                 self.players[player].dead = true;
                 Ok(PlayOutcome::Failure((
-                    cell_point,
+                    *cell_point,
                     RevealedCell {
                         player,
                         contents: self.board[cell_point].0,
@@ -227,7 +227,7 @@ impl Minesweeper {
                 self.reveal(player, cell_point);
                 self.players[player].score += 1;
                 let revealed_point = vec![(
-                    cell_point,
+                    *cell_point,
                     RevealedCell {
                         player,
                         contents: self.board[cell_point].0,
@@ -245,7 +245,7 @@ impl Minesweeper {
     fn handle_double_click(
         &mut self,
         player: usize,
-        cell_point: BoardPoint,
+        cell_point: &BoardPoint,
     ) -> Result<PlayOutcome> {
         let (cell, cell_state) = &self.board[cell_point];
         if !cell_state.revealed {
@@ -278,7 +278,7 @@ impl Minesweeper {
             .find(|c| matches!(self.board[*c].0, Cell::Mine));
         // check for mine first, so other clicks don't go through
         if let Some(c) = has_mine {
-            self.reveal(player, c);
+            self.reveal(player, &c);
             self.players[player].dead = true;
             return Ok(PlayOutcome::Failure((
                 c,
@@ -295,7 +295,7 @@ impl Minesweeper {
                     return acc;
                 }
                 let res = self
-                    .handle_click(player, *c)
+                    .handle_click(player, c)
                     .expect("Handle click inside double-click should work");
                 acc.combine(res)
             },
@@ -308,15 +308,15 @@ impl Minesweeper {
         item.1.revealed && item.0.is_mine()
     }
 
-    fn reveal(&mut self, player: usize, cell_point: BoardPoint) -> bool {
+    fn reveal(&mut self, player: usize, cell_point: &BoardPoint) -> bool {
         if self.board[cell_point].1.revealed {
             false
         } else {
             self.board[cell_point].1.revealed = true;
             self.board[cell_point].1.player = Some(player);
-            self.available.remove(&cell_point);
+            self.available.remove(cell_point);
             self.players.iter_mut().for_each(|p| {
-                p.flags.remove(&cell_point);
+                p.flags.remove(cell_point);
             });
             true
         }
@@ -325,21 +325,21 @@ impl Minesweeper {
     fn reveal_neighbors(
         &mut self,
         player: usize,
-        cell_point: BoardPoint,
+        cell_point: &BoardPoint,
     ) -> Result<Vec<BoardPoint>> {
         self.reveal(player, cell_point);
-        let final_vec = vec![cell_point];
+        let final_vec = vec![*cell_point];
         let neighbors = self.board.neighbors(cell_point);
         neighbors.iter().try_fold(final_vec, |mut acc, c| {
-            let item = self.board[*c];
+            let item = self.board[c];
             if item.1.revealed {
                 return Ok(acc);
             }
             if let Cell::Empty(x) = item.0 {
                 if x == 0 {
-                    let mut recur_acc = self.reveal_neighbors(player, *c)?;
+                    let mut recur_acc = self.reveal_neighbors(player, c)?;
                     acc.append(&mut recur_acc)
-                } else if self.reveal(player, *c) {
+                } else if self.reveal(player, c) {
                     acc.push(*c)
                 }
             } else {
@@ -349,11 +349,11 @@ impl Minesweeper {
         })
     }
 
-    fn has_no_revealed_nearby(&self, cell_point: BoardPoint) -> bool {
+    fn has_no_revealed_nearby(&self, cell_point: &BoardPoint) -> bool {
         let neighbors = self.board.neighbors(cell_point);
         let nearby = neighbors
             .into_iter()
-            .flat_map(|n| self.board.neighbors(n))
+            .flat_map(|n| self.board.neighbors(&n))
             .collect::<HashSet<_>>();
         nearby
             .into_iter()
@@ -362,8 +362,8 @@ impl Minesweeper {
             == 0
     }
 
-    fn plant(&mut self, cell_point: BoardPoint) {
-        self.available.remove(&cell_point);
+    fn plant(&mut self, cell_point: &BoardPoint) {
+        self.available.remove(cell_point);
 
         self.board[cell_point].0 = self.board[cell_point].0.plant().unwrap();
 
@@ -373,7 +373,7 @@ impl Minesweeper {
         });
     }
 
-    fn unplant(&mut self, cell_point: BoardPoint, rem_neighbors: bool) -> Vec<BoardPoint> {
+    fn unplant(&mut self, cell_point: &BoardPoint, rem_neighbors: bool) -> Vec<BoardPoint> {
         let mut updated_revealed = HashSet::new();
         let mut to_replant = if rem_neighbors { Some(0) } else { None };
 
@@ -396,10 +396,10 @@ impl Minesweeper {
             }
         }
 
-        neighbors.iter().copied().for_each(|i| {
+        neighbors.iter().for_each(|i| {
             let new = if was_mine {
                 if self.board[i].1.revealed {
-                    updated_revealed.insert(i);
+                    updated_revealed.insert(*i);
                 }
                 self.board[i].0.decrement()
             } else {
@@ -425,13 +425,13 @@ impl Minesweeper {
     fn replant(
         &mut self,
         unplanted_mines: usize,
-        first_cell: BoardPoint,
+        first_cell: &BoardPoint,
         neighbors: Vec<BoardPoint>,
     ) {
         if unplanted_mines == 0 {
             return;
         }
-        let has_revealed_neighbor = |bp: BoardPoint| {
+        let has_revealed_neighbor = |bp: &BoardPoint| {
             self.board
                 .neighbors(bp)
                 .iter()
@@ -440,9 +440,7 @@ impl Minesweeper {
         let mut take_available: Vec<BoardPoint> = self
             .available
             .iter()
-            .filter(|&bp| {
-                *bp != first_cell && !neighbors.contains(bp) && !has_revealed_neighbor(*bp)
-            })
+            .filter(|&bp| bp != first_cell && !neighbors.contains(bp) && !has_revealed_neighbor(bp))
             .copied()
             .collect::<Vec<_>>();
         let mut rng = thread_rng();
@@ -453,7 +451,7 @@ impl Minesweeper {
             take_available.extend(unplanted_points);
         }
         take_available.iter().take(unplanted_mines).for_each(|x| {
-            self.plant(*x);
+            self.plant(x);
         });
     }
 }
@@ -478,9 +476,9 @@ impl Minesweeper {
             bail!("Tried to play point outside of playzone")
         }
         let play_res = match play.action {
-            Action::Reveal => self.handle_click(play.player, play.point),
-            Action::RevealAdjacent => self.handle_double_click(play.player, play.point),
-            Action::Flag => self.handle_flag(play.player, play.point),
+            Action::Reveal => self.handle_click(play.player, &play.point),
+            Action::RevealAdjacent => self.handle_double_click(play.player, &play.point),
+            Action::Flag => self.handle_flag(play.player, &play.point),
         };
         if self.available.is_empty() {
             // game is over
@@ -822,10 +820,10 @@ mod test {
     fn set_up_game() -> Minesweeper {
         let mut game = empty_game(2);
 
-        game.plant(POINT_0_0);
-        game.plant(POINT_1_1);
-        game.plant(POINT_1_2);
-        game.plant(POINT_2_1);
+        game.plant(&POINT_0_0);
+        game.plant(&POINT_1_1);
+        game.plant(&POINT_1_2);
+        game.plant(&POINT_2_1);
         game
     }
 
@@ -877,7 +875,7 @@ mod test {
     fn plant_works() {
         let mut game = empty_game(2);
 
-        game.plant(POINT_0_0);
+        game.plant(&POINT_0_0);
 
         num_mines(&game, 1);
         assert_eq!(game.available.len(), 9 * 9 - 1);
@@ -887,7 +885,7 @@ mod test {
         assert_point_cell(&game, POINT_1_1, Cell::Empty(1));
         assert_point_cell(&game, POINT_0_2, Cell::Empty(0));
 
-        game.plant(POINT_1_1);
+        game.plant(&POINT_1_1);
 
         num_mines(&game, 2);
         assert_eq!(game.available.len(), 9 * 9 - 2);
@@ -897,7 +895,7 @@ mod test {
         assert_point_cell(&game, POINT_1_1, Cell::Mine);
         assert_point_cell(&game, POINT_0_2, Cell::Empty(1));
 
-        game.plant(POINT_1_2);
+        game.plant(&POINT_1_2);
 
         num_mines(&game, 3);
         assert_eq!(game.available.len(), 9 * 9 - 3);
@@ -912,7 +910,7 @@ mod test {
     fn unplant_mine_works() {
         let mut game = set_up_game();
 
-        game.unplant(POINT_0_0, true);
+        game.unplant(&POINT_0_0, true);
 
         num_mines(&game, 4);
         assert_eq!(game.available.len(), 9 * 9 - 6);
@@ -924,7 +922,7 @@ mod test {
     fn unplant_cell_works() {
         let mut game = set_up_game();
 
-        game.unplant(POINT_0_2, true);
+        game.unplant(&POINT_0_2, true);
 
         num_mines(&game, 4);
         assert_eq!(game.available.len(), 9 * 9 - 6);
@@ -1011,7 +1009,7 @@ mod test {
             .unwrap();
 
         let cell_point = BoardPoint { row: 0, col: 2 };
-        game.unplant(cell_point, false); // guarantee not mine
+        game.unplant(&cell_point, false); // guarantee not mine
         let res = game
             .play(Play {
                 player: 0,
@@ -1066,7 +1064,7 @@ mod test {
         assert_point_cell(&game, POINT_2_2, Cell::Empty(3));
         assert_point_cell(&game, POINT_0_3, Cell::Empty(1));
 
-        let updated = game.unplant(POINT_1_1, true);
+        let updated = game.unplant(&POINT_1_1, true);
 
         assert_point_cell(&game, POINT_2_2, Cell::Empty(0));
         assert_point_cell(&game, POINT_0_3, Cell::Empty(0));

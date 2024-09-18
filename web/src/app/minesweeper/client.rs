@@ -112,13 +112,14 @@ impl FrontendGame {
     pub fn try_reveal(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).read().unwrap();
-        if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
+        let point = BoardPoint { row, col };
+        if let PlayerCell::Revealed(_) = game.board[&point] {
             bail!("Tried to click revealed cell")
         }
         let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::Reveal,
-            point: BoardPoint { row, col },
+            point,
         });
         self.send(play_message);
         Ok(())
@@ -127,13 +128,14 @@ impl FrontendGame {
     pub fn try_flag(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).read().unwrap();
-        if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
+        let point = BoardPoint { row, col };
+        if let PlayerCell::Revealed(_) = game.board[&point] {
             return Ok(());
         }
         let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::Flag,
-            point: BoardPoint { row, col },
+            point,
         });
         self.send(play_message);
         Ok(())
@@ -142,17 +144,18 @@ impl FrontendGame {
     pub fn try_reveal_adjacent(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
         let game: &MinesweeperClient = &(*self.game).read().unwrap();
-        if let PlayerCell::Revealed(_) = game.board[BoardPoint { row, col }] {
+        let point = BoardPoint { row, col };
+        if let PlayerCell::Revealed(_) = game.board[&point] {
         } else {
             bail!("Tried to reveal adjacent for hidden cell")
         }
-        if !game.neighbors_flagged(BoardPoint { row, col }) {
+        if !game.neighbors_flagged(&point) {
             bail!("Tried to reveal adjacent with wrong number of flags")
         }
         let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::RevealAdjacent,
-            point: BoardPoint { row, col },
+            point,
         });
         self.send(play_message);
         Ok(())

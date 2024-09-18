@@ -23,7 +23,7 @@ pub enum ReplayPosition {
 impl ReplayPosition {
     pub fn from_pos(pos: usize, len: usize) -> Self {
         match pos {
-            p if p == len => ReplayPosition::End,
+            p if p == len - 1 => ReplayPosition::End,
             0 => ReplayPosition::Beginning,
             default => ReplayPosition::Other(default),
         }
@@ -182,7 +182,7 @@ impl Replayable for MinesweeperReplay {
     }
 
     fn current_pos(&self) -> ReplayPosition {
-        ReplayPosition::from_pos(self.current_pos, self.len() - 1)
+        ReplayPosition::from_pos(self.current_pos, self.len())
     }
 
     fn advance(&mut self) -> Result<ReplayPosition> {
