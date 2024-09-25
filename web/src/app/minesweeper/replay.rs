@@ -15,7 +15,6 @@ use minesweeper_lib::{
 };
 
 #[derive(Clone)]
-#[allow(dead_code)]
 struct ReplayStore {
     replay: Arc<RwLock<MinesweeperReplayWithAnalysis>>,
     cell_read_signals: Arc<Vec<Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>>>,

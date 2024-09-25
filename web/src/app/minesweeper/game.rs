@@ -539,6 +539,17 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .map(|p| signal(p))
         .collect::<(Vec<_>, Vec<_>)>();
 
+    let (cell_read_signals, cell_write_signals) = game_info
+        .final_board
+        .iter()
+        .map(|col| {
+            col.iter()
+                .copied()
+                .map(|pc| signal((pc, None::<AnalyzedCell>)))
+                .collect::<(Vec<_>, Vec<_>)>()
+        })
+        .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
+
     let completed_minesweeper = CompletedMinesweeper::from_log(
         Board::from_vec(game_info.final_board),
         replay_data.log,
@@ -548,17 +559,6 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .replay(replay_data.player_num.map(|p| p.into()))
         .expect("We are guaranteed log is not None")
         .with_analysis();
-
-    let (cell_read_signals, cell_write_signals) = replay
-        .current_board()
-        .rows_iter()
-        .map(|col| {
-            col.iter()
-                .cloned()
-                .map(signal)
-                .collect::<(Vec<_>, Vec<_>)>()
-        })
-        .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
 
     let cell_row = |(row, cells): (usize, &Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>)| {
         view! {
