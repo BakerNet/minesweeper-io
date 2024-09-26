@@ -17,7 +17,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, app.into_make_service()).await?;
 
     session_cleanup_task.await??;
-
     Ok(())
 }
 

@@ -143,7 +143,7 @@ pub fn CopyGameLink(game_id: String) -> impl IntoView {
         }
     };
     #[cfg(not(feature = "ssr"))]
-    let origin = { window().location().origin().unwrap_or(String::new()) };
+    let origin = { window().location().origin().unwrap_or_default() };
     #[cfg(feature = "ssr")]
     let origin = String::new();
     let url = format!("{}/game/{}", origin, game_id);
