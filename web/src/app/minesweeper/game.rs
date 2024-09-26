@@ -558,12 +558,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             </div>
         }
     };
-    let cells = view! { {
-        cell_read_signals
-            .iter()
-            .enumerate()
-            .map(cell_row).collect_view()
-    } };
+    let cells = view! { {cell_read_signals.iter().enumerate().map(cell_row).collect_view()} };
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
         game_info.final_board,
