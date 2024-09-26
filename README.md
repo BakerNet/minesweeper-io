@@ -10,7 +10,7 @@ Deployed on [Fly.io](https://fly.io/)
 
 ## Project Status
 
-Early development - but in a very playable demo state
+Playable (see Live Demo site above)
 
 Features:
 
@@ -21,8 +21,10 @@ Features:
 - Spectate any active game
 - Join Multiplayers games created by someone else
 - Watch Replay of a game
-  - Singleplayer Replays always show flags
+  - Singleplayer Replays always have flags
   - Multiplayer Replays only logged-in users their own flags
+- View Replay analysis
+  - Highlights guaranteed plays
 - Logged in users have profile page to see their game history or set their display name
 - Basic keyboard commands (not yet mappable) as alternative to mouse buttons
 
