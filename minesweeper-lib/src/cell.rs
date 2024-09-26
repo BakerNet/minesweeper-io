@@ -1,9 +1,9 @@
-use std::fmt;
+use std::fmt::{self, Display, Formatter};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PlayerCell {
     #[serde(rename = "r", alias = "Revealed")]
     Revealed(RevealedCell),
@@ -17,8 +17,8 @@ impl Default for PlayerCell {
     }
 }
 
-impl fmt::Debug for PlayerCell {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for PlayerCell {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Hidden(hc) => match hc {
                 HiddenCell::Empty => write!(f, "-"),

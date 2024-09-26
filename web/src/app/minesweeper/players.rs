@@ -7,13 +7,13 @@ use minesweeper_lib::client::ClientPlayer;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
-use crate::components::{
+use crate::{
     button_class,
-    icons::{player_icon_holder, IconTooltip, Mine, Star, Trophy},
-    player_class,
+    components::icons::{IconTooltip, Mine, Star, Trophy},
+    player_class, player_icon_holder,
 };
 
-use super::client::PlayersContext;
+use super::client::FrontendGame;
 
 #[component]
 fn Scoreboard(children: Children) -> impl IntoView {
@@ -43,28 +43,27 @@ pub fn ActivePlayers(
     title: &'static str,
     children: Children,
 ) -> impl IntoView {
+    let players_view = players
+        .iter()
+        .enumerate()
+        .map(move |(n, player)| {
+            view! { <ActivePlayer player_num=n player=*player /> }
+        })
+        .collect_view();
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
             <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
-            <Scoreboard>
-                {players
-                    .iter()
-                    .enumerate()
-                    .map(move |(n, player)| {
-                        view! { <ActivePlayer player_num=n player=*player /> }
-                    })
-                    .collect_view()}
-            </Scoreboard>
+            <Scoreboard>{players_view}</Scoreboard>
             {children()}
         </div>
     }
 }
 
 #[component]
-pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
+pub fn PlayerButtons(game: StoredValue<FrontendGame>) -> impl IntoView {
     let start_game = create_server_action::<StartGame>();
 
-    let PlayersContext {
+    let FrontendGame {
         game_id,
         is_owner,
         has_owner,
@@ -73,7 +72,8 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
         players_loaded,
         started,
         join_trigger,
-    } = players_context;
+        ..
+    } = game.get_value();
     let num_players = players.len();
     let last_slot = *players.last().unwrap();
     let show_play = move || {
@@ -87,12 +87,13 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
     };
 
     if num_players == 1 {
-        log::debug!("num players 1");
-        create_effect(move |_| {
-            if players_loaded() {
+        Effect::new(move |prev| {
+            let loaded = players_loaded.get();
+            if loaded && prev.unwrap_or(true) {
                 log::debug!("join_trigger");
-                join_trigger.notify();
+                join_trigger(true);
             }
+            !loaded
         });
     }
 
@@ -100,7 +101,7 @@ pub fn PlayerButtons(players_context: PlayersContext) -> impl IntoView {
         <Show when=show_play fallback=move || ()>
             <PlayForm join_trigger />
         </Show>
-        <Show when=show_start fallback=move || () clone:game_id>
+        <Show when=show_start>
             <StartForm start_game game_id=game_id.to_string() />
         </Show>
     }
@@ -140,7 +141,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
     let (mut player_class, username, is_dead, victory_click, top_score, score) =
         if let Some(player) = player {
             (
-                player_class(player.player_id),
+                player_class!(player.player_id).to_owned(),
                 player.username,
                 player.dead,
                 player.victory_click,
@@ -170,7 +171,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 {username}
                 {if is_dead {
                     view! {
-                        <span class=player_icon_holder("bg-red-600", true)>
+                        <span class=player_icon_holder!("bg-red-600", true)>
                             <Mine />
                             <IconTooltip>"Dead"</IconTooltip>
                         </span>
@@ -181,7 +182,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 }}
                 {if top_score {
                     view! {
-                        <span class=player_icon_holder("bg-green-800", true)>
+                        <span class=player_icon_holder!("bg-green-800", true)>
                             <Trophy />
                             <IconTooltip>"Top Score"</IconTooltip>
                         </span>
@@ -192,7 +193,7 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
                 }}
                 {if victory_click {
                     view! {
-                        <span class=player_icon_holder("bg-black", true)>
+                        <span class=player_icon_holder!("bg-black", true)>
                             <Star />
                             <IconTooltip>"Victory Click"</IconTooltip>
                         </span>
@@ -209,36 +210,34 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
 }
 
 #[component]
-fn PlayForm(join_trigger: Trigger) -> impl IntoView {
+fn PlayForm(join_trigger: WriteSignal<bool>) -> impl IntoView {
     let (show, set_show) = create_signal(true);
 
     let join_game = move || {
-        join_trigger.notify();
+        join_trigger(true);
         set_show(false);
     };
 
     view! {
-        {move || {
-            if show() {
-                view! {
-                    <form
-                        on:submit=move |ev| {
-                            ev.prevent_default();
-                            join_game();
-                        }
-
-                        class="w-full max-w-xs h-8"
-                    >
-                        <button type="submit" class=button_class(Some("w-full max-w-xs h-8"), None)>
-                            "Play Game"
-                        </button>
-                    </form>
-                }
-                    .into_view()
-            } else {
-                view! { <div>"Joining..."</div> }.into_view()
+        <Show
+            when=show
+            fallback=move || {
+                view! { <div>"Joining..."</div> }
             }
-        }}
+        >
+            <form
+                on:submit=move |ev| {
+                    ev.prevent_default();
+                    join_game();
+                }
+
+                class="w-full max-w-xs h-8"
+            >
+                <button type="submit" class=button_class!("w-full max-w-xs h-8")>
+                    "Play Game"
+                </button>
+            </form>
+        </Show>
     }
 }
 
@@ -262,13 +261,13 @@ fn StartForm(
     game_id: String,
 ) -> impl IntoView {
     view! {
-        <ActionForm action=start_game class="w-full max-w-xs h-8">
+        <ActionForm action=start_game attr:class="w-full max-w-xs h-8">
             <input type="hidden" name="game_id" value=game_id />
             <button
                 type="submit"
-                class=button_class(
-                    Some("w-full max-w-xs h-8"),
-                    Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                class=button_class!(
+                    "w-full max-w-xs h-8",
+                    "bg-green-700 hover:bg-green-800/90 text-white"
                 )
 
                 disabled=start_game.pending()

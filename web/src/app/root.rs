@@ -8,10 +8,10 @@ use super::{
     auth::{get_frontend_user, LogIn, LogOut},
     error_template::{AppError, ErrorTemplate},
     header::Header,
-    home::HomePage,
-    login::LoginPage,
-    minesweeper::{GameReplay, GameView, GameWrapper},
-    profile::Profile,
+    home::HomeView,
+    login::LoginView,
+    minesweeper::{GameView, GameWrapper, ReplayView},
+    profile::ProfileView,
 };
 
 #[component]
@@ -59,16 +59,16 @@ pub fn App() -> impl IntoView {
             <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
                 <Header user />
                 <Routes>
-                    <Route path="/" view=HomePage />
-                    <Route path="/auth/login" view=move || view! { <LoginPage login /> } />
+                    <Route path="/" view=HomeView />
+                    <Route path="/auth/login" view=move || view! { <LoginView login /> } />
                     <Route
                         path="/profile"
                         view=move || {
-                            view! { <Profile user logout user_updated /> }
+                            view! { <ProfileView user logout user_updated /> }
                         }
                     />
                     <Route path="/game/:id" view=GameWrapper>
-                        <Route path="/replay" view=GameReplay />
+                        <Route path="/replay" view=ReplayView />
                         <Route path="/" view=GameView />
                     </Route>
                 </Routes>

@@ -1,10 +1,11 @@
 use codee::string::JsonSerdeWasmCodec;
 use leptos::*;
 use leptos_router::*;
-use leptos_use::storage::use_local_storage;
+use leptos_use::storage::{use_local_storage, use_local_storage_with_options, UseStorageOptions};
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
 
-use crate::components::{button_class, input_class};
+use crate::{button_class, input_class};
 
 use super::GameSettings;
 
@@ -155,7 +156,7 @@ fn validate_num_players(num_players: i64) -> bool {
     num_players > 0 && num_players <= 12
 }
 
-#[server(NewGame, "/api")]
+#[server]
 async fn new_game(
     rows: i64,
     cols: i64,
@@ -192,7 +193,7 @@ async fn new_game(
     Ok(())
 }
 
-#[server(JoinGame, "/api")]
+#[server]
 async fn join_game(game_id: String) -> Result<(), ServerFnError> {
     let game_manager = use_context::<GameManager>()
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
@@ -218,20 +219,25 @@ pub fn PresetButtons(
         GameMode::ClassicExpert,
     ];
 
+    let class_signal = move |mode: GameMode| {
+        let selected = selected.get();
+        log::debug!("Render mode: {:?} <> {:?}", mode, selected);
+        if mode == selected {
+            button_class!(
+                "w-full rounded rounded-lg",
+                "bg-neutral-800 text-neutral-50 border-neutral-500"
+            )
+        } else {
+            button_class!("w-full rounded rounded-lg")
+        }
+    };
+
     let mode_button = move |mode: GameMode| {
         view! {
             <div class="flex-1">
                 <button
                     type="button"
-                    class=move || {
-                        let selected_colors = if selected() == mode {
-                            Some("bg-neutral-800 text-neutral-50 border-neutral-500")
-                        } else {
-                            None
-                        };
-                        button_class(Some("w-full rounded rounded-lg"), selected_colors)
-                    }
-
+                    class=move || class_signal(mode)
                     on:click=move |_| {
                         set_selected(mode);
                     }
@@ -292,7 +298,7 @@ where
                     "Rows:"
                 </label>
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="number"
                     id="new_game_rows"
                     name="rows"
@@ -302,7 +308,6 @@ where
                         set_rows(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=rows
                 />
             </div>
@@ -314,7 +319,7 @@ where
                     "Columns:"
                 </label>
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="number"
                     id="new_game_cols"
                     name="cols"
@@ -324,7 +329,6 @@ where
                         set_cols(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=cols
                 />
             </div>
@@ -338,7 +342,7 @@ where
                     "Mines:"
                 </label>
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="number"
                     id="new_game_num_mines"
                     name="num_mines"
@@ -348,7 +352,6 @@ where
                         set_num_mines(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=num_mines
                 />
             </div>
@@ -360,7 +363,7 @@ where
                     "Max Players:"
                 </label>
                 <input
-                    class=input_class(None)
+                    class=input_class!()
                     type="number"
                     id="new_game_max_players"
                     name="max_players"
@@ -370,7 +373,6 @@ where
                         set_max_players(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-
                     prop:value=max_players
                 />
             </div>
@@ -383,8 +385,12 @@ pub fn JoinOrCreateGame() -> impl IntoView {
     let join_game = create_server_action::<JoinGame>();
     let new_game = create_server_action::<NewGame>();
 
-    let (selected_mode, set_selected_mode, _) =
-        use_local_storage::<GameMode, JsonSerdeWasmCodec>("game_mode_settings");
+    let storage_options = UseStorageOptions::<GameMode, serde_json::Error, JsValue>::default()
+        .delay_during_hydration(true);
+    let (selected_mode, set_selected_mode, _) = use_local_storage_with_options::<
+        GameMode,
+        JsonSerdeWasmCodec,
+    >("game_mode_settings", storage_options);
 
     let (custom_settings, set_custom_settings, _) =
         use_local_storage::<GameSettings, JsonSerdeWasmCodec>("custom_game_settings");
@@ -398,33 +404,34 @@ pub fn JoinOrCreateGame() -> impl IntoView {
     let (errors, set_errors) = create_signal(Vec::new());
 
     let load_custom_settings = move || {
-        let stored_settings = custom_settings();
+        let stored_settings = custom_settings.get_untracked();
         set_rows(stored_settings.rows);
         set_cols(stored_settings.cols);
         set_num_mines(stored_settings.num_mines);
         set_max_players(stored_settings.max_players);
     };
 
-    create_effect(move |_| {
-        let stored_mode = selected_mode();
-        if stored_mode != GameMode::Custom {
-            let mode_settings = GameSettings::from(stored_mode);
+    Effect::new(move |_| {
+        let mode = selected_mode.get();
+        log::debug!("Stored mode: {:?}", mode);
+        if mode != GameMode::Custom {
+            let mode_settings = GameSettings::from(mode);
             set_rows(mode_settings.rows);
             set_cols(mode_settings.cols);
             set_num_mines(mode_settings.num_mines);
             set_max_players(mode_settings.max_players);
             set_dirty(false);
-        } else if !dirty() {
+        } else if !dirty.get_untracked() {
             load_custom_settings();
         }
     });
 
-    create_effect(move |_| {
-        let rows = rows();
-        let cols = cols();
-        let max_mines = num_mines();
-        let num_players = max_players();
-        let prev_errs = errors();
+    Effect::new(move |_| {
+        let rows = rows.get();
+        let cols = cols.get();
+        let max_mines = num_mines.get();
+        let num_players = max_players.get();
+        let prev_errs = errors.get();
         let mut errs = Vec::new();
         if !validate_rows(rows) {
             errs.push(String::from("Invalid rows.  Max 100"));
@@ -457,7 +464,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         <div class="space-y-4 w-80">
             <ActionForm
                 action=new_game
-                class="w-full max-w-xs space-y-2"
+                attr:class="w-full max-w-xs space-y-2"
                 on:submit=move |ev| {
                     if selected_mode() == GameMode::Custom {
                         set_custom_settings(GameSettings {
@@ -500,7 +507,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                 </div>
                 <button
                     type="submit"
-                    class=button_class(Some("w-full max-w-xs h-12"), None)
+                    class=button_class!("w-full max-w-xs h-12")
                     disabled=new_game.pending()
                 >
                     "Create New Game"
@@ -511,7 +518,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     <span>"-- or --"</span>
                 </span>
             </div>
-            <ActionForm action=join_game class="w-full max-w-xs">
+            <ActionForm action=join_game attr:class="w-full max-w-xs">
                 <div class="flex flex-col space-y-2">
                     <label
                         class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
@@ -521,21 +528,20 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                     </label>
                     <div class="flex space-x-2">
                         <input
-                            class=input_class(None)
+                            class=input_class!()
                             type="text"
                             placeholder="Enter Game ID"
                             id="join_game_game_id"
                             name="game_id"
                         />
-                        <button
-                            type="submit"
-                            class=button_class(None, None)
-                            disabled=join_game.pending()
-                        >
+                        <button type="submit" class=button_class!() disabled=join_game.pending()>
                             "Join"
                         </button>
                     </div>
                 </div>
+                <Show when=move || join_game.value().with(|val| matches!(val, Some(Err(_))))>
+                    <div class="text-red-600 w-full">"Game does not exist"</div>
+                </Show>
             </ActionForm>
         </div>
     }
@@ -547,16 +553,16 @@ pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
 
     view! {
         <div class="flex flex-col items-center space-y-4 mb-8">
-            <ActionForm action=new_game class="w-full max-w-xs space-y-2">
+            <ActionForm action=new_game attr:class="w-full max-w-xs space-y-2">
                 <input type="hidden" name="rows" prop:value=game_settings.rows />
                 <input type="hidden" name="cols" prop:value=game_settings.cols />
                 <input type="hidden" name="num_mines" prop:value=game_settings.num_mines />
                 <input type="hidden" name="max_players" prop:value=game_settings.max_players />
                 <button
                     type="submit"
-                    class=button_class(
-                        Some("w-full max-w-xs h-8"),
-                        Some("bg-green-700 hover:bg-green-800/90 text-white"),
+                    class=button_class!(
+                        "w-full max-w-xs h-8",
+                        "bg-green-700 hover:bg-green-800/90 text-white"
                     )
                     disabled=new_game.pending()
                 >

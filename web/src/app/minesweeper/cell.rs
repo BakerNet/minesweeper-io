@@ -1,4 +1,5 @@
 use leptos::*;
+use minesweeper_lib::replay::{AnalyzedCell, ReplayAnalysisCell};
 use web_sys::MouseEvent;
 
 use minesweeper_lib::{
@@ -6,29 +7,46 @@ use minesweeper_lib::{
     cell::{Cell, HiddenCell, PlayerCell},
 };
 
-use crate::components::{
+use crate::{
     cell_class,
-    icons::{Flag, FlagContrast, Mine},
+    components::icons::{Flag, FlagContrast, Mine},
     number_class, player_class,
 };
 
-fn cell_contents_class(cell: PlayerCell, active: bool) -> String {
+fn cell_contents_class(cell: PlayerCell, active: bool) -> &'static str {
     match cell {
-        PlayerCell::Hidden(HiddenCell::Flag) if !active => String::from("bg-red-400/40"),
-        PlayerCell::Hidden(_) => String::from("bg-neutral-500"),
+        PlayerCell::Hidden(HiddenCell::Flag) if !active => "bg-red-400/40",
+        PlayerCell::Hidden(_) => "bg-neutral-500",
         PlayerCell::Revealed(rc) => match rc.contents {
-            Cell::Mine => String::from("bg-red-600"),
-            Cell::Empty(x) => number_class(x as usize),
+            Cell::Mine => "bg-red-600",
+            Cell::Empty(x) => number_class!(x),
         },
     }
 }
 
-fn cell_player_class(cell: PlayerCell) -> String {
+fn cell_replay_class(cell: PlayerCell, analysis: Option<AnalyzedCell>) -> &'static str {
+    match cell {
+        PlayerCell::Hidden(HiddenCell::Flag) if matches!(analysis, Some(AnalyzedCell::Empty)) => {
+            "bg-red-400/40"
+        }
+        PlayerCell::Hidden(HiddenCell::Empty) if matches!(analysis, Some(AnalyzedCell::Empty)) => {
+            "bg-green-400/40"
+        }
+        PlayerCell::Hidden(_) if matches!(analysis, Some(AnalyzedCell::Mine)) => "bg-yellow-400/40",
+        PlayerCell::Hidden(_) => "bg-neutral-500",
+        PlayerCell::Revealed(rc) => match rc.contents {
+            Cell::Mine => "bg-red-600",
+            Cell::Empty(x) => number_class!(x),
+        },
+    }
+}
+
+fn cell_player_class(cell: PlayerCell) -> &'static str {
     match cell {
         PlayerCell::Revealed(rc) if matches!(rc.contents, Cell::Empty(_)) => {
-            player_class(rc.player)
+            player_class!(rc.player)
         }
-        _ => String::from(""),
+        _ => "",
     }
 }
 
@@ -48,7 +66,7 @@ where
     let id = format!("{}_{}", row, col);
     let class = move || {
         let item = cell();
-        cell_class(&cell_contents_class(item, true), &cell_player_class(item))
+        cell_class!(cell_contents_class(item, true), cell_player_class(item))
     };
 
     view! {
@@ -72,7 +90,7 @@ where
 #[component]
 pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
     let id = format!("{}_{}", row, col);
-    let class = cell_class(&cell_contents_class(cell, false), &cell_player_class(cell));
+    let class = cell_class!(cell_contents_class(cell, false), cell_player_class(cell));
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
@@ -82,17 +100,17 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 }
 
 #[component]
-pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<PlayerCell>) -> impl IntoView {
+pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<ReplayAnalysisCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let class = move || {
-        let item = cell();
-        cell_class(&cell_contents_class(item, true), &cell_player_class(item))
+        let ReplayAnalysisCell(item, analysis) = cell();
+        cell_class!(cell_replay_class(item, analysis), cell_player_class(item))
     };
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
             {move || {
-                let item = cell();
+                let ReplayAnalysisCell(item, _) = cell();
                 view! { <CellContents cell=item /> }
             }}
         </span>
