@@ -238,35 +238,37 @@ pub fn ReplayControls(
                 </button>
             </Show>
             <Show when=replay_started>
-                <label class="inline-flex items-center cursor-pointer">
-                    <input
-                        type="checkbox"
-                        value=""
-                        class="sr-only peer"
-                        checked
-                        on:change=move |ev| {
-                            set_show_mines(event_target_checked(&ev));
-                        }
-                    />
-                    <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
-                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                        "Toggle Mines"
-                    </span>
-                </label>
-                <label class="inline-flex items-center cursor-pointer">
-                    <input
-                        type="checkbox"
-                        value=""
-                        class="sr-only peer"
-                        on:change=move |ev| {
-                            set_show_analysis(event_target_checked(&ev));
-                        }
-                    />
-                    <div class="relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
-                    <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
-                        "Toggle Analysis"
-                    </span>
-                </label>
+                <div class="table border-separate border-spacing-2">
+                    <label class="table-row cursor-pointer">
+                        <input
+                            type="checkbox"
+                            value=""
+                            class="table-cell sr-only peer"
+                            checked
+                            on:change=move |ev| {
+                                set_show_mines(event_target_checked(&ev));
+                            }
+                        />
+                        <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                        <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
+                            "Toggle Mines"
+                        </span>
+                    </label>
+                    <label class="table-row cursor-pointer">
+                        <input
+                            type="checkbox"
+                            value=""
+                            class="table-cell sr-only peer"
+                            on:change=move |ev| {
+                                set_show_analysis(event_target_checked(&ev));
+                            }
+                        />
+                        <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                        <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
+                            "Toggle Analysis"
+                        </span>
+                    </label>
+                </div>
                 <div class="w-full max-w-xs flex justify-between items-center">
                     <button
                         type="button"
