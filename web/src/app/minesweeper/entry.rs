@@ -352,7 +352,7 @@ where
                         set_num_mines(event_target_value(&ev).parse::<i64>().unwrap_or_default());
                         on_dirty();
                     }
-                    prop:value=move || num_mines()
+                    prop:value=num_mines
                 />
             </div>
             <div class="flex-1">

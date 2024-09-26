@@ -10,20 +10,20 @@ use minesweeper_lib::{
     client::ClientPlayer,
     game::Play,
     replay::{
-        AnalyzedCell, MinesweeperReplayWithAnalysis, ReplayPosition, Replayable, SimplePlayer,
+        MinesweeperReplayWithAnalysis, ReplayAnalysisCell, ReplayPosition, Replayable, SimplePlayer,
     },
 };
 
 #[derive(Clone)]
 struct ReplayStore {
     replay: Rc<RefCell<MinesweeperReplayWithAnalysis>>,
-    cell_read_signals: Rc<Vec<Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>>>,
-    cell_write_signals: Rc<Vec<Vec<WriteSignal<(PlayerCell, Option<AnalyzedCell>)>>>>,
+    cell_read_signals: Rc<Vec<Vec<ReadSignal<ReplayAnalysisCell>>>>,
+    cell_write_signals: Rc<Vec<Vec<WriteSignal<ReplayAnalysisCell>>>>,
     player_write_signals: Rc<Vec<WriteSignal<Option<ClientPlayer>>>>,
 }
 
 impl ReplayStore {
-    fn with_current_board(&self, f: impl FnOnce(&Board<(PlayerCell, Option<AnalyzedCell>)>)) {
+    fn with_current_board(&self, f: impl FnOnce(&Board<ReplayAnalysisCell>)) {
         let replay: &MinesweeperReplayWithAnalysis = &mut (*self.replay).borrow();
         f(replay.current_board())
     }
@@ -63,8 +63,8 @@ impl ReplayStore {
 #[component]
 pub fn ReplayControls(
     replay: MinesweeperReplayWithAnalysis,
-    cell_read_signals: Vec<Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>>,
-    cell_write_signals: Vec<Vec<WriteSignal<(PlayerCell, Option<AnalyzedCell>)>>>,
+    cell_read_signals: Vec<Vec<ReadSignal<ReplayAnalysisCell>>>,
+    cell_write_signals: Vec<Vec<WriteSignal<ReplayAnalysisCell>>>,
     set_flag_count: WriteSignal<usize>,
     player_write_signals: Vec<WriteSignal<Option<ClientPlayer>>>,
 ) -> impl IntoView {
@@ -91,7 +91,7 @@ pub fn ReplayControls(
     let render_cell = move |replay: &ReplayStore,
                             row: usize,
                             col: usize,
-                            (pc, ac): &(PlayerCell, Option<AnalyzedCell>)| {
+                            ReplayAnalysisCell(pc, ac): &ReplayAnalysisCell| {
         let pc = if !show_mines.get_untracked() {
             match pc {
                 PlayerCell::Hidden(HiddenCell::Mine) => PlayerCell::Hidden(HiddenCell::Empty),
@@ -106,7 +106,7 @@ pub fn ReplayControls(
         } else {
             *ac
         };
-        let cell = (pc, ac);
+        let cell = ReplayAnalysisCell(pc, ac);
         if replay.cell_read_signals[row][col].get_untracked() != cell {
             replay.cell_write_signals[row][col](cell);
         }

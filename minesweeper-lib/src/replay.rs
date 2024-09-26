@@ -13,6 +13,9 @@ mod analysis;
 
 pub use analysis::{AnalyzedCell, MinesweeperAnalysis};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReplayAnalysisCell(pub PlayerCell, pub Option<AnalyzedCell>);
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum ReplayPosition {
     End,
@@ -139,7 +142,7 @@ impl MinesweeperReplay {
         let mut current_board = Board::new(
             replay.current_board.rows(),
             replay.current_board.cols(),
-            (PlayerCell::Hidden(HiddenCell::Empty), None::<AnalyzedCell>),
+            ReplayAnalysisCell(PlayerCell::Hidden(HiddenCell::Empty), None::<AnalyzedCell>),
         );
         replay
             .current_board
@@ -149,7 +152,7 @@ impl MinesweeperReplay {
                 v.iter().enumerate().for_each(|(col, c)| {
                     let point = BoardPoint { row, col };
                     let curr = current_board[point];
-                    current_board[point] = (*c, curr.1);
+                    current_board[point] = ReplayAnalysisCell(*c, curr.1);
                 })
             });
         MinesweeperReplayWithAnalysis {
@@ -267,7 +270,7 @@ impl Replayable for MinesweeperReplay {
 pub struct MinesweeperReplayWithAnalysis {
     replay: MinesweeperReplay,
     analysis: MinesweeperAnalysis,
-    current_board: Board<(PlayerCell, Option<AnalyzedCell>)>,
+    current_board: Board<ReplayAnalysisCell>,
 }
 
 impl MinesweeperReplayWithAnalysis {
@@ -275,7 +278,7 @@ impl MinesweeperReplayWithAnalysis {
         self.replay.current_play
     }
 
-    pub fn current_board(&self) -> &Board<(PlayerCell, Option<AnalyzedCell>)> {
+    pub fn current_board(&self) -> &Board<ReplayAnalysisCell> {
         &self.current_board
     }
 
@@ -296,7 +299,7 @@ impl MinesweeperReplayWithAnalysis {
             .enumerate()
             .for_each(|(i, (pc, ac))| {
                 let point = self.current_board.point_from_index(i);
-                self.current_board[point] = (pc.to_owned(), ac.to_owned());
+                self.current_board[point] = ReplayAnalysisCell(pc.to_owned(), ac.to_owned());
             });
     }
 }

@@ -12,7 +12,7 @@ use minesweeper_lib::{
     board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     game::{Action as PlayAction, CompletedMinesweeper},
-    replay::AnalyzedCell,
+    replay::{AnalyzedCell, ReplayAnalysisCell},
 };
 
 use super::{
@@ -530,7 +530,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .map(|col| {
             col.iter()
                 .copied()
-                .map(|pc| create_signal((pc, None::<AnalyzedCell>)))
+                .map(|pc| create_signal(ReplayAnalysisCell(pc, None::<AnalyzedCell>)))
                 .collect::<(Vec<_>, Vec<_>)>()
         })
         .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
@@ -545,7 +545,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .expect("We are guaranteed log is not None")
         .with_analysis();
 
-    let cell_row = |(row, cells): (usize, &Vec<ReadSignal<(PlayerCell, Option<AnalyzedCell>)>>)| {
+    let cell_row = |(row, cells): (usize, &Vec<ReadSignal<ReplayAnalysisCell>>)| {
         view! {
             <div class="whitespace-nowrap">
                 {cells

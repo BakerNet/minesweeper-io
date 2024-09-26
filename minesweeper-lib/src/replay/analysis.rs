@@ -27,7 +27,7 @@ pub enum AnalyzedCell {
 
 impl Default for AnalyzedCell {
     fn default() -> Self {
-        return Self::Undetermined;
+        Self::Undetermined
     }
 }
 
@@ -376,7 +376,7 @@ impl MinesweeperAnalysis {
             .copied()
             .collect::<ArrayVec<[BoardPoint; 6]>>();
 
-        if non_fifty_fiftys.len() == 0 {
+        if non_fifty_fiftys.is_empty() {
             return analysis_result;
         }
 
@@ -407,7 +407,7 @@ impl MinesweeperAnalysis {
             let mut overlap: BoardPoint = BoardPoint { row: 255, col: 255 };
             let fifty_fifty_cells = fifty_fifty_pairs
                 .into_iter()
-                .flat_map(|pair| [pair.ref_a().clone(), pair.ref_b().clone()])
+                .flat_map(|pair| [*pair.ref_a(), *pair.ref_b()])
                 .filter(|p| {
                     if !seen.insert(*p) {
                         overlap = *p;

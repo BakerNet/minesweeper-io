@@ -1,5 +1,5 @@
 use leptos::*;
-use minesweeper_lib::replay::AnalyzedCell;
+use minesweeper_lib::replay::{AnalyzedCell, ReplayAnalysisCell};
 use web_sys::MouseEvent;
 
 use minesweeper_lib::{
@@ -100,21 +100,17 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 }
 
 #[component]
-pub fn ReplayCell(
-    row: usize,
-    col: usize,
-    cell: ReadSignal<(PlayerCell, Option<AnalyzedCell>)>,
-) -> impl IntoView {
+pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<ReplayAnalysisCell>) -> impl IntoView {
     let id = format!("{}_{}", row, col);
     let class = move || {
-        let (item, analysis) = cell();
+        let ReplayAnalysisCell(item, analysis) = cell();
         cell_class!(cell_replay_class(item, analysis), cell_player_class(item))
     };
 
     view! {
         <span class=class id=id oncontextmenu="event.preventDefault();">
             {move || {
-                let (item, _) = cell();
+                let ReplayAnalysisCell(item, _) = cell();
                 view! { <CellContents cell=item /> }
             }}
         </span>

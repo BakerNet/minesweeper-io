@@ -40,7 +40,7 @@ impl<T: Copy> Copy for UnorderedPair<T> {}
 
 impl<T: Debug> Debug for UnorderedPair<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "UnorderedPair {{ {:?}, {:?} }}", self.a, self.b)
     }
 }
 
