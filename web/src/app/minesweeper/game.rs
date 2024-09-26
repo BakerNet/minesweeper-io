@@ -202,10 +202,6 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
 pub fn GameWrapper() -> impl IntoView {
     let params = use_params_map();
 
-    Effect::new(move |_| {
-        log::debug!("Outer Params: {:?}", params.get());
-    });
-
     let game_id = move || params.get().get("id").unwrap_or_default();
 
     view! {
@@ -223,10 +219,6 @@ pub fn GameView() -> impl IntoView {
     let title = move || format!("Game {}", game_id());
     let game_info = Resource::new(game_id, get_game);
     let refetch = move || game_info.refetch();
-
-    Effect::new(move |_| {
-        log::debug!("Inner Params: {:?}", params.get());
-    });
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
         true => Either::Left(view! { <InactiveGame game_info /> }),

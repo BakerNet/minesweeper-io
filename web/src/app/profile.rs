@@ -42,6 +42,16 @@ pub fn ProfileView(
     logout: ServerAction<Logout>,
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
+    let title = move || {
+        let user = user.get().flatten();
+        let is_user = user.is_some();
+        let display_name = user.map(|u| u.display_name).flatten();
+        format!(
+            "Profile - {}",
+            FrontendUser::display_name_or_anon(display_name.as_ref(), is_user)
+        )
+    };
+
     let user_profile = move |user: Option<FrontendUser>| {
         match user {
             Some(user) => view! {
@@ -68,7 +78,7 @@ pub fn ProfileView(
     };
 
     view! {
-        <Title text="Profile" />
+        <Title text=title />
         <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense>
     }
 }
