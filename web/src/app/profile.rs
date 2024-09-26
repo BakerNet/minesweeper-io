@@ -248,32 +248,35 @@ fn GameHistory() -> impl IntoView {
                 <td class=td_class>{game.game_time}</td>
                 <td class=td_class>
                     {if game.dead {
-                            view! {
-                                <span class=player_icon_holder!("bg-red-600", true)>
-                                    <Mine />
-                                    <IconTooltip>"Dead"</IconTooltip>
-                                </span>
-                            }.into_view()
+                        view! {
+                            <span class=player_icon_holder!("bg-red-600", true)>
+                                <Mine />
+                                <IconTooltip>"Dead"</IconTooltip>
+                            </span>
+                        }
+                            .into_view()
                     } else {
-                ().into_view()
+                        ().into_view()
                     }}
                     {if game.top_score {
-                            view! {
-                                <span class=player_icon_holder!("bg-green-800", true)>
-                                    <Trophy />
-                                    <IconTooltip>"Top Score"</IconTooltip>
-                                </span>
-                            }.into_view()
+                        view! {
+                            <span class=player_icon_holder!("bg-green-800", true)>
+                                <Trophy />
+                                <IconTooltip>"Top Score"</IconTooltip>
+                            </span>
+                        }
+                            .into_view()
                     } else {
-                ().into_view()
+                        ().into_view()
                     }}
                     {if game.victory_click {
-                            view! {
-                                <span class=player_icon_holder!("bg-black", true)>
-                                    <Star />
-                                    <IconTooltip>"Victory Click"</IconTooltip>
-                                </span>
-                            }.into_view()
+                        view! {
+                            <span class=player_icon_holder!("bg-black", true)>
+                                <Star />
+                                <IconTooltip>"Victory Click"</IconTooltip>
+                            </span>
+                        }
+                            .into_view()
                     } else {
                         ().into_view()
                     }}
@@ -315,12 +318,14 @@ fn GameHistory() -> impl IntoView {
                     }>
 
                         {move || {
-                                player_games.get()
-                                    .map(|games| {
-                    games.map(move |games|{
-                                        games.into_iter().map(game_view).collect_view()
-                                    })
-                })
+                            player_games
+                                .get()
+                                .map(|games| {
+                                    games
+                                        .map(move |games| {
+                                            games.into_iter().map(game_view).collect_view()
+                                        })
+                                })
                         }}
 
                     </Suspense>

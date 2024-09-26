@@ -87,7 +87,6 @@ pub fn PlayerButtons(game: StoredValue<FrontendGame>) -> impl IntoView {
     };
 
     if num_players == 1 {
-        log::debug!("num players 1");
         Effect::new(move |prev| {
             let loaded = players_loaded.get();
             if loaded && prev.unwrap_or(true) {
@@ -171,36 +170,37 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
             <td class="border border-slate-100 dark:border-slate-700 p-1">
                 {username}
                 {if is_dead {
-
-                        view! {
-                            <span class=player_icon_holder!("bg-red-600", true)>
-                                <Mine />
-                                <IconTooltip>"Dead"</IconTooltip>
-                            </span>
-                        }.into_view()
-
+                    view! {
+                        <span class=player_icon_holder!("bg-red-600", true)>
+                            <Mine />
+                            <IconTooltip>"Dead"</IconTooltip>
+                        </span>
+                    }
+                        .into_view()
                 } else {
-            ().into_view()
+                    ().into_view()
                 }}
                 {if top_score {
-                        view! {
-                            <span class=player_icon_holder!("bg-green-800", true)>
-                                <Trophy />
-                                <IconTooltip>"Top Score"</IconTooltip>
-                            </span>
-                        }.into_view()
+                    view! {
+                        <span class=player_icon_holder!("bg-green-800", true)>
+                            <Trophy />
+                            <IconTooltip>"Top Score"</IconTooltip>
+                        </span>
+                    }
+                        .into_view()
                 } else {
-            ().into_view()
+                    ().into_view()
                 }}
                 {if victory_click {
-                        view! {
-                            <span class=player_icon_holder!("bg-black", true)>
-                                <Star />
-                                <IconTooltip>"Victory Click"</IconTooltip>
-                            </span>
-                        }.into_view()
+                    view! {
+                        <span class=player_icon_holder!("bg-black", true)>
+                            <Star />
+                            <IconTooltip>"Victory Click"</IconTooltip>
+                        </span>
+                    }
+                        .into_view()
                 } else {
-            ().into_view()
+                    ().into_view()
                 }}
 
             </td>

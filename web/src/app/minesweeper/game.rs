@@ -514,7 +514,6 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
 #[component]
 fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
-    log::debug!("replay for {:?}", game_info);
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let (flag_count, set_flag_count) = create_signal(0);
 
@@ -557,12 +556,11 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             </div>
         }
     };
-    let cells = view! { {
-        cell_read_signals
-            .iter()
-            .enumerate()
-            .map(cell_row).collect_view()
-    } };
+    let cells = cell_read_signals
+        .iter()
+        .enumerate()
+        .map(cell_row)
+        .collect_view();
 
     view! {
         <ActivePlayers players=player_read_signals.into() title="Replay">
