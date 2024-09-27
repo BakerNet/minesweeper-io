@@ -374,7 +374,7 @@ impl MinesweeperAnalysis {
                     .any(|pair| p == pair.ref_a() || p == pair.ref_b())
             })
             .copied()
-            .collect::<ArrayVec<[BoardPoint; 6]>>();
+            .collect::<ArrayVec<[BoardPoint; 8]>>();
 
         if non_fifty_fiftys.is_empty() {
             return analysis_result;
