@@ -124,12 +124,32 @@ impl MinesweeperAnalysis {
                     current_log_entry.push((bp, LogEntry { from, to: None }));
                 }
                 let mut contents = rc.contents;
-                // reduce cell numbers by the number of mines
-                analysis_board
-                    .neighbors(&bp)
-                    .iter()
-                    .filter(|&np| is_mine(np, &analysis_board))
-                    .for_each(|_| contents = contents.decrement());
+                match contents {
+                    Cell::Empty(_) => {
+                        // reduce newly revealed cell by the number of known mines
+                        analysis_board
+                            .neighbors(&bp)
+                            .iter()
+                            .filter(|&np| is_mine(np, &analysis_board))
+                            .for_each(|_| contents = contents.decrement());
+                    }
+                    Cell::Mine => {
+                        if !is_mine(&bp, &analysis_board) {
+                            // we now know this is a mine so we reduce existing revealed cells
+                            let empty_neighbors = analysis_board
+                                .neighbors(&bp)
+                                .into_iter()
+                                .filter_map(|np| match analysis_board[np] {
+                                    AnalysisCell::Revealed(c) => Some((np, c)),
+                                    _ => None,
+                                })
+                                .collect::<ArrayVec<[(BoardPoint, Cell); 8]>>();
+                            empty_neighbors.iter().for_each(|(np, c)| {
+                                analysis_board[np] = AnalysisCell::Revealed(c.decrement());
+                            });
+                        }
+                    }
+                }
                 analysis_board[bp] = AnalysisCell::Revealed(contents);
             });
             let mut points_to_analyze = new_revealed
