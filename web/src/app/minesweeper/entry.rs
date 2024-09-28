@@ -221,7 +221,6 @@ pub fn PresetButtons(
 
     let class_signal = move |mode: GameMode| {
         let selected = selected.get();
-        log::debug!("Render mode: {:?} <> {:?}", mode, selected);
         if mode == selected {
             button_class!(
                 "w-full rounded rounded-lg",
@@ -413,7 +412,6 @@ pub fn JoinOrCreateGame() -> impl IntoView {
 
     Effect::new(move |_| {
         let mode = selected_mode.get();
-        log::debug!("Stored mode: {:?}", mode);
         if mode != GameMode::Custom {
             let mode_settings = GameSettings::from(mode);
             set_rows(mode_settings.rows);

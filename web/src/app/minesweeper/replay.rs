@@ -73,7 +73,6 @@ pub fn ReplayControls(
     let max = replay.len() - 1;
     let slider_el = NodeRef::<html::Input>::new();
 
-    let (replay_started, set_replay_started) = create_signal(false);
     let (show_mines, set_show_mines) = create_signal(true);
     let (show_analysis, set_show_analysis) = create_signal(false);
     let (is_beginning, set_beginning) = create_signal(true);
@@ -139,7 +138,7 @@ pub fn ReplayControls(
 
     Effect::new(move |prev| {
         let show_mines = show_mines.get();
-        if replay_started.get_untracked() && prev != Some(show_mines) {
+        if prev != Some(show_mines) {
             render_current();
         }
         show_mines
@@ -147,7 +146,7 @@ pub fn ReplayControls(
 
     Effect::new(move |prev| {
         let show_analysis = show_analysis.get();
-        if replay_started.get_untracked() && prev != Some(show_analysis) {
+        if prev != Some(show_analysis) {
             render_current();
         }
         show_analysis
@@ -222,109 +221,92 @@ pub fn ReplayControls(
 
     view! {
         <div class="flex flex-col items-center space-y-2 mb-8">
-            <Show when=move || !replay_started()>
+            <div class="table border-separate border-spacing-2">
+                <label class="table-row cursor-pointer">
+                    <input
+                        type="checkbox"
+                        value=""
+                        class="table-cell sr-only peer"
+                        checked
+                        on:change=move |ev| {
+                            set_show_mines(event_target_checked(&ev));
+                        }
+                    />
+                    <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                    <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
+                        "Toggle Mines"
+                    </span>
+                </label>
+                <label class="table-row cursor-pointer">
+                    <input
+                        type="checkbox"
+                        value=""
+                        class="table-cell sr-only peer"
+                        on:change=move |ev| {
+                            set_show_analysis(event_target_checked(&ev));
+                        }
+                    />
+                    <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
+                    <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
+                        "Toggle Analysis"
+                    </span>
+                </label>
+            </div>
+            <div class="w-full max-w-xs flex justify-between items-center">
                 <button
                     type="button"
                     class=button_class!(
-                        "max-w-xs h-10 rounded-lg text-lg",
-                        "bg-green-700 hover:bg-green-800/90 text-white"
+                        "max-w-xs h-8 select-none rounded-l-md",
+                        "bg-neutral-700 hover:bg-neutral-800/90 text-white"
                     )
-                    on:click=move |_| {
-                        set_replay_started(true);
-                        render_current();
-                    }
+                    on:click=move |_| prev()
+                    disabled=is_beginning
                 >
-                    "Start Replay"
+                    "Prev"
                 </button>
-            </Show>
-            <Show when=replay_started>
-                <div class="table border-separate border-spacing-2">
-                    <label class="table-row cursor-pointer">
-                        <input
-                            type="checkbox"
-                            value=""
-                            class="table-cell sr-only peer"
-                            checked
-                            on:change=move |ev| {
-                                set_show_mines(event_target_checked(&ev));
-                            }
-                        />
-                        <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
-                        <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
-                            "Toggle Mines"
-                        </span>
-                    </label>
-                    <label class="table-row cursor-pointer">
-                        <input
-                            type="checkbox"
-                            value=""
-                            class="table-cell sr-only peer"
-                            on:change=move |ev| {
-                                set_show_analysis(event_target_checked(&ev));
-                            }
-                        />
-                        <div class="table-cell relative w-11 h-6 bg-gray-200 dark:bg-gray-700 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-gray-600 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-cyan-200 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-gray-400 peer-checked:dark:bg-gray-500"></div>
-                        <span class="table-cell text-left ms-3 text-sm font-medium text-gray-900 dark:text-gray-300 select-none">
-                            "Toggle Analysis"
-                        </span>
-                    </label>
-                </div>
-                <div class="w-full max-w-xs flex justify-between items-center">
-                    <button
-                        type="button"
-                        class=button_class!(
-                            "max-w-xs h-8 select-none rounded-l-md",
-                            "bg-neutral-700 hover:bg-neutral-800/90 text-white"
-                        )
-                        on:click=move |_| prev()
-                        disabled=is_beginning
-                    >
-                        "Prev"
-                    </button>
-                    <input
-                        type="range"
-                        min=min
-                        max=max
-                        value="0"
-                        step="1"
-                        class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-200"
-                        node_ref=slider_el
-                        on:input=move |_| to_pos()
-                        on:change=move |_| to_pos()
-                    />
-                    <button
-                        type="button"
-                        class=button_class!(
-                            "max-w-xs h-8 select-none rounded-r-md",
-                            "bg-neutral-700 hover:bg-neutral-800/90 text-white"
-                        )
-                        on:click=move |_| next()
-                        disabled=is_end
-                    >
-                        "Next"
-                    </button>
-                </div>
-                {move || {
-                    current_play()
-                        .map(move |play| {
-                            view! {
-                                <div
-                                    data-hk="1-3-2-8"
-                                    class="text-xl my-4 text-gray-900 dark:text-gray-200"
-                                >
-                                    "Player "
-                                    {play.player}
-                                    ": "
-                                    {play.action.to_str()}
-                                    " @ Row: "
-                                    {play.point.row}
-                                    ", Col: "
-                                    {play.point.col}
-                                </div>
-                            }
-                        })
-                }}
-            </Show>
+                <input
+                    type="range"
+                    min=min
+                    max=max
+                    value="0"
+                    step="1"
+                    class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-200"
+                    node_ref=slider_el
+                    on:input=move |_| to_pos()
+                    on:change=move |_| to_pos()
+                />
+                <button
+                    type="button"
+                    class=button_class!(
+                        "max-w-xs h-8 select-none rounded-r-md",
+                        "bg-neutral-700 hover:bg-neutral-800/90 text-white"
+                    )
+                    on:click=move |_| next()
+                    disabled=is_end
+                >
+                    "Next"
+                </button>
+            </div>
+            {move || {
+                current_play()
+                    .map(move |play| {
+                        view! {
+                            <div
+                                data-hk="1-3-2-8"
+                                class="text-xl my-4 text-gray-900 dark:text-gray-200"
+                            >
+                                "Player "
+                                {play.player}
+                                ": "
+                                {play.action.to_str()}
+                                " @ Row: "
+                                {play.point.row}
+                                ", Col: "
+                                {play.point.col}
+                            </div>
+                        }
+                    })
+            }}
         </div>
     }
 }

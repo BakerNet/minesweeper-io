@@ -9,6 +9,7 @@ use crate::replay::MinesweeperReplay;
 use anyhow::{bail, Ok, Result};
 use rand::{seq::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
+use tinyvec::ArrayVec;
 
 #[derive(Clone, Copy, Debug)]
 pub struct MinesweeperOpts {
@@ -271,7 +272,7 @@ impl Minesweeper {
             .iter()
             .copied()
             .filter(|c| !self.board[*c].1.revealed && !self.players[player].flags.contains(c))
-            .collect::<Vec<_>>();
+            .collect::<ArrayVec<[BoardPoint; 8]>>();
         let has_mine = unflagged_neighbors
             .iter()
             .copied()
@@ -426,7 +427,7 @@ impl Minesweeper {
         &mut self,
         unplanted_mines: usize,
         first_cell: &BoardPoint,
-        neighbors: Vec<BoardPoint>,
+        neighbors: ArrayVec<[BoardPoint; 8]>,
     ) {
         if unplanted_mines == 0 {
             return;

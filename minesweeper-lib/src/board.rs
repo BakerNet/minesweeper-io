@@ -6,6 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use tinyvec::{array_vec, ArrayVec};
 
 impl<T> From<&Board<T>> for Vec<Vec<T>>
 where
@@ -184,8 +185,8 @@ impl<T> Board<T> {
         point.row < self.rows && point.col < self.cols
     }
 
-    pub fn neighbors(&self, point: &BoardPoint) -> Vec<BoardPoint> {
-        let mut neighbors = Vec::<BoardPoint>::new();
+    pub fn neighbors(&self, point: &BoardPoint) -> ArrayVec<[BoardPoint; 8]> {
+        let mut neighbors = array_vec!([BoardPoint; 8]);
 
         let row = point.row;
         let col = point.col;

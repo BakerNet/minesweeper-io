@@ -27,7 +27,10 @@ use super::{
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
-use crate::messages::{ClientMessage, GameMessage};
+use crate::{
+    button_class,
+    messages::{ClientMessage, GameMessage},
+};
 #[cfg(feature = "ssr")]
 use minesweeper_lib::client::ClientPlayer;
 
@@ -516,6 +519,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let (flag_count, set_flag_count) = create_signal(0);
+    let (replay_started, set_replay_started) = create_signal(false);
 
     let (player_read_signals, player_write_signals) = game_info
         .players
@@ -535,16 +539,6 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         })
         .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
 
-    let completed_minesweeper = CompletedMinesweeper::from_log(
-        Board::from_vec(game_info.final_board),
-        replay_data.log,
-        game_info.players.into_iter().flatten().collect(),
-    );
-    let replay = completed_minesweeper
-        .replay(replay_data.player_num.map(|p| p.into()))
-        .expect("We are guaranteed log is not None")
-        .with_analysis();
-
     let cell_row = |(row, cells): (usize, &Vec<ReadSignal<ReplayAnalysisCell>>)| {
         view! {
             <div class="whitespace-nowrap">
@@ -562,6 +556,19 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .map(cell_row)
         .collect_view();
 
+    let completed_minesweeper = CompletedMinesweeper::from_log(
+        Board::from_vec(game_info.final_board),
+        replay_data.log,
+        game_info.players.into_iter().flatten().collect(),
+    );
+    let replay_data = StoredValue::new((
+        completed_minesweeper,
+        replay_data.player_num,
+        cell_read_signals,
+        cell_write_signals,
+        player_write_signals,
+    ));
+
     view! {
         <ActivePlayers players=player_read_signals.into() title="Replay">
             {}
@@ -572,13 +579,52 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             <InactiveTimer game_time />
         </GameWidgets>
         <GameBorder set_active=move |_| ()>{cells}</GameBorder>
-        <ReplayControls
-            replay
-            cell_read_signals
-            cell_write_signals
-            set_flag_count
-            player_write_signals
-        />
+        <Show
+            when=replay_started
+            fallback=move || {
+                view! {
+                    <button
+                        type="button"
+                        class=button_class!(
+                            "max-w-xs h-10 rounded-lg text-lg",
+                        "bg-green-700 hover:bg-green-800/90 text-white"
+                        )
+                        on:click=move |_| {
+                            set_replay_started(true);
+                        }
+                    >
+                        "Start Replay"
+                    </button>
+                }
+            }
+        >
+            {move || {
+                replay_data
+                    .with_value(|
+                        (
+                            completed_minesweeper,
+                            player_num,
+                            cell_read_signals,
+                            cell_write_signals,
+                            player_write_signals,
+                        )|
+                    {
+                        let replay = completed_minesweeper
+                            .replay(player_num.map(|p| p.into()))
+                            .expect("We are guaranteed log is not None")
+                            .with_analysis();
+                        view! {
+                            <ReplayControls
+                                replay
+                                cell_read_signals=cell_read_signals.to_vec()
+                                cell_write_signals=cell_write_signals.to_vec()
+                                set_flag_count
+                                player_write_signals=player_write_signals.to_vec()
+                            />
+                        }
+                    })
+            }}
+        </Show>
     }
 }
 
