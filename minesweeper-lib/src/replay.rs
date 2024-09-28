@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use anyhow::{bail, Result};
 
 use crate::{
+    analysis::AnalyzedCell,
     board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     client::ClientPlayer,
@@ -11,7 +12,7 @@ use crate::{
 
 mod analysis;
 
-pub use analysis::{AnalyzedCell, MinesweeperAnalysis};
+pub use analysis::MinesweeperReplayAnalysis;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ReplayAnalysisCell(pub PlayerCell, pub Option<AnalyzedCell>);
@@ -137,8 +138,7 @@ impl MinesweeperReplay {
 
     pub fn with_analysis(self) -> MinesweeperReplayWithAnalysis {
         let mut replay = self;
-        let _ = replay.to_pos(ReplayPosition::Beginning);
-        let analysis = MinesweeperAnalysis::from_replay(&replay);
+        let analysis = MinesweeperReplayAnalysis::from_replay(&mut replay);
         let mut current_board = Board::new(
             replay.current_board.rows(),
             replay.current_board.cols(),
@@ -269,7 +269,7 @@ impl Replayable for MinesweeperReplay {
 
 pub struct MinesweeperReplayWithAnalysis {
     replay: MinesweeperReplay,
-    analysis: MinesweeperAnalysis,
+    analysis: MinesweeperReplayAnalysis,
     current_board: Board<ReplayAnalysisCell>,
 }
 

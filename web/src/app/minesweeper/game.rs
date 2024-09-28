@@ -9,10 +9,11 @@ use std::rc::Rc;
 use web_sys::{KeyboardEvent, MouseEvent};
 
 use minesweeper_lib::{
+    analysis::AnalyzedCell,
     board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     game::{Action as PlayAction, CompletedMinesweeper},
-    replay::{AnalyzedCell, ReplayAnalysisCell},
+    replay::ReplayAnalysisCell,
 };
 
 use super::{
