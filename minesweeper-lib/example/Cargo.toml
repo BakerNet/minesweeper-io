@@ -1,0 +1,22 @@
+[package]
+resolver = "2"
+name = "minesweeper-lib-example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ansi_term = "0.12.1"
+anyhow = "1.0.86"
+rand = "0.8.5"
+serde = { version = "1.0.203", features = ["derive"] }
+xflags = "=0.3.1"
+tinyvec = "1.8"
+log = "0.4"
+minesweeper-lib = { path = "../" }
+
+# Workaround for https://github.com/rust-lang/cargo/issues/6745 to allow this
+# Cargo.toml file to appear under a subdirectory of a workspace without being in
+# that workspace (e.g. in cubeb-rs).
+[workspace]

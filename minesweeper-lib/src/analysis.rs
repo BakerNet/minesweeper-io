@@ -4,7 +4,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use tinyvec::{array_vec, tiny_vec, ArrayVec, TinyVec};
+use tinyvec::{array_vec, ArrayVec};
 
 use crate::{
     board::{Board, BoardPoint},
@@ -52,7 +52,7 @@ pub struct AnalysisUpdate {
 
 pub struct MinesweeperAnalysis {
     analysis_board: Board<AnalysisCell>,
-    fifty_fiftys: TinyVec<[UnorderedPair<BoardPoint>; 24]>,
+    fifty_fiftys: Vec<UnorderedPair<BoardPoint>>,
 }
 
 impl MinesweeperAnalysis {
@@ -85,7 +85,7 @@ impl MinesweeperAnalysis {
         });
         Self {
             analysis_board,
-            fifty_fiftys: tiny_vec!([UnorderedPair<BoardPoint>; 24]),
+            fifty_fiftys: Vec::new(),
         }
     }
 
@@ -312,7 +312,7 @@ struct AnalysisResult {
 fn perform_checks(
     point: &BoardPoint,
     analysis_board: &Board<AnalysisCell>,
-    fifty_fiftys: &TinyVec<[UnorderedPair<BoardPoint>; 24]>,
+    fifty_fiftys: &Vec<UnorderedPair<BoardPoint>>,
 ) -> AnalysisResult {
     let cell = analysis_board[point];
     assert!(matches!(cell, AnalysisCell::Revealed(Cell::Empty(_))));

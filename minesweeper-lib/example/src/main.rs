@@ -44,7 +44,7 @@ fn main() {
         for (r_num, row) in curr_board.iter().enumerate() {
             print!("{}", underline(&format!("{:0>2}", r_num)));
             for item in row.iter() {
-                print!("{}", underline(&format!("|{:?}", item)));
+                print!("{}", underline(&format!("|{}", item)));
             }
             print!("{}", underline("|\n"));
         }

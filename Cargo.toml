@@ -9,7 +9,7 @@ members = [
   # libraries
   "minesweeper-lib",
 ]
-exclude = []
+exclude = ["minesweeper-lib/example"]
 
 [workspace.package]
 version = "0.1.0"
