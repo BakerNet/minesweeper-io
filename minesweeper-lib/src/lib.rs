@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod board;
 pub mod cell;
 pub mod client;

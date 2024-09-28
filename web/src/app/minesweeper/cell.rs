@@ -1,5 +1,5 @@
 use leptos::*;
-use minesweeper_lib::replay::{AnalyzedCell, ReplayAnalysisCell};
+use minesweeper_lib::{analysis::AnalyzedCell, replay::ReplayAnalysisCell};
 use web_sys::MouseEvent;
 
 use minesweeper_lib::{
