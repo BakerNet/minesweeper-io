@@ -8,12 +8,7 @@ edition = "2021"
 
 [dependencies]
 ansi_term = "0.12.1"
-anyhow = "1.0.86"
-rand = "0.8.5"
-serde = { version = "1.0.203", features = ["derive"] }
 xflags = "=0.3.1"
-tinyvec = "1.8"
-log = "0.4"
 minesweeper-lib = { path = "../" }
 
 # Workaround for https://github.com/rust-lang/cargo/issues/6745 to allow this
