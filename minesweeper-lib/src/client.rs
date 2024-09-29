@@ -23,12 +23,12 @@ impl MinesweeperClient {
         }
     }
 
-    pub fn set_state(&mut self, from_vec: Vec<Vec<PlayerCell>>) {
-        self.board = Board::from_vec(from_vec)
+    pub fn set_state(&mut self, board: Board<PlayerCell>) {
+        self.board = board
     }
 
-    pub fn player_board(&self) -> Vec<Vec<PlayerCell>> {
-        (&self.board).into()
+    pub fn player_board(&self) -> &Board<PlayerCell> {
+        &self.board
     }
 
     pub fn join(&mut self, player_id: usize) {

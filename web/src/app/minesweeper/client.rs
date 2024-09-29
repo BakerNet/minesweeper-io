@@ -3,7 +3,7 @@ use leptos::*;
 use std::{cell::RefCell, rc::Rc};
 
 use minesweeper_lib::{
-    board::BoardPoint,
+    board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     client::{ClientPlayer, MinesweeperClient},
     game::{Action as PlayAction, Play},
@@ -186,11 +186,11 @@ impl FrontendGame {
             }
             GameMessage::Error(e) => Err(anyhow!(e)),
             GameMessage::GameState(gs) => {
-                let old_board = game.player_board();
+                let old_board = game.player_board().clone();
                 game.set_state(gs);
                 game.player_board()
-                    .iter()
-                    .zip(old_board.iter())
+                    .rows_iter()
+                    .zip(old_board.rows_iter())
                     .enumerate()
                     .for_each(|(row, (new, old))| {
                         new.iter().enumerate().for_each(|(col, cell)| {
@@ -257,14 +257,14 @@ impl FrontendGame {
 
 #[allow(clippy::type_complexity)]
 pub fn signals_from_board(
-    board: &[Vec<PlayerCell>],
+    board: &Board<PlayerCell>,
 ) -> (
     Vec<Vec<ReadSignal<PlayerCell>>>,
     Vec<Vec<WriteSignal<PlayerCell>>>,
 ) {
-    let mut read_signals = Vec::with_capacity(board.len() * board[0].len());
-    let mut write_signals = Vec::with_capacity(board.len() * board[0].len());
-    board.iter().for_each(|cells| {
+    let mut read_signals = Vec::with_capacity(board.size());
+    let mut write_signals = Vec::with_capacity(board.size());
+    board.rows_iter().for_each(|cells| {
         let mut read_row = Vec::new();
         let mut write_row = Vec::new();
         cells.iter().for_each(|cell| {
