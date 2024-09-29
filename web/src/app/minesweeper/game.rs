@@ -10,7 +10,7 @@ use web_sys::{KeyboardEvent, MouseEvent};
 
 use minesweeper_lib::{
     analysis::AnalyzedCell,
-    board::{Board, BoardPoint},
+    board::BoardPoint,
     cell::{HiddenCell, PlayerCell},
     game::{Action as PlayAction, CompletedMinesweeper},
     replay::ReplayAnalysisCell,
@@ -33,7 +33,7 @@ use crate::{
     messages::{ClientMessage, GameMessage},
 };
 #[cfg(feature = "ssr")]
-use minesweeper_lib::client::ClientPlayer;
+use minesweeper_lib::{board::Board, client::ClientPlayer};
 
 #[server(GetGame, "/api")]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
@@ -85,10 +85,11 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
                 completed_minesweeper.viewer_board_final()
             }
         }
-        (fb, _) => fb.unwrap_or(vec![
-            vec![PlayerCell::default(); game.cols as usize];
-            game.rows as usize
-        ]),
+        (fb, _) => fb.map(Board::from_vec).unwrap_or(Board::new(
+            game.rows as usize,
+            game.cols as usize,
+            PlayerCell::default(),
+        )),
     };
     let players_frontend =
         players
@@ -468,7 +469,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let num_mines = game_info
         .final_board
-        .iter()
+        .rows_iter()
         .flatten()
         .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
         .count();
@@ -478,7 +479,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         .filter_map(|cp| cp.as_ref())
         .any(|cp| cp.victory_click);
 
-    let cell_row = |(row, vec): (usize, Vec<PlayerCell>)| {
+    let cell_row = |(row, vec): (usize, &[PlayerCell])| {
         view! {
             <div class="whitespace-nowrap">
                 {vec
@@ -494,7 +495,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
     };
     let cells = game_info
         .final_board
-        .into_iter()
+        .rows_iter()
         .enumerate()
         .map(cell_row)
         .collect_view();
@@ -531,7 +532,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
 
     let (cell_read_signals, cell_write_signals) = game_info
         .final_board
-        .iter()
+        .rows_iter()
         .map(|col| {
             col.iter()
                 .copied()
@@ -558,7 +559,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .collect_view();
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
-        Board::from_vec(game_info.final_board),
+        game_info.final_board,
         replay_data.log,
         game_info.players.into_iter().flatten().collect(),
     );

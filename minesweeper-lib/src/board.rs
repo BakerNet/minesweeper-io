@@ -34,7 +34,7 @@ where
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Board<T> {
     rows: usize,
     cols: usize,
@@ -157,7 +157,7 @@ impl<T> Board<T> {
         self.cols
     }
 
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         self.board.len()
     }
 

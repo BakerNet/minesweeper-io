@@ -13,6 +13,7 @@ pub use game::{GameView, GameWrapper, ReplayView};
 use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::{
+    board::Board,
     cell::PlayerCell,
     client::ClientPlayer,
     game::{Play, PlayOutcome},
@@ -36,7 +37,7 @@ pub struct GameInfo {
     is_completed: bool,
     start_time: Option<DateTime<Utc>>,
     end_time: Option<DateTime<Utc>>,
-    final_board: Vec<Vec<PlayerCell>>,
+    final_board: Board<PlayerCell>,
     players: Vec<Option<ClientPlayer>>,
 }
 

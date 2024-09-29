@@ -69,7 +69,7 @@ impl MinesweeperBuilder {
             self.opts.cols,
             (Cell::default(), CellState::default()),
         );
-        let mut available: Vec<_> = (0..board.len())
+        let mut available: Vec<_> = (0..board.size())
             .map(|x| board.point_from_index(x))
             .collect();
         available.shuffle(&mut thread_rng());
@@ -543,15 +543,15 @@ impl Minesweeper {
         self.available.is_empty() || self.players.iter().all(|x| x.dead)
     }
 
-    pub fn viewer_board(&self) -> Vec<Vec<PlayerCell>> {
-        self.board.viewer_board(false).into()
+    pub fn viewer_board(&self) -> Board<PlayerCell> {
+        self.board.viewer_board(false)
     }
 
-    pub fn player_board(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+    pub fn player_board(&self, player: usize) -> Board<PlayerCell> {
         let mut return_board = self.viewer_board();
         for f in self.players[player].flags.iter() {
-            if let PlayerCell::Hidden(_) = return_board[f.row][f.col] {
-                return_board[f.row][f.col] = return_board[f.row][f.col].add_flag()
+            if let PlayerCell::Hidden(_) = return_board[f] {
+                return_board[f] = return_board[f].add_flag()
             }
         }
         return_board
@@ -645,15 +645,15 @@ impl CompletedMinesweeper {
         }
     }
 
-    pub fn viewer_board_final(&self) -> Vec<Vec<PlayerCell>> {
-        (&self.board).into()
+    pub fn viewer_board_final(&self) -> Board<PlayerCell> {
+        self.board.clone()
     }
 
-    pub fn player_board_final(&self, player: usize) -> Vec<Vec<PlayerCell>> {
+    pub fn player_board_final(&self, player: usize) -> Board<PlayerCell> {
         let mut return_board = self.viewer_board_final();
         for f in self.players[player].flags.iter() {
-            if let PlayerCell::Hidden(_) = return_board[f.row][f.col] {
-                return_board[f.row][f.col] = return_board[f.row][f.col].add_flag()
+            if let PlayerCell::Hidden(_) = return_board[f] {
+                return_board[f] = return_board[f].add_flag()
             }
         }
         return_board

@@ -3,6 +3,7 @@ use anyhow::{anyhow, bail, Result};
 use axum::extract::ws::{Message, WebSocket};
 use futures::{sink::SinkExt, stream::SplitSink};
 use minesweeper_lib::{
+    board::Board,
     cell::PlayerCell,
     client::ClientPlayer,
     game::{Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
@@ -254,22 +255,22 @@ impl GameManager {
         Ok(now)
     }
 
-    async fn save_game(&self, game_id: &str, board: Vec<Vec<PlayerCell>>) -> Result<()> {
+    async fn save_game(&self, game_id: &str, board: Board<PlayerCell>) -> Result<()> {
         let games = self.games.read().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
-        Game::save_board(&self.db, game_id, board).await?;
+        Game::save_board(&self.db, game_id, board.into()).await?;
         Ok(())
     }
 
-    async fn complete_game(&self, game_id: &str, final_board: Vec<Vec<PlayerCell>>) -> Result<()> {
+    async fn complete_game(&self, game_id: &str, final_board: Board<PlayerCell>) -> Result<()> {
         let mut games = self.games.write().await;
         if !games.contains_key(game_id) {
             bail!("Game with id {game_id} doesn't exist")
         }
         let now = Utc::now();
-        Game::complete_game(&self.db, game_id, final_board, now).await?;
+        Game::complete_game(&self.db, game_id, final_board.into(), now).await?;
         games.remove(game_id).unwrap();
         Ok(())
     }
@@ -401,7 +402,7 @@ impl GameHandler {
         let minesweeper = self.minesweeper.complete();
         let _ = self
             .game_manager
-            .complete_game(&self.game.game_id, minesweeper.viewer_board_final())
+            .complete_game(&self.game.game_id, minesweeper.viewer_board_final().into())
             .await
             .map_err(|e| log::error!("Error completing game: {e}"));
         if let Some(game_log) = minesweeper.get_log() {
@@ -455,7 +456,7 @@ impl GameHandler {
             .map_err(|e| log::error!("Error updating players: {e}"));
         let _ = self
             .game_manager
-            .save_game(&self.game.game_id, self.minesweeper.viewer_board())
+            .save_game(&self.game.game_id, self.minesweeper.viewer_board().into())
             .await
             .map_err(|e| log::error!("Error saving game: {e}"));
     }
