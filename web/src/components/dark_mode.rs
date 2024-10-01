@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_use::{use_color_mode, ColorMode, UseColorModeReturn};
 
 #[component]

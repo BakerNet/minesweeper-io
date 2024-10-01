@@ -1,5 +1,5 @@
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::ActionForm;
+use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::button_class;
@@ -42,7 +42,7 @@ pub async fn get_user() -> Result<Option<User>, ServerFnError> {
     Ok(auth_session.user)
 }
 
-#[server(GetUser, "/api")]
+#[server]
 pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -51,7 +51,7 @@ pub async fn get_frontend_user() -> Result<Option<FrontendUser>, ServerFnError> 
     }))
 }
 
-#[server(LogIn, "/api")]
+#[server]
 pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -78,10 +78,7 @@ pub async fn login(target: OAuthTarget, next: Option<String>) -> Result<String, 
 }
 
 #[component]
-pub fn LoginForm(
-    login: Action<LogIn, Result<String, ServerFnError>>,
-    target: OAuthTarget,
-) -> impl IntoView {
+pub fn LoginForm(login: ServerAction<Login>, target: OAuthTarget) -> impl IntoView {
     let (target_str, target_readable, target_class) = match target {
         OAuthTarget::Google => (
             "Google",
@@ -126,7 +123,7 @@ pub fn LoginForm(
     }
 }
 
-#[server(LogOut, "/api")]
+#[server]
 pub async fn logout() -> Result<(), ServerFnError> {
     let mut auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -141,7 +138,7 @@ pub async fn logout() -> Result<(), ServerFnError> {
 }
 
 #[component]
-pub fn LogOutForm(logout: Action<LogOut, Result<(), ServerFnError>>) -> impl IntoView {
+pub fn LogOutForm(logout: ServerAction<Logout>) -> impl IntoView {
     view! {
         <ActionForm action=logout attr:class="w-full max-w-xs h-12">
             <button

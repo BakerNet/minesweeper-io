@@ -1,11 +1,12 @@
 use chrono::DateTime;
 use codee::string::JsonSerdeWasmCodec;
-use leptos::{ev, *};
-use leptos_router::*;
+use leptos::{either::*, ev, prelude::*};
+use leptos_meta::*;
+use leptos_router::{components::*, hooks::*};
 use leptos_use::{
     core::ConnectionReadyState, use_document, use_event_listener, use_websocket, UseWebSocketReturn,
 };
-use std::rc::Rc;
+use std::sync::Arc;
 use web_sys::{KeyboardEvent, MouseEvent};
 
 use minesweeper_lib::{
@@ -35,7 +36,7 @@ use crate::{
 #[cfg(feature = "ssr")]
 use minesweeper_lib::{board::Board, client::ClientPlayer};
 
-#[server(GetGame, "/api")]
+#[server]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -116,7 +117,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
     })
 }
 
-#[server(GameReplay, "/api")]
+#[server]
 pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
@@ -200,7 +201,12 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
 #[component]
 pub fn GameWrapper() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+
+    Effect::new(move |_| {
+        log::debug!("Outer Params: {:?}", params.get());
+    });
+
+    let game_id = move || params.get().get("id").unwrap_or_default();
 
     view! {
         <div class="flex-1 text-center py-8">
@@ -213,29 +219,34 @@ pub fn GameWrapper() -> impl IntoView {
 #[component]
 pub fn GameView() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
-    let game_info = create_resource(game_id, get_game);
+    let game_id = move || params.get().get("id").unwrap_or_default();
+    let title = move || format!("Game {}", game_id());
+    let game_info = Resource::new(game_id, get_game);
     let refetch = move || game_info.refetch();
 
+    Effect::new(move |_| {
+        log::debug!("Inner Params: {:?}", params.get());
+    });
+
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => view! { <InactiveGame game_info /> }.into_view(),
-        false => view! { <ActiveGame game_info refetch /> }.into_view(),
+        true => Either::Left(view! { <InactiveGame game_info /> }),
+        false => Either::Right(view! { <ActiveGame game_info refetch /> }),
     };
 
     view! {
+        <Title text=title />
         <Transition fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
             {move || {
-                game_info
-                    .get()
-                    .map(|game_info| {
-                        view! {
-                            <ErrorBoundary fallback=|_| {
-                                view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)}</ErrorBoundary>
-                        }
-                    })
+                Suspend::new(async move {
+                    let game_info = game_info.await;
+                    view! {
+                        <ErrorBoundary fallback=|_| {
+                            view! { <div class="text-red-600">"Game not found"</div> }
+                        }>{game_info.map(game_view)}</ErrorBoundary>
+                    }
+                })
             }}
 
         </Transition>
@@ -245,29 +256,31 @@ pub fn GameView() -> impl IntoView {
 #[component]
 pub fn ReplayView() -> impl IntoView {
     let params = use_params_map();
-    let game_id = move || params.get().get("id").cloned().unwrap_or_default();
+    let game_id = move || params.get().get("id").unwrap_or_default();
+    let title = move || format!("Replay {}", game_id());
     let game_info = Resource::new(game_id, get_replay);
 
     let game_view = move |replay_data: GameInfoWithLog| match replay_data.game_info.is_completed {
-        true => view! { <ReplayGame replay_data /> }.into_view(),
-        false => view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> }
-            .into_view(),
+        true => Either::Left(view! { <ReplayGame replay_data /> }),
+        false => Either::Right(
+            view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> },
+        ),
     };
 
     view! {
+        <Title text=title />
         <Transition fallback=move || {
             view! { <div>"Loading..."</div> }
         }>
             {move || {
-                game_info
-                    .get()
-                    .map(|game_info| {
-                        view! {
-                            <ErrorBoundary fallback=|_| {
-                                view! { <div class="text-red-600">"Game not found"</div> }
-                            }>{game_info.map(game_view)}</ErrorBoundary>
-                        }
-                    })
+                Suspend::new(async move {
+                    let game_info = game_info.await;
+                    view! {
+                        <ErrorBoundary fallback=|_| {
+                            view! { <div class="text-red-600">"Replay not found"</div> }
+                        }>{game_info.map(game_view)}</ErrorBoundary>
+                    }
+                })
             }}
 
         </Transition>
@@ -299,7 +312,7 @@ fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
 where
     F: Fn() + Clone + 'static,
 {
-    let (error, set_error) = create_signal::<Option<String>>(None);
+    let (error, set_error) = signal::<Option<String>>(None);
 
     let UseWebSocketReturn {
         ready_state,
@@ -311,46 +324,52 @@ where
         &game_info.game_id
     ));
 
-    let game = FrontendGame::new(&game_info, set_error, Rc::new(send));
+    let game = FrontendGame::new(&game_info, set_error, Arc::new(send));
     let flag_count = game.flag_count;
     let completed = game.completed;
     let sync_time = game.sync_time;
     let join = game.join;
-    let players = Rc::clone(&game.players);
+    let players = Arc::clone(&game.players);
 
     let game = StoredValue::new(game);
 
-    Effect::new(move |_| {
-        let state = ready_state.get();
-        log::debug!("before ready_state");
-        game.with_value(|game| match state {
-            ConnectionReadyState::Open => {
-                log::debug!("ready_state Open");
-                game.send(ClientMessage::Join);
-            }
-            ConnectionReadyState::Closed => {
-                log::debug!("ready_state Closed");
-                refetch();
-            }
-            _ => {}
-        })
-    });
-
-    Effect::new(move |_| {
-        let msg = message.get();
-        log::debug!("before message");
-        game.with_value(|game| {
-            if let Some(msg) = msg {
-                log::debug!("after message {:?}", msg);
-                let res = game.handle_message(msg);
-                if let Err(e) = res {
-                    (game.err_signal)(Some(format!("{:?}", e)));
-                } else {
-                    (game.err_signal)(None);
+    Effect::watch(
+        ready_state,
+        move |state, _, _| {
+            log::debug!("before ready_state");
+            game.with_value(|game| match state {
+                ConnectionReadyState::Open => {
+                    log::debug!("ready_state Open");
+                    game.send(ClientMessage::Join);
                 }
-            }
-        })
-    });
+                ConnectionReadyState::Closed => {
+                    log::debug!("ready_state Closed");
+                    refetch();
+                }
+                _ => {}
+            })
+        },
+        true,
+    );
+
+    Effect::watch(
+        message,
+        move |msg, _, _| {
+            log::debug!("before message");
+            game.with_value(|game| {
+                if let Some(msg) = msg {
+                    log::debug!("after message {:?}", msg);
+                    let res = game.handle_message(msg.clone());
+                    if let Err(e) = res {
+                        (game.err_signal)(Some(format!("{:?}", e)));
+                    } else {
+                        (game.err_signal)(None);
+                    }
+                }
+            })
+        },
+        false,
+    );
 
     Effect::new(move |prev: Option<bool>| {
         join.track();
@@ -366,9 +385,9 @@ where
         })
     });
 
-    let (skip_mouseup, set_skip_mouseup) = create_signal::<usize>(0);
-    let (game_is_active, set_game_is_active) = create_signal(false);
-    let (active_cell, set_active_cell) = create_signal(BoardPoint { row: 0, col: 0 });
+    let (skip_mouseup, set_skip_mouseup) = signal::<usize>(0);
+    let (game_is_active, set_game_is_active) = signal(false);
+    let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         game.with_value(|game| {
@@ -446,8 +465,7 @@ where
             </div>
         }
     };
-
-    let cells = game.with_value(|game| game.cells.iter().enumerate().map(cell_row).collect_view());
+    let cells = view! { {game.with_value(|game| game.cells.iter().enumerate().map(cell_row).collect_view())} };
 
     view! {
         <ActivePlayers players title="Players">
@@ -493,12 +511,8 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
             </div>
         }
     };
-    let cells = game_info
-        .final_board
-        .rows_iter()
-        .enumerate()
-        .map(cell_row)
-        .collect_view();
+    let cells =
+        view! { {game_info.final_board.rows_iter().enumerate().map(cell_row).collect_view()} };
 
     view! {
         <InactivePlayers
@@ -520,14 +534,14 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
 fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
-    let (flag_count, set_flag_count) = create_signal(0);
-    let (replay_started, set_replay_started) = create_signal(false);
+    let (flag_count, set_flag_count) = signal(0);
+    let (replay_started, set_replay_started) = signal(false);
 
     let (player_read_signals, player_write_signals) = game_info
         .players
         .iter()
         .cloned()
-        .map(|p| create_signal(p))
+        .map(|p| signal(p))
         .collect::<(Vec<_>, Vec<_>)>();
 
     let (cell_read_signals, cell_write_signals) = game_info
@@ -536,7 +550,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         .map(|col| {
             col.iter()
                 .copied()
-                .map(|pc| create_signal(ReplayAnalysisCell(pc, None::<AnalyzedCell>)))
+                .map(|pc| signal(ReplayAnalysisCell(pc, None::<AnalyzedCell>)))
                 .collect::<(Vec<_>, Vec<_>)>()
         })
         .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
@@ -552,11 +566,12 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             </div>
         }
     };
-    let cells = cell_read_signals
-        .iter()
-        .enumerate()
-        .map(cell_row)
-        .collect_view();
+    let cells = view! { {
+        cell_read_signals
+            .iter()
+            .enumerate()
+            .map(cell_row).collect_view()
+    } };
 
     let completed_minesweeper = CompletedMinesweeper::from_log(
         game_info.final_board,

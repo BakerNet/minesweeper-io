@@ -8,9 +8,8 @@ use axum::{
 };
 use axum_login::AuthManagerLayerBuilder;
 use http::Request;
-use leptos::*;
+use leptos::prelude::*;
 use leptos_axum::*;
-use leptos_router::*;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
@@ -20,7 +19,10 @@ use tower_sessions::{
 };
 use tower_sessions_sqlx_store::SqliteStore;
 
-use crate::{app::App as FrontendApp, app::OAuthTarget, models::game::Game};
+use crate::{
+    app::{shell, App as FrontendApp, OAuthTarget},
+    models::game::Game,
+};
 
 use super::{
     auth, auth::REDIRECT_URL, fileserv::file_and_error_handler, game_manager::GameManager, users,
@@ -32,7 +34,7 @@ use super::{
 #[derive(FromRef, Debug, Clone)]
 pub struct AppState {
     pub leptos_options: LeptosOptions,
-    pub routes: Vec<RouteListing>,
+    pub routes: Vec<AxumRouteListing>,
     pub game_manager: GameManager,
 }
 
@@ -106,17 +108,19 @@ async fn leptos_routes_handler(
     session: Session,
     req: Request<Body>,
 ) -> Response {
+    let routes = app_state.routes.clone();
+    let game_manager = app_state.game_manager.clone();
+    let options = app_state.leptos_options.clone();
     let handler = leptos_axum::render_route_with_context(
-        app_state.leptos_options.clone(),
-        app_state.routes.clone(),
+        routes,
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
-            provide_context(app_state.game_manager.clone());
+            provide_context(game_manager.clone());
         },
-        FrontendApp,
+        move || shell(options.clone()),
     );
-    handler(req).await.into_response()
+    handler(State(app_state), req).await.into_response()
 }
 
 impl App {
@@ -168,7 +172,7 @@ impl App {
         // <https://github.com/leptos-rs/start-axum#executing-a-server-on-a-remote-machine-without-the-toolchain>
         // Alternately a file can be specified such as Some("Cargo.toml")
         // The file would need to be included with the executable when moved to deployment
-        let conf = get_configuration(None).await.unwrap();
+        let conf = get_configuration(None).unwrap();
         let leptos_options = conf.leptos_options;
         let addr = leptos_options.site_addr;
         let routes = generate_route_list(FrontendApp);

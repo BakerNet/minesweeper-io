@@ -1,11 +1,13 @@
-use leptos::*;
+use codee::string::JsonSerdeCodec;
+use leptos::either::*;
+use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::*;
+use leptos_router::components::*;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    auth::{FrontendUser, LogOut, LogOutForm},
+    auth::{FrontendUser, LogOutForm, Logout},
     minesweeper::GameMode,
 };
 use crate::{
@@ -35,14 +37,11 @@ fn validate_display_name(name: &str) -> bool {
 }
 
 #[component]
-pub fn ProfileView<S>(
-    user: Resource<S, Option<FrontendUser>>,
-    logout: Action<LogOut, Result<(), ServerFnError>>,
+pub fn ProfileView(
+    user: Resource<Option<FrontendUser>, JsonSerdeCodec>,
+    logout: ServerAction<Logout>,
     user_updated: WriteSignal<String>,
-) -> impl IntoView
-where
-    S: PartialEq + Clone + 'static,
-{
+) -> impl IntoView {
     let user_profile = move |user: Option<FrontendUser>| {
         match user {
             Some(user) => view! {
@@ -63,8 +62,8 @@ where
                         <GameHistory />
                     </div>
                 </>
-            }.into_view(),
-            _ => view! { <Redirect path="/auth/login" /> }.into_view(),
+            }.into_any(),
+            _ => view! { <Redirect path="/auth/login" /> }.into_any(),
         }
     };
 
@@ -98,8 +97,8 @@ async fn set_display_name(display_name: String) -> Result<String, ServerFnError>
 
 #[component]
 fn SetDisplayName(user: FrontendUser, user_updated: WriteSignal<String>) -> impl IntoView {
-    let set_display_name = create_server_action::<SetDisplayName>();
-    let (name_err, set_name_err) = create_signal::<Option<String>>(None);
+    let set_display_name = ServerAction::<SetDisplayName>::new();
+    let (name_err, set_name_err) = signal::<Option<String>>(None);
 
     let on_submit = move |ev| {
         let data = SetDisplayName::from_event(&ev);
@@ -248,37 +247,40 @@ fn GameHistory() -> impl IntoView {
                 <td class=td_class>{game.game_time}</td>
                 <td class=td_class>
                     {if game.dead {
-                        view! {
-                            <span class=player_icon_holder!("bg-red-600", true)>
-                                <Mine />
-                                <IconTooltip>"Dead"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-red-600", true)>
+                                    <Mine />
+                                    <IconTooltip>"Dead"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
-                        ().into_view()
+                        Either::Right(())
                     }}
                     {if game.top_score {
-                        view! {
-                            <span class=player_icon_holder!("bg-green-800", true)>
-                                <Trophy />
-                                <IconTooltip>"Top Score"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-green-800", true)>
+                                    <Trophy />
+                                    <IconTooltip>"Top Score"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
-                        ().into_view()
+                        Either::Right(())
                     }}
                     {if game.victory_click {
-                        view! {
-                            <span class=player_icon_holder!("bg-black", true)>
-                                <Star />
-                                <IconTooltip>"Victory Click"</IconTooltip>
-                            </span>
-                        }
-                            .into_view()
+                        Either::Left(
+                            view! {
+                                <span class=player_icon_holder!("bg-black", true)>
+                                    <Star />
+                                    <IconTooltip>"Victory Click"</IconTooltip>
+                                </span>
+                            },
+                        )
                     } else {
-                        ().into_view()
+                        Either::Right(())
                     }}
 
                 </td>
@@ -318,14 +320,13 @@ fn GameHistory() -> impl IntoView {
                     }>
 
                         {move || {
-                            player_games
-                                .get()
-                                .map(|games| {
-                                    games
-                                        .map(move |games| {
-                                            games.into_iter().map(game_view).collect_view()
-                                        })
-                                })
+                            Suspend::new(async move {
+                                player_games
+                                    .await
+                                    .map(|games| {
+                                        games.into_iter().map(game_view).collect_view()
+                                    })
+                            })
                         }}
 
                     </Suspense>

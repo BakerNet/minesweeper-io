@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 
 #[macro_export]
 macro_rules! player_icon_holder {
