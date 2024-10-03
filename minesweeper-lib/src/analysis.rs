@@ -25,7 +25,7 @@ impl Default for AnalyzedCell {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AnalysisCell {
     Hidden(AnalyzedCell),
     Revealed(Cell),
@@ -43,7 +43,7 @@ impl Display for AnalysisCell {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnalysisUpdate {
     pub point: BoardPoint,
     pub from: Option<AnalyzedCell>,
@@ -99,7 +99,11 @@ impl MinesweeperAnalysis {
                     .enumerate()
                     .filter_map(|(col, _)| {
                         let bp = BoardPoint { row, col };
-                        if self.has_undetermined_neighbor(&bp) {
+                        if matches!(
+                            self.analysis_board[bp],
+                            AnalysisCell::Revealed(Cell::Empty(_))
+                        ) && self.has_undetermined_neighbor(&bp)
+                        {
                             Some(bp)
                         } else {
                             None
@@ -140,41 +144,71 @@ impl MinesweeperAnalysis {
                         let _ = points_to_reanalyze.insert(*nbp);
                     });
             }
-            res.guaranteed_plays.into_iter().for_each(|(point, ac)| {
-                while let Some(i) = self.fifty_fiftys.iter().enumerate().find_map(|(i, p)| {
-                    if *p.ref_a() == point || *p.ref_b() == point {
-                        Some(i)
-                    } else {
-                        None
-                    }
-                }) {
-                    self.fifty_fiftys.remove(i);
-                }
-                let from = match self.analysis_board[point] {
-                    AnalysisCell::Hidden(AnalyzedCell::Empty) => Some(AnalyzedCell::Empty),
-                    AnalysisCell::Hidden(AnalyzedCell::Mine) => Some(AnalyzedCell::Mine),
-                    _ => None,
-                };
-                self.analysis_board[point] = AnalysisCell::Hidden(ac);
-                analysis_changes.push(AnalysisUpdate {
-                    point,
-                    from,
-                    to: Some(ac),
-                });
-                // add neighbors to points_to_reanalyze
-                self.analysis_board
-                    .neighbors(&point)
-                    .iter()
-                    .for_each(|nbp| {
-                        if matches!(ac, AnalyzedCell::Mine) {
-                            if let AnalysisCell::Revealed(c) = self.analysis_board[nbp] {
-                                // reduce neighboring cell numbers
-                                self.analysis_board[nbp] = AnalysisCell::Revealed(c.decrement());
-                            }
+            let mut guaranteed_plays = res.guaranteed_plays;
+            while guaranteed_plays.len() > 0 {
+                // make sure we haven't handled this cell already
+                let handle_plays = guaranteed_plays
+                    .into_iter()
+                    .filter(|(p, _)| {
+                        !analysis_changes
+                            .iter()
+                            .any(|au: &AnalysisUpdate| &au.point == p)
+                    })
+                    .collect::<ArrayVec<[(BoardPoint, AnalyzedCell); 8]>>();
+                // reset the array
+                guaranteed_plays = array_vec!([(BoardPoint, AnalyzedCell); 8]);
+                // handle the plays
+                handle_plays.into_iter().for_each(|(point, ac)| {
+                    while let Some(i) = self.fifty_fiftys.iter().enumerate().find_map(|(i, p)| {
+                        if *p.ref_a() == point || *p.ref_b() == point {
+                            Some(i)
+                        } else {
+                            None
                         }
-                        let _ = points_to_reanalyze.insert(*nbp);
+                    }) {
+                        let other = if self.fifty_fiftys[i].ref_a() == &point {
+                            *self.fifty_fiftys[i].ref_b()
+                        } else {
+                            *self.fifty_fiftys[i].ref_a()
+                        };
+                        let guaranteed = match ac {
+                            AnalyzedCell::Mine => AnalyzedCell::Empty,
+                            AnalyzedCell::Empty => AnalyzedCell::Mine,
+                            AnalyzedCell::Undetermined => panic!("This shouldn't be possible"),
+                        };
+                        let new_play = (other, guaranteed);
+                        if !guaranteed_plays.contains(&new_play) {
+                            guaranteed_plays.push(new_play);
+                        }
+                        self.fifty_fiftys.remove(i);
+                    }
+                    let from = match self.analysis_board[point] {
+                        AnalysisCell::Hidden(AnalyzedCell::Empty) => Some(AnalyzedCell::Empty),
+                        AnalysisCell::Hidden(AnalyzedCell::Mine) => Some(AnalyzedCell::Mine),
+                        _ => None,
+                    };
+                    self.analysis_board[point] = AnalysisCell::Hidden(ac);
+                    analysis_changes.push(AnalysisUpdate {
+                        point,
+                        from,
+                        to: Some(ac),
                     });
-            });
+                    // add neighbors to points_to_reanalyze
+                    self.analysis_board
+                        .neighbors(&point)
+                        .iter()
+                        .for_each(|nbp| {
+                            if matches!(ac, AnalyzedCell::Mine) {
+                                if let AnalysisCell::Revealed(c) = self.analysis_board[nbp] {
+                                    // reduce neighboring cell numbers
+                                    self.analysis_board[nbp] =
+                                        AnalysisCell::Revealed(c.decrement());
+                                }
+                            }
+                            let _ = points_to_reanalyze.insert(*nbp);
+                        });
+                });
+            }
         });
         if !has_updates {
             return analysis_changes;
@@ -241,6 +275,15 @@ impl MinesweeperAnalysis {
                     });
                 }
             }
+        }
+        while let Some(i) = self.fifty_fiftys.iter().enumerate().find_map(|(i, p)| {
+            if p.ref_a() == point || p.ref_b() == point {
+                Some(i)
+            } else {
+                None
+            }
+        }) {
+            self.fifty_fiftys.remove(i);
         }
         self.analysis_board[point] = AnalysisCell::Revealed(cell);
         ret
@@ -377,6 +420,7 @@ fn perform_checks(
         },
     );
     let num_unique_fifty_fiftys = fifty_fifty_points.len() / 2;
+    let exact_unique_fifty_fiftys = fifty_fifty_points.len() % 2 == 0;
 
     if cell_num == 1 && fifty_fifty_points.len() == 3 {
         // special case - overlapping 5050s next to 1
@@ -411,7 +455,7 @@ fn perform_checks(
         return analysis_result;
     }
 
-    if cell_num - num_unique_fifty_fiftys == non_fifty_fiftys.len() {
+    if exact_unique_fifty_fiftys && cell_num - num_unique_fifty_fiftys == non_fifty_fiftys.len() {
         // all non-5050 cells are guaranteed mine
         analysis_result.guaranteed_plays.append(
             &mut non_fifty_fiftys
@@ -422,7 +466,10 @@ fn perform_checks(
         return analysis_result;
     }
 
-    if cell_num - num_unique_fifty_fiftys == 1 && non_fifty_fiftys.len() == 2 {
+    if exact_unique_fifty_fiftys
+        && cell_num - num_unique_fifty_fiftys == 1
+        && non_fifty_fiftys.len() == 2
+    {
         // new 5050 found general case
         let pair = UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]);
         if !fifty_fiftys.contains(&pair) {
@@ -430,6 +477,43 @@ fn perform_checks(
                 Some(UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]));
         }
         return analysis_result;
+    }
+
+    for rp in revealed_points.iter() {
+        let other_undetermined = undetermined_points
+            .iter()
+            .filter(|p| !p.is_neighbor(rp))
+            .copied()
+            .collect::<ArrayVec<[BoardPoint; 8]>>();
+        let other_ff = other_undetermined
+            .iter()
+            .filter(|p| fifty_fifty_points.contains(p))
+            .count();
+        if other_ff != other_undetermined.len() {
+            continue;
+        }
+        let other_mines = other_ff / 2;
+        let AnalysisCell::Revealed(Cell::Empty(r_num)) = analysis_board[rp] else {
+            continue;
+        };
+        // rp's neighboring mines must be in undetermined points to satisfy current cell
+        // therefore, rp's other neighbors can't be mines
+        if cell_num - other_mines == r_num.into() {
+            analysis_result.guaranteed_plays.append(
+                &mut analysis_board
+                    .neighbors(rp)
+                    .into_iter()
+                    .filter(|p| {
+                        matches!(
+                            analysis_board[*p],
+                            AnalysisCell::Hidden(AnalyzedCell::Undetermined)
+                        )
+                    })
+                    .filter(|p| !undetermined_points.contains(p))
+                    .map(|p| (p, AnalyzedCell::Empty))
+                    .collect(),
+            );
+        }
     }
 
     // find all revealed "1"s with 2 or more undetermined cells as neighbors - treat as 5050
@@ -491,12 +575,94 @@ fn perform_checks(
 }
 
 // TODO - write unit tests
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//
-//     #[test]
-//     fn name() {
-//         todo!();
-//     }
-// }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn complex_reveal() {
+        let mut analysis_state = MinesweeperAnalysis {
+            analysis_board: Board::from_vec(vec![
+                vec![
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                ],
+                vec![
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Revealed(Cell::Empty(2)),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                ],
+                vec![
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Revealed(Cell::Empty(2)),
+                    AnalysisCell::Revealed(Cell::Empty(1)),
+                ],
+                vec![
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Revealed(Cell::Empty(3)),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                ],
+                vec![
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Revealed(Cell::Empty(2)),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                    AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                ],
+            ]),
+            fifty_fiftys: vec![
+                UnorderedPair::new(BoardPoint { row: 4, col: 2 }, BoardPoint { row: 4, col: 3 }),
+                UnorderedPair::new(BoardPoint { row: 3, col: 3 }, BoardPoint { row: 4, col: 3 }),
+            ],
+        };
+
+        let final_expected = Board::from_vec(vec![
+            vec![
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+            ],
+            vec![
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Empty),
+                AnalysisCell::Revealed(Cell::Empty(2)),
+                AnalysisCell::Hidden(AnalyzedCell::Empty),
+            ],
+            vec![
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Revealed(Cell::Empty(1)),
+                AnalysisCell::Revealed(Cell::Empty(0)),
+            ],
+            vec![
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Revealed(Cell::Empty(1)),
+                AnalysisCell::Hidden(AnalyzedCell::Mine),
+            ],
+            vec![
+                AnalysisCell::Hidden(AnalyzedCell::Undetermined),
+                AnalysisCell::Revealed(Cell::Empty(1)),
+                AnalysisCell::Hidden(AnalyzedCell::Mine),
+                AnalysisCell::Hidden(AnalyzedCell::Empty),
+            ],
+        ]);
+
+        let _res = analysis_state.analyze_board();
+
+        analysis_state
+            .analysis_board
+            .rows_iter()
+            .enumerate()
+            .for_each(|(row, vec)| {
+                vec.iter().enumerate().for_each(|(col, c)| {
+                    assert!(*c == final_expected[BoardPoint { row, col }]);
+                })
+            });
+    }
+}
