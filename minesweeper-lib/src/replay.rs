@@ -435,14 +435,14 @@ mod test {
     fn test_replay() {
         let mut expected_starting_board = Board::new(4, 4, PlayerCell::Hidden(HiddenCell::Empty));
         MINES.iter().for_each(|point| {
-            expected_starting_board[*point] = PlayerCell::Hidden(HiddenCell::Mine);
+            expected_starting_board[point] = PlayerCell::Hidden(HiddenCell::Mine);
         });
         let expected_starting_board = expected_starting_board;
 
         let mut expected_next_board = expected_starting_board.clone();
         // res of first play
         PLAY_1_RES.iter().for_each(|(point, rc)| {
-            expected_next_board[*point] = PlayerCell::Revealed(*rc);
+            expected_next_board[point] = PlayerCell::Revealed(*rc);
         });
         let expected_board_1 = expected_next_board.clone();
         // res of second play

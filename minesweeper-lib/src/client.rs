@@ -102,7 +102,7 @@ impl MinesweeperClient {
                     .iter()
                     .copied()
                     .filter(|pc| {
-                        let item = self.board[*pc];
+                        let item = self.board[pc];
                         if let PlayerCell::Hidden(HiddenCell::Flag) = item {
                             true
                         } else if let PlayerCell::Revealed(nrc) = item {

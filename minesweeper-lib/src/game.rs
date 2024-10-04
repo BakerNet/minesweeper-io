@@ -271,12 +271,12 @@ impl Minesweeper {
         let unflagged_neighbors = neighbors
             .iter()
             .copied()
-            .filter(|c| !self.board[*c].1.revealed && !self.players[player].flags.contains(c))
+            .filter(|c| !self.board[c].1.revealed && !self.players[player].flags.contains(c))
             .collect::<ArrayVec<[BoardPoint; 8]>>();
         let has_mine = unflagged_neighbors
             .iter()
             .copied()
-            .find(|c| matches!(self.board[*c].0, Cell::Mine));
+            .find(|c| matches!(self.board[c].0, Cell::Mine));
         // check for mine first, so other clicks don't go through
         if let Some(c) = has_mine {
             self.reveal(player, &c);
@@ -292,7 +292,7 @@ impl Minesweeper {
         let combined_outcome = unflagged_neighbors.iter().fold(
             PlayOutcome::Success(Vec::new()),
             |acc: PlayOutcome, c| {
-                if self.board[*c].1.revealed {
+                if self.board[c].1.revealed {
                     return acc;
                 }
                 let res = self
@@ -358,7 +358,7 @@ impl Minesweeper {
             .collect::<HashSet<_>>();
         nearby
             .into_iter()
-            .filter(|i| self.board[*i].1.revealed)
+            .filter(|i| self.board[i].1.revealed)
             .count()
             == 0
     }
@@ -436,7 +436,7 @@ impl Minesweeper {
             self.board
                 .neighbors(bp)
                 .iter()
-                .any(|c| self.board[*c].1.revealed)
+                .any(|c| self.board[c].1.revealed)
         };
         let mut take_available: Vec<BoardPoint> = self
             .available
