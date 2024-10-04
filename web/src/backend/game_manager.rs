@@ -402,7 +402,7 @@ impl GameHandler {
         let minesweeper = self.minesweeper.complete();
         let _ = self
             .game_manager
-            .complete_game(&self.game.game_id, minesweeper.viewer_board_final().into())
+            .complete_game(&self.game.game_id, minesweeper.viewer_board_final())
             .await
             .map_err(|e| log::error!("Error completing game: {e}"));
         if let Some(game_log) = minesweeper.get_log() {
@@ -456,7 +456,7 @@ impl GameHandler {
             .map_err(|e| log::error!("Error updating players: {e}"));
         let _ = self
             .game_manager
-            .save_game(&self.game.game_id, self.minesweeper.viewer_board().into())
+            .save_game(&self.game.game_id, self.minesweeper.viewer_board())
             .await
             .map_err(|e| log::error!("Error saving game: {e}"));
     }

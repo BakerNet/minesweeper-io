@@ -76,7 +76,7 @@ impl MinesweeperAnalysis {
             });
         });
         revealed_mines.iter().for_each(|point| {
-            analysis_board.neighbors(&point).iter().for_each(|nbp| {
+            analysis_board.neighbors(point).iter().for_each(|nbp| {
                 if let AnalysisCell::Revealed(c) = analysis_board[nbp] {
                     // reduce neighboring cell numbers
                     analysis_board[nbp] = AnalysisCell::Revealed(c.decrement());
@@ -145,7 +145,7 @@ impl MinesweeperAnalysis {
                     });
             }
             let mut guaranteed_plays = res.guaranteed_plays;
-            while guaranteed_plays.len() > 0 {
+            while !guaranteed_plays.is_empty() {
                 // make sure we haven't handled this cell already
                 let handle_plays = guaranteed_plays
                     .into_iter()
@@ -263,7 +263,7 @@ impl MinesweeperAnalysis {
                     // we now know this is a mine so we reduce existing revealed cells
                     let empty_neighbors = self
                         .analysis_board
-                        .neighbors(&point)
+                        .neighbors(point)
                         .into_iter()
                         .filter_map(|np| match self.analysis_board[np] {
                             AnalysisCell::Revealed(c) => Some((np, c)),
@@ -355,7 +355,7 @@ struct AnalysisResult {
 fn perform_checks(
     point: &BoardPoint,
     analysis_board: &Board<AnalysisCell>,
-    fifty_fiftys: &Vec<UnorderedPair<BoardPoint>>,
+    fifty_fiftys: &[UnorderedPair<BoardPoint>],
 ) -> AnalysisResult {
     let cell = analysis_board[point];
     assert!(matches!(cell, AnalysisCell::Revealed(Cell::Empty(_))));
