@@ -480,17 +480,19 @@ fn perform_checks(
     }
 
     for rp in revealed_points.iter() {
+        let AnalysisCell::Revealed(Cell::Empty(r_num)) = analysis_board[rp] else {
+            continue;
+        };
+        let r_num = r_num as usize;
         let other_undetermined = undetermined_points
             .iter()
             .filter(|p| !p.is_neighbor(rp))
             .copied()
             .collect::<ArrayVec<[BoardPoint; 8]>>();
         let num_other = other_undetermined.len();
-        let AnalysisCell::Revealed(Cell::Empty(r_num)) = analysis_board[rp] else {
-            continue;
-        };
-        let r_num = r_num as usize;
+
         if num_other > 0 && cell_num > r_num && cell_num - r_num == num_other {
+            // other_undetermined must be mines because rp's neighbors can't contain enough
             let mut guaranteed_mines = other_undetermined
                 .into_iter()
                 .map(|p| (p, AnalyzedCell::Mine))
