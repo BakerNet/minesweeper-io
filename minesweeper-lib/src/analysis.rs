@@ -510,13 +510,11 @@ fn perform_checks(
             .iter()
             .filter(|p| fifty_fifty_points.contains(p))
             .count();
-        if other_ff != other_undetermined.len() {
-            continue;
-        }
+        let all_other_ff = other_ff == other_undetermined.len();
         let other_mines = other_ff / 2;
         // rp's neighboring mines must be in undetermined points to satisfy current cell
         // therefore, rp's other neighbors can't be mines
-        if cell_num - other_mines == r_num.into() {
+        if all_other_ff && cell_num - other_mines == r_num {
             analysis_result.guaranteed_plays.append(
                 &mut analysis_board
                     .neighbors(rp)
