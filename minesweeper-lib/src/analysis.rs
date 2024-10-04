@@ -380,6 +380,7 @@ fn perform_checks(
 
     let cell_num = cell_to_num(cell);
     if cell_num == 0 {
+        // all mines satisfied, reveal others
         analysis_result.guaranteed_plays.append(
             &mut undetermined_points
                 .into_iter()
@@ -391,6 +392,7 @@ fn perform_checks(
 
     let num_undetermined = undetermined_points.len();
     if cell_num == num_undetermined {
+        // all undetermined neighbors must be mines
         analysis_result.guaranteed_plays.append(
             &mut undetermined_points
                 .into_iter()
@@ -448,7 +450,7 @@ fn perform_checks(
         && cell_num - num_unique_fifty_fiftys == 1
         && non_fifty_fiftys.len() == 2
     {
-        // new 5050 found easy general case
+        // new 5050 found common case
         analysis_result.found_fifty_fiftys =
             Some(UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]));
         return analysis_result;
@@ -458,7 +460,7 @@ fn perform_checks(
         && undetermined_points.len() == 4
         && (fifty_fifty_points.len() == 3 || fifty_fifty_pairs.len() == 3)
     {
-        // check for new 5050 special case
+        // check for new 5050s special case
         let new_fifty_fifty = fifty_fifty_pairs.iter().find_map(|up| {
             let other = undetermined_points
                 .iter()
