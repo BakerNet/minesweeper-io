@@ -607,29 +607,33 @@ mod test {
         Board::from_vec(board)
     }
 
+    struct TestCase(MinesweeperAnalysis, Board<AnalysisCell>);
+
     #[test]
     fn complex_reveal() {
-        let cases = vec![
-            (
-                visual_to_board(
-                    "
+        let cases: Vec<TestCase> = vec![
+            TestCase(
+                MinesweeperAnalysis {
+                    analysis_board: visual_to_board(
+                        "
                     ----
                     --2-
                     --21
                     --3-
                     -2--
                     ",
-                ),
-                vec![
-                    UnorderedPair::new(
-                        BoardPoint { row: 4, col: 2 },
-                        BoardPoint { row: 4, col: 3 },
                     ),
-                    UnorderedPair::new(
-                        BoardPoint { row: 3, col: 3 },
-                        BoardPoint { row: 4, col: 3 },
-                    ),
-                ],
+                    fifty_fiftys: vec![
+                        UnorderedPair::new(
+                            BoardPoint { row: 4, col: 2 },
+                            BoardPoint { row: 4, col: 3 },
+                        ),
+                        UnorderedPair::new(
+                            BoardPoint { row: 3, col: 3 },
+                            BoardPoint { row: 4, col: 3 },
+                        ),
+                    ],
+                },
                 visual_to_board(
                     "
                     ----
@@ -640,16 +644,18 @@ mod test {
                     ",
                 ),
             ),
-            (
-                visual_to_board(
-                    "
+            TestCase(
+                MinesweeperAnalysis {
+                    analysis_board: visual_to_board(
+                        "
                     -100
                     -100
                     121m
                     ----
                     ",
-                ),
-                vec![],
+                    ),
+                    fifty_fiftys: vec![],
+                },
                 visual_to_board(
                     "
                     -100
@@ -659,17 +665,19 @@ mod test {
                     ",
                 ),
             ),
-            (
-                visual_to_board(
-                    "
+            TestCase(
+                MinesweeperAnalysis {
+                    analysis_board: visual_to_board(
+                        "
                     111m
                     --2-
                     --3-
                     --31
                     --2-
                     ",
-                ),
-                vec![],
+                    ),
+                    fifty_fiftys: vec![],
+                },
                 visual_to_board(
                     "
                     111m
@@ -682,11 +690,8 @@ mod test {
             ),
         ];
         for case in cases.into_iter() {
-            let mut analysis_state = MinesweeperAnalysis {
-                analysis_board: case.0,
-                fifty_fiftys: case.1,
-            };
-            let final_expected = case.2;
+            let mut analysis_state = case.0;
+            let final_expected = case.1;
 
             let _res = analysis_state.analyze_board();
 
