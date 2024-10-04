@@ -485,25 +485,20 @@ fn perform_checks(
             .filter(|p| !p.is_neighbor(rp))
             .copied()
             .collect::<ArrayVec<[BoardPoint; 8]>>();
+        let num_other = other_undetermined.len();
         let AnalysisCell::Revealed(Cell::Empty(r_num)) = analysis_board[rp] else {
             continue;
         };
         let r_num = r_num as usize;
-        if cell_num > r_num && cell_num - r_num == 1 {
-            if other_undetermined.len() == 1 {
-                let op = other_undetermined[0];
-                analysis_result
-                    .guaranteed_plays
-                    .push((op, AnalyzedCell::Mine));
-                return analysis_result;
-            }
-            if other_undetermined.len() == 2 {
-                let pair = UnorderedPair::new(other_undetermined[0], other_undetermined[1]);
-                if !fifty_fifty_pairs.contains(&pair) {
-                    analysis_result.found_fifty_fiftys = Some(pair);
-                    return analysis_result;
-                }
-            }
+        if num_other > 0 && cell_num > r_num && cell_num - r_num == num_other {
+            let mut guaranteed_mines = other_undetermined
+                .into_iter()
+                .map(|p| (p, AnalyzedCell::Mine))
+                .collect();
+            analysis_result
+                .guaranteed_plays
+                .append(&mut guaranteed_mines);
+            return analysis_result;
         }
 
         let other_ff = other_undetermined
@@ -515,20 +510,24 @@ fn perform_checks(
         // rp's neighboring mines must be in undetermined points to satisfy current cell
         // therefore, rp's other neighbors can't be mines
         if all_other_ff && cell_num - other_mines == r_num {
-            analysis_result.guaranteed_plays.append(
-                &mut analysis_board
-                    .neighbors(rp)
-                    .into_iter()
-                    .filter(|p| {
-                        matches!(
-                            analysis_board[*p],
-                            AnalysisCell::Hidden(AnalyzedCell::Undetermined)
-                        )
-                    })
-                    .filter(|p| !undetermined_points.contains(p))
-                    .map(|p| (p, AnalyzedCell::Empty))
-                    .collect(),
-            );
+            let mut rp_undetermined_other = analysis_board
+                .neighbors(rp)
+                .into_iter()
+                .filter(|p| {
+                    matches!(
+                        analysis_board[p],
+                        AnalysisCell::Hidden(AnalyzedCell::Undetermined)
+                    )
+                })
+                .filter(|p| !undetermined_points.contains(p))
+                .map(|p| (p, AnalyzedCell::Empty))
+                .collect::<ArrayVec<[(BoardPoint, AnalyzedCell); 8]>>();
+            if rp_undetermined_other.is_empty() {
+                continue;
+            }
+            analysis_result
+                .guaranteed_plays
+                .append(&mut rp_undetermined_other);
             return analysis_result;
         }
     }
@@ -537,7 +536,7 @@ fn perform_checks(
     let mut seen = array_vec!([BoardPoint; 8] => *point);
     let local_ff_points = revealed_points
         .into_iter()
-        .filter(|p| matches!(analysis_board[*p], AnalysisCell::Revealed(Cell::Empty(1))))
+        .filter(|p| matches!(analysis_board[p], AnalysisCell::Revealed(Cell::Empty(1))))
         .filter(|p| {
             let neighbors = undetermined_points
                 .iter()
