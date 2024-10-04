@@ -488,12 +488,22 @@ fn perform_checks(
         let AnalysisCell::Revealed(Cell::Empty(r_num)) = analysis_board[rp] else {
             continue;
         };
-        if cell_num == 2 && r_num == 1 && other_undetermined.len() == 1 {
-            let op = other_undetermined[0];
-            analysis_result
-                .guaranteed_plays
-                .push((op, AnalyzedCell::Mine));
-            return analysis_result;
+        let r_num = r_num as usize;
+        if cell_num > r_num && cell_num - r_num == 1 {
+            if other_undetermined.len() == 1 {
+                let op = other_undetermined[0];
+                analysis_result
+                    .guaranteed_plays
+                    .push((op, AnalyzedCell::Mine));
+                return analysis_result;
+            }
+            if other_undetermined.len() == 2 {
+                let pair = UnorderedPair::new(other_undetermined[0], other_undetermined[1]);
+                if !fifty_fifty_pairs.contains(&pair) {
+                    analysis_result.found_fifty_fiftys = Some(pair);
+                    return analysis_result;
+                }
+            }
         }
 
         let other_ff = other_undetermined
@@ -561,24 +571,6 @@ fn perform_checks(
         analysis_result.guaranteed_plays.append(&mut not_ff);
         return analysis_result;
     };
-    if cell_num == 1 && local_ff_points.len() == 1 && not_ff.is_empty() {
-        // reveal the neighbors of local_ff_points that aren't in undetermined_points
-        analysis_result.guaranteed_plays.append(
-            &mut analysis_board
-                .neighbors(&local_ff_points[0])
-                .into_iter()
-                .filter(|p| {
-                    matches!(
-                        analysis_board[*p],
-                        AnalysisCell::Hidden(AnalyzedCell::Undetermined)
-                    )
-                })
-                .filter(|p| !undetermined_points.contains(p))
-                .map(|p| (p, AnalyzedCell::Empty))
-                .collect(),
-        );
-        return analysis_result;
-    }
     // exhausted all strategies
     analysis_result
 }
@@ -700,8 +692,8 @@ mod test {
             let _res = analysis_state.analyze_board();
 
             println!(
-                "Expected:\n{}\nGot:\n{}",
-                final_expected, analysis_state.analysis_board
+                "Expected:\n{}\nGot:\n{}\nFifty Fiftys:{:?}",
+                final_expected, analysis_state.analysis_board, analysis_state.fifty_fiftys
             );
 
             analysis_state
