@@ -444,7 +444,45 @@ fn perform_checks(
         return analysis_result;
     }
 
-    if cell_num == num_unique_fifty_fiftys {
+    if exact_unique_fifty_fiftys
+        && cell_num - num_unique_fifty_fiftys == 1
+        && non_fifty_fiftys.len() == 2
+    {
+        // new 5050 found easy general case
+        analysis_result.found_fifty_fiftys =
+            Some(UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]));
+        return analysis_result;
+    }
+
+    if cell_num == 2
+        && undetermined_points.len() == 4
+        && (fifty_fifty_points.len() == 3 || fifty_fifty_pairs.len() == 3)
+    {
+        // check for new 5050 special case
+        let new_fifty_fifty = fifty_fifty_pairs.iter().find_map(|up| {
+            let other = undetermined_points
+                .iter()
+                .copied()
+                .filter(|p| p != up.ref_a() && p != up.ref_b())
+                .collect::<ArrayVec<[BoardPoint; 2]>>();
+            if other.len() == 2 {
+                let pair = UnorderedPair::new(other[0], other[1]);
+                if !fifty_fifty_pairs.contains(&pair) {
+                    Some(pair)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+        if new_fifty_fifty.is_some() {
+            analysis_result.found_fifty_fiftys = new_fifty_fifty;
+            return analysis_result;
+        }
+    }
+
+    if cell_num == num_unique_fifty_fiftys && !non_fifty_fiftys.is_empty() {
         // all non-5050 cells are guaranteed plays
         analysis_result.guaranteed_plays.append(
             &mut non_fifty_fiftys
@@ -463,19 +501,6 @@ fn perform_checks(
                 .map(|p| (p, AnalyzedCell::Mine))
                 .collect(),
         );
-        return analysis_result;
-    }
-
-    if exact_unique_fifty_fiftys
-        && cell_num - num_unique_fifty_fiftys == 1
-        && non_fifty_fiftys.len() == 2
-    {
-        // new 5050 found general case
-        let pair = UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]);
-        if !fifty_fiftys.contains(&pair) {
-            analysis_result.found_fifty_fiftys =
-                Some(UnorderedPair::new(non_fifty_fiftys[0], non_fifty_fiftys[1]));
-        }
         return analysis_result;
     }
 
@@ -685,6 +710,25 @@ mod test {
                     --2-
                     -m21
                     --1-
+                    ",
+                ),
+            ),
+            TestCase(
+                MinesweeperAnalysis {
+                    analysis_board: visual_to_board(
+                        "
+                    -22-1
+                    ----1
+                    m1m1m
+                    ",
+                    ),
+                    fifty_fiftys: vec![],
+                },
+                visual_to_board(
+                    "
+                    m12-1
+                    c---1
+                    m1m1m
                     ",
                 ),
             ),
