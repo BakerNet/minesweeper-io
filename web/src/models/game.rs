@@ -123,6 +123,10 @@ impl Game {
             .await
             .map(|_| ())
     }
+
+    pub(crate) fn get_games(db: &SqlitePool, game_ids: Vec<&str>) -> Result<Vec<Game>> {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]

@@ -59,7 +59,10 @@ pub fn ErrorTemplate(
     }
 
     view! {
-        <h1>{if errors.len() > 1 { "Errors" } else { "Error" }}</h1>
+
+        <div class="flex-1 flex flex-col items-center justify-center py-12 px-4 space-y-4">
+
+            <h1 class="text-4xl my-4 text-gray-900 dark:text-gray-200">{if errors.len() > 1 { "Errors" } else { "Error" }}</h1>
         <For
             // a function that returns the items we're iterating over; a signal is fine
             each=move || { errors.clone().into_iter().enumerate() }
@@ -75,5 +78,6 @@ pub fn ErrorTemplate(
                 }
             }
         />
+        </div>
     }
 }

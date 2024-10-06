@@ -112,6 +112,23 @@ impl GameManager {
             .is_some()
     }
 
+    pub async fn get_multiplayer_not_started(&self) -> Vec<Game> {
+        let games = self.games.read().await;
+        let game_ids = games
+            .iter()
+            .filter(|gh| {
+                gh.1.max_players > 1
+                    && gh.1.start_time.is_none()
+                    && gh.1.players.len() < gh.1.max_players.into()
+            })
+            .map(|gh| gh.0.as_str())
+            .collect::<Vec<&str>>();
+        if game_ids.len() == 0 {
+            return Vec::new();
+        }
+        Game::get_games(&self.db, game_ids).unwrap_or_default()
+    }
+
     pub async fn get_game(&self, game_id: &str) -> Result<Game> {
         Game::get_game(&self.db, game_id)
             .await?
