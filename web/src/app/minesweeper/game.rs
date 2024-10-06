@@ -320,7 +320,7 @@ where
     let flag_count = game.flag_count;
     let completed = game.completed;
     let sync_time = game.sync_time;
-    let join = game.join;
+    let join_trigger = game.join_trigger;
     let players = Arc::clone(&game.players);
 
     let game = StoredValue::new(game);
@@ -364,7 +364,7 @@ where
     );
 
     Effect::new(move |prev: Option<bool>| {
-        join.track();
+        join_trigger.track();
         game.with_value(|game| {
             log::debug!("join_trigger rec: {prev:?}");
             if let Some(sent) = prev {

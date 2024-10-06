@@ -93,7 +93,7 @@ pub fn PlayerButtons(game: StoredValue<FrontendGame>) -> impl IntoView {
             move |loaded, _, prev| {
                 if *loaded && prev.unwrap_or(true) {
                     log::debug!("join_trigger");
-                    join_trigger(true);
+                    join_trigger.notify();
                 }
                 !*loaded
             },
@@ -217,11 +217,11 @@ fn PlayerRow(player_num: usize, player: Option<ClientPlayer>) -> impl IntoView {
 }
 
 #[component]
-fn PlayForm(join_trigger: WriteSignal<bool>) -> impl IntoView {
+fn PlayForm(join_trigger: Trigger) -> impl IntoView {
     let (show, set_show) = signal(true);
 
     let join_game = move || {
-        join_trigger(true);
+        join_trigger.notify();
         set_show(false);
     };
 

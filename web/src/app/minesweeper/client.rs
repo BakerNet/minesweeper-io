@@ -22,8 +22,7 @@ pub struct FrontendGame {
     pub players: Arc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     pub players_loaded: ReadSignal<bool>,
     pub err_signal: WriteSignal<Option<String>>,
-    pub join: ReadSignal<bool>,
-    pub join_trigger: WriteSignal<bool>,
+    pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
     pub sync_time: ReadSignal<Option<usize>>,
@@ -57,7 +56,7 @@ impl FrontendGame {
         });
         let (players_loaded, set_players_loaded) = signal(false);
         let (player_id, set_player_id) = signal::<Option<usize>>(None);
-        let (join, join_trigger) = signal(false);
+        let join_trigger = Trigger::new();
         let (started, set_started) = signal(game_info.is_started);
         let (completed, set_completed) = signal(game_info.is_completed);
         let (sync_time, set_sync_time) = signal::<Option<usize>>(None);
@@ -77,7 +76,6 @@ impl FrontendGame {
             players_loaded,
             set_players_loaded,
             err_signal,
-            join,
             join_trigger,
             started,
             set_started,
