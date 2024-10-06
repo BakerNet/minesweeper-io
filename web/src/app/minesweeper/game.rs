@@ -288,7 +288,7 @@ where
         <div class="select-none overflow-x-auto overflow-y-hidden mb-8">
             <div class="w-fit border-solid border border-black mx-auto">
                 <div
-                    class="w-fit border-groove border-24"
+                    class="w-fit border-groove border-24 bg-gray-900"
                     on:mouseenter=move |_| set_active(true)
                     on:mouseleave=move |_| set_active(false)
                 >
