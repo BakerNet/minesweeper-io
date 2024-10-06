@@ -2,7 +2,10 @@ use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
 
-use crate::components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal};
+use crate::{
+    app::footer::Footer,
+    components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal},
+};
 
 use super::{
     auth::{get_frontend_user, LogIn, LogOut},
@@ -72,6 +75,7 @@ pub fn App() -> impl IntoView {
                         <Route path="/" view=GameView />
                     </Route>
                 </Routes>
+                <Footer />
                 <ControlsInfoButton set_show_info />
                 <Show when=show_info>
                     <ControlsInfoModal set_show_info />

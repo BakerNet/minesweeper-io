@@ -1,5 +1,6 @@
 mod auth;
 mod error_template;
+mod footer;
 mod header;
 mod home;
 mod login;
