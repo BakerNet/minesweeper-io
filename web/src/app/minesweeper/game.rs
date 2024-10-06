@@ -206,7 +206,7 @@ pub fn GameWrapper() -> impl IntoView {
 
     view! {
         <div class="flex-1 text-center py-8">
-            <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">"Game: "{game_id}</h3>
+            <h1 class="text-4xl my-4 text-gray-900 dark:text-gray-200">"Game: "{game_id}</h1>
             <Outlet />
         </div>
     }

@@ -52,7 +52,7 @@ pub fn ActivePlayers(
         .collect_view();
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
+            <h2 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h2>
             <Scoreboard>{players_view}</Scoreboard>
             {children()}
         </div>
@@ -115,7 +115,7 @@ pub fn PlayerButtons(game: StoredValue<FrontendGame>) -> impl IntoView {
 pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>, title: &'static str) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h4 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h4>
+            <h2 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h2>
             <Scoreboard>
 
                 {players
