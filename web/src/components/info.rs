@@ -12,7 +12,7 @@ pub fn ControlsInfoButton(set_show_info: WriteSignal<bool>) -> impl IntoView {
     view! {
         <button
             type="button"
-            class="fixed bottom-2 sm:bottom-8 right-2 sm:right-8 text-4xl h-12 w-12 rounded-full border border-black bg-white text-gray-900"
+            class="fixed bottom-2 left-2 sm:right-8 text-4xl h-12 w-12 rounded-full border border-black bg-white text-gray-900"
             on:click=move |_| set_show_info(true)
         >
             "?"

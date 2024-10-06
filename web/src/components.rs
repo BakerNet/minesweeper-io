@@ -1,6 +1,7 @@
 pub mod dark_mode;
 pub mod icons;
 pub mod info;
+pub mod socials;
 
 #[macro_export]
 macro_rules! input_class {
