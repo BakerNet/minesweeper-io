@@ -225,6 +225,8 @@ pub fn ReplayControls(
         })
     };
 
+    render_current();
+
     view! {
         <div class="flex flex-col items-center space-y-2 mb-8">
             <div class="table border-separate border-spacing-2">
