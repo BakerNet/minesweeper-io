@@ -149,13 +149,13 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
         false
     };
     let user_ref = auth_session.user.as_ref();
-    let player_num = if user_ref.is_some() {
+    let player_num = if game.max_players == 1 {
+        Some(0)
+    } else if user_ref.is_some() {
         players
             .iter()
             .find(|p| p.user == user_ref.map(|u| u.id))
             .map(|p| p.player)
-    } else if game.max_players == 1 {
-        Some(0)
     } else {
         None
     };
@@ -203,7 +203,7 @@ pub fn GameWrapper() -> impl IntoView {
     let game_id = move || params.get().get("id").cloned().unwrap_or_default();
 
     view! {
-        <div class="text-center">
+        <div class="flex-1 text-center py-8">
             <h3 class="text-4xl my-4 text-gray-900 dark:text-gray-200">"Game: "{game_id}</h3>
             <Outlet />
         </div>
