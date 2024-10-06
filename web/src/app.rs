@@ -8,7 +8,8 @@ mod minesweeper;
 mod profile;
 mod root;
 
-#[cfg(any(feature = "ssr", feature = "hydrate"))]
+#[cfg(feature = "ssr")]
+pub use root::shell;
 pub use root::App;
 
 #[cfg(feature = "ssr")]

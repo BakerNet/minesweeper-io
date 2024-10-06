@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_use::{
     use_clipboard, use_interval_fn_with_options, use_timeout_fn, utils::Pausable,
     UseClipboardReturn, UseIntervalFnOptions, UseTimeoutFnReturn,
@@ -23,8 +23,8 @@ pub fn ActiveTimer(
     sync_time: ReadSignal<Option<usize>>,
     completed: ReadSignal<bool>,
 ) -> impl IntoView {
-    let (start_time, set_start_time) = create_signal::<Option<f64>>(None);
-    let (display_time, set_display_time) = create_signal::<usize>(0);
+    let (start_time, set_start_time) = signal::<Option<f64>>(None);
+    let (display_time, set_display_time) = signal::<usize>(0);
 
     let Pausable {
         is_active,
@@ -48,25 +48,29 @@ pub fn ActiveTimer(
         },
     );
 
-    Effect::new(move |prev| {
-        log::debug!("Timer effect");
-        let completed = completed.get();
-        let sync_time = sync_time.get();
-        if sync_time.is_some() && sync_time != prev.flatten() {
-            if let Some(st) = sync_time {
-                set_display_time(st);
-                if let Some(p) = window().performance() {
-                    set_start_time(Some(p.now()));
+    Effect::watch(
+        move || (completed.get(), sync_time.get()),
+        move |curr, _, prev| {
+            log::debug!("Timer effect");
+            let completed = curr.0;
+            let sync_time = curr.1;
+            if sync_time.is_some() && sync_time != prev.flatten() {
+                if let Some(st) = sync_time {
+                    set_display_time(st);
+                    if let Some(p) = window().performance() {
+                        set_start_time(Some(p.now()));
+                    };
                 };
-            };
-        }
-        if !is_active.get_untracked() && !completed && sync_time.is_some() {
-            resume();
-        } else if completed {
-            pause();
-        }
-        sync_time
-    });
+            }
+            if !is_active.get_untracked() && !completed && sync_time.is_some() {
+                resume();
+            } else if completed {
+                pause();
+            }
+            sync_time
+        },
+        true,
+    );
 
     view! {
         <div class="flex items-center">
@@ -126,7 +130,7 @@ pub fn InactiveTimer(game_time: usize) -> impl IntoView {
 
 #[component]
 pub fn CopyGameLink(game_id: String) -> impl IntoView {
-    let (show_tooltip, set_show_tooltip) = create_signal(false);
+    let (show_tooltip, set_show_tooltip) = signal(false);
     let UseClipboardReturn { copy, .. } = use_clipboard();
     let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
         move |_| {

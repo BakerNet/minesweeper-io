@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
-use leptos::*;
-use std::{cell::RefCell, rc::Rc};
+use leptos::prelude::*;
+use std::sync::{Arc, RwLock};
 
 use minesweeper_lib::{
     board::{Board, BoardPoint},
@@ -15,57 +15,56 @@ use super::GameInfo;
 
 #[derive(Clone)]
 pub struct FrontendGame {
-    pub game_id: Rc<String>,
+    pub game_id: Arc<String>,
     pub is_owner: bool,
     pub has_owner: bool,
     pub player_id: ReadSignal<Option<usize>>,
-    pub players: Rc<Vec<ReadSignal<Option<ClientPlayer>>>>,
+    pub players: Arc<Vec<ReadSignal<Option<ClientPlayer>>>>,
     pub players_loaded: ReadSignal<bool>,
     pub err_signal: WriteSignal<Option<String>>,
-    pub join: ReadSignal<bool>,
-    pub join_trigger: WriteSignal<bool>,
+    pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
     pub sync_time: ReadSignal<Option<usize>>,
     pub flag_count: ReadSignal<usize>,
-    pub cells: Rc<Vec<Vec<ReadSignal<PlayerCell>>>>,
-    cell_signals: Rc<Vec<Vec<WriteSignal<PlayerCell>>>>,
+    pub cells: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    cell_signals: Arc<Vec<Vec<WriteSignal<PlayerCell>>>>,
     set_player_id: WriteSignal<Option<usize>>,
-    player_signals: Rc<Vec<WriteSignal<Option<ClientPlayer>>>>,
+    player_signals: Arc<Vec<WriteSignal<Option<ClientPlayer>>>>,
     set_players_loaded: WriteSignal<bool>,
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
     set_sync_time: WriteSignal<Option<usize>>,
     set_flag_count: WriteSignal<usize>,
-    game: Rc<RefCell<MinesweeperClient>>,
-    send: Rc<dyn Fn(&ClientMessage)>,
+    game: Arc<RwLock<MinesweeperClient>>,
+    send: Arc<dyn Fn(&ClientMessage) + Send + Sync>,
 }
 
 impl FrontendGame {
     pub fn new(
         game_info: &GameInfo,
         err_signal: WriteSignal<Option<String>>,
-        send: Rc<dyn Fn(&ClientMessage)>,
+        send: Arc<dyn Fn(&ClientMessage) + Send + Sync>,
     ) -> Self {
         let (read_signals, write_signals) = signals_from_board(&game_info.final_board);
         let mut players = Vec::with_capacity(game_info.players.len());
         let mut player_signals = Vec::with_capacity(game_info.players.len());
         game_info.players.iter().for_each(|p| {
-            let (rs, ws) = create_signal(p.clone());
+            let (rs, ws) = signal(p.clone());
             players.push(rs);
             player_signals.push(ws);
         });
-        let (players_loaded, set_players_loaded) = create_signal(false);
-        let (player_id, set_player_id) = create_signal::<Option<usize>>(None);
-        let (join, join_trigger) = create_signal(false);
-        let (started, set_started) = create_signal(game_info.is_started);
-        let (completed, set_completed) = create_signal(game_info.is_completed);
-        let (sync_time, set_sync_time) = create_signal::<Option<usize>>(None);
-        let (flag_count, set_flag_count) = create_signal(0);
+        let (players_loaded, set_players_loaded) = signal(false);
+        let (player_id, set_player_id) = signal::<Option<usize>>(None);
+        let join_trigger = Trigger::new();
+        let (started, set_started) = signal(game_info.is_started);
+        let (completed, set_completed) = signal(game_info.is_completed);
+        let (sync_time, set_sync_time) = signal::<Option<usize>>(None);
+        let (flag_count, set_flag_count) = signal(0);
         let rows = game_info.rows;
         let cols = game_info.cols;
         FrontendGame {
-            game_id: Rc::new(game_info.game_id.to_owned()),
+            game_id: Arc::new(game_info.game_id.to_owned()),
             is_owner: game_info.is_owner,
             has_owner: game_info.has_owner,
             cells: read_signals.into(),
@@ -77,7 +76,6 @@ impl FrontendGame {
             players_loaded,
             set_players_loaded,
             err_signal,
-            join,
             join_trigger,
             started,
             set_started,
@@ -87,7 +85,7 @@ impl FrontendGame {
             set_sync_time,
             flag_count,
             set_flag_count,
-            game: Rc::new(RefCell::new(MinesweeperClient::new(rows, cols))),
+            game: Arc::new(RwLock::new(MinesweeperClient::new(rows, cols))),
             send,
         }
     }
@@ -111,7 +109,7 @@ impl FrontendGame {
 
     pub fn try_reveal(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
-        let game: &MinesweeperClient = &(*self.game).borrow();
+        let game: &MinesweeperClient = &(*self.game).read().unwrap();
         let point = BoardPoint { row, col };
         if let PlayerCell::Revealed(_) = game.board[&point] {
             bail!("Tried to click revealed cell")
@@ -127,7 +125,7 @@ impl FrontendGame {
 
     pub fn try_flag(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
-        let game: &MinesweeperClient = &(*self.game).borrow();
+        let game: &MinesweeperClient = &(*self.game).read().unwrap();
         let point = BoardPoint { row, col };
         if let PlayerCell::Revealed(_) = game.board[&point] {
             return Ok(());
@@ -143,7 +141,7 @@ impl FrontendGame {
 
     pub fn try_reveal_adjacent(&self, row: usize, col: usize) -> Result<()> {
         let player = self.play_protections()?;
-        let game: &MinesweeperClient = &(*self.game).borrow();
+        let game: &MinesweeperClient = &(*self.game).read().unwrap();
         let point = BoardPoint { row, col };
         if let PlayerCell::Revealed(_) = game.board[&point] {
         } else {
@@ -162,7 +160,7 @@ impl FrontendGame {
     }
 
     pub fn handle_message(&self, game_message: GameMessage) -> Result<()> {
-        let game: &mut MinesweeperClient = &mut (*self.game).borrow_mut();
+        let game: &mut MinesweeperClient = &mut (*self.game).write().unwrap();
         match game_message {
             GameMessage::PlayerId(player_id) => {
                 (self.set_player_id)(Some(player_id));
@@ -268,7 +266,7 @@ pub fn signals_from_board(
         let mut read_row = Vec::new();
         let mut write_row = Vec::new();
         cells.iter().for_each(|cell| {
-            let (rs, ws) = create_signal(*cell);
+            let (rs, ws) = signal(*cell);
             read_row.push(rs);
             write_row.push(ws);
         });

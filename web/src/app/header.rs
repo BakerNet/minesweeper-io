@@ -1,5 +1,7 @@
-use leptos::*;
-use leptos_router::*;
+use codee::string::JsonSerdeCodec;
+use leptos::either::*;
+use leptos::prelude::*;
+use leptos_router::components::*;
 
 use crate::{
     cell_class,
@@ -36,29 +38,26 @@ fn logo() -> impl IntoView {
 }
 
 #[component]
-pub fn Header<S>(user: Resource<S, Option<FrontendUser>>) -> impl IntoView
-where
-    S: PartialEq + Clone + 'static,
-{
+pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl IntoView {
     let user_info = move |user: Option<FrontendUser>| {
         let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
         match user {
-            None => view! {
+            None => Either::Left(view! {
                 <span>
                     "Guest (" <A href="/auth/login" attr:class=aclass>
                         "Log in"
                     </A> ")"
                 </span>
-            },
+            }),
             Some(user) => {
                 let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
-                view! {
+                Either::Right(view! {
                     <span>
                         {name} " (" <A href="/profile" attr:class=aclass>
                             "Profile"
                         </A> ")"
                     </span>
-                }
+                })
             }
         }
     };
@@ -69,9 +68,14 @@ where
             </A>
             <div class="flex grow justify-end items-center space-x-2">
                 <Transition fallback=move || ()>
-                    <span class="text-lg text-gray-900 dark:text-gray-200">
-                        {user.get().map(user_info)}
-                    </span>
+                    {move || Suspend::new(async move {
+                        let user = user.await;
+                        let user = user_info(user);
+                        view! {
+                            <span class="text-lg text-gray-900 dark:text-gray-200">{user}</span>
+                        }
+                    })}
+
                 </Transition>
                 <DarkModeToggle />
             </div>

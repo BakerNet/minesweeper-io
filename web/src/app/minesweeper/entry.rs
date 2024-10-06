@@ -1,6 +1,5 @@
 use codee::string::JsonSerdeWasmCodec;
-use leptos::*;
-use leptos_router::*;
+use leptos::prelude::*;
 use leptos_use::storage::{use_local_storage, use_local_storage_with_options, UseStorageOptions};
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
@@ -381,8 +380,8 @@ where
 
 #[component]
 pub fn JoinOrCreateGame() -> impl IntoView {
-    let join_game = create_server_action::<JoinGame>();
-    let new_game = create_server_action::<NewGame>();
+    let join_game = ServerAction::<JoinGame>::new();
+    let new_game = ServerAction::<NewGame>::new();
 
     let storage_options = UseStorageOptions::<GameMode, serde_json::Error, JsValue>::default()
         .delay_during_hydration(true);
@@ -395,12 +394,12 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         use_local_storage::<GameSettings, JsonSerdeWasmCodec>("custom_game_settings");
 
     let defaults = GameSettings::default();
-    let (rows, set_rows) = create_signal(defaults.rows);
-    let (cols, set_cols) = create_signal(defaults.cols);
-    let (num_mines, set_num_mines) = create_signal(defaults.num_mines);
-    let (max_players, set_max_players) = create_signal(defaults.max_players);
-    let (dirty, set_dirty) = create_signal(false);
-    let (errors, set_errors) = create_signal(Vec::new());
+    let (rows, set_rows) = signal(defaults.rows);
+    let (cols, set_cols) = signal(defaults.cols);
+    let (num_mines, set_num_mines) = signal(defaults.num_mines);
+    let (max_players, set_max_players) = signal(defaults.max_players);
+    let (dirty, set_dirty) = signal(false);
+    let (errors, set_errors) = signal(Vec::new());
 
     let load_custom_settings = move || {
         let stored_settings = custom_settings.get_untracked();
@@ -410,19 +409,22 @@ pub fn JoinOrCreateGame() -> impl IntoView {
         set_max_players(stored_settings.max_players);
     };
 
-    Effect::new(move |_| {
-        let mode = selected_mode.get();
-        if mode != GameMode::Custom {
-            let mode_settings = GameSettings::from(mode);
-            set_rows(mode_settings.rows);
-            set_cols(mode_settings.cols);
-            set_num_mines(mode_settings.num_mines);
-            set_max_players(mode_settings.max_players);
-            set_dirty(false);
-        } else if !dirty.get_untracked() {
-            load_custom_settings();
-        }
-    });
+    Effect::watch(
+        selected_mode,
+        move |mode, _, _| {
+            if *mode != GameMode::Custom {
+                let mode_settings = GameSettings::from(mode);
+                set_rows(mode_settings.rows);
+                set_cols(mode_settings.cols);
+                set_num_mines(mode_settings.num_mines);
+                set_max_players(mode_settings.max_players);
+                set_dirty(false);
+            } else if !dirty.get_untracked() {
+                load_custom_settings();
+            }
+        },
+        true,
+    );
 
     Effect::new(move |_| {
         let rows = rows.get();
@@ -547,7 +549,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
 
 #[component]
 pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
-    let new_game = create_server_action::<NewGame>();
+    let new_game = ServerAction::<NewGame>::new();
 
     view! {
         <div class="flex flex-col items-center space-y-4 mb-8">

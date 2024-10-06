@@ -1,4 +1,4 @@
-use leptos::*;
+use leptos::prelude::*;
 use leptos_use::{use_color_mode, ColorMode, UseColorModeReturn};
 
 #[component]
@@ -7,6 +7,7 @@ pub fn DarkModeToggle() -> impl IntoView {
     view! {
         <button
             type="button"
+            aria-label="dark mode toggle"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
             on:click=move |_| {
                 match mode() {

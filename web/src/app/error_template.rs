@@ -1,5 +1,5 @@
 use http::status::StatusCode;
-use leptos::*;
+use leptos::prelude::*;
 use thiserror::Error;
 
 #[cfg(feature = "ssr")]
