@@ -26,6 +26,21 @@ pub struct Game {
     pub final_board: Option<Vec<Vec<PlayerCell>>>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
+pub struct SimpleGameWithPlayers {
+    pub game_id: String,
+    pub owner: Option<i64>, // User.id
+    pub rows: i64,
+    pub cols: i64,
+    pub num_mines: i64,
+    pub max_players: u8,
+    pub is_completed: bool,
+    pub is_started: bool,
+    pub start_time: Option<DateTime<Utc>>,
+    pub end_time: Option<DateTime<Utc>>,
+    pub num_players: u8,
+}
+
 pub struct GameParameters {
     pub rows: i64,
     pub cols: i64,
@@ -39,6 +54,23 @@ impl Game {
             .bind(game_id)
             .fetch_optional(db)
             .await
+    }
+
+    pub async fn get_games_with_players<T>(
+        db: &SqlitePool,
+        game_ids: &[T],
+    ) -> Result<Vec<SimpleGameWithPlayers>, sqlx::Error>
+    where
+        T: AsRef<str> + Send + Sync,
+    {
+        let params = format!("?{}", ", ?".repeat(game_ids.len() - 1));
+        let query_str = format!("select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, ( select count(*) from players where players.game_id = games.game_id ) as num_players from games where game_id in ( {} )", params);
+
+        let mut query = sqlx::query_as(&query_str);
+        for i in game_ids {
+            query = query.bind(i.as_ref());
+        }
+        query.fetch_all(db).await
     }
 
     pub async fn create_game(
@@ -122,10 +154,6 @@ impl Game {
             .execute(db)
             .await
             .map(|_| ())
-    }
-
-    pub(crate) fn get_games(db: &SqlitePool, game_ids: Vec<&str>) -> Result<Vec<Game>> {
-        todo!()
     }
 }
 
