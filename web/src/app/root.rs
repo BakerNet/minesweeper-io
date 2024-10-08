@@ -3,7 +3,7 @@ use leptos_meta::*;
 use leptos_router::{components::*, path};
 
 use crate::{
-    app::footer::Footer,
+    app::{active::ActiveGames, footer::Footer},
     components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal},
 };
 
@@ -20,7 +20,7 @@ use super::{
 #[cfg(feature = "ssr")]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
-        <!DOCTYPE html> 
+        <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="utf-8" />
@@ -90,6 +90,7 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/replay") view=ReplayView />
                         <Route path=path!("/") view=GameView />
                     </ParentRoute>
+                    <Route path=path!("/active") view=ActiveGames />
                 </Routes>
                 <Footer />
                 <ControlsInfoButton set_show_info />

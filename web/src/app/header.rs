@@ -39,32 +39,34 @@ fn logo() -> impl IntoView {
 
 #[component]
 pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl IntoView {
-    let user_info = move |user: Option<FrontendUser>| {
-        let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
-        match user {
-            None => Either::Left(view! {
+    let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
+
+    let user_info = move |user: Option<FrontendUser>| match user {
+        None => Either::Left(view! {
+            <span>
+                "Guest (" <A href="/auth/login" attr:class=aclass>
+                    "Log in"
+                </A> ")"
+            </span>
+        }),
+        Some(user) => {
+            let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
+            Either::Right(view! {
                 <span>
-                    "Guest (" <A href="/auth/login" attr:class=aclass>
-                        "Log in"
+                    {name} " (" <A href="/profile" attr:class=aclass>
+                        "Profile"
                     </A> ")"
                 </span>
-            }),
-            Some(user) => {
-                let name = FrontendUser::display_name_or_anon(user.display_name.as_ref(), true);
-                Either::Right(view! {
-                    <span>
-                        {name} " (" <A href="/profile" attr:class=aclass>
-                            "Profile"
-                        </A> ")"
-                    </span>
-                })
-            }
+            })
         }
     };
     view! {
-        <header class="flex flex-wrap space-y-2 items-center justify-between px-4 py-2 border-b border-gray-800">
+        <header class="flex flex-wrap space-y-2 space-x-4 items-center justify-between px-4 py-2 border-b border-gray-800">
             <A href="/" attr:class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
+            </A>
+            <A href="/active" attr:class=format!("{} flex items-center space-x-2 text-lg", aclass)>
+                "Active Games"
             </A>
             <div class="flex grow justify-end items-center space-x-2">
                 <Transition fallback=move || ()>
