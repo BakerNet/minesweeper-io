@@ -1,5 +1,5 @@
 #![cfg(feature = "ssr")]
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use minesweeper_lib::{
     cell::PlayerCell,
     client::ClientPlayer,
@@ -56,7 +56,7 @@ impl Game {
             .await
     }
 
-    pub async fn get_games_with_players<T>(
+    pub async fn get_games_with_players_by_ids<T>(
         db: &SqlitePool,
         game_ids: &[T],
     ) -> Result<Vec<SimpleGameWithPlayers>, sqlx::Error>
@@ -70,6 +70,21 @@ impl Game {
         for i in game_ids {
             query = query.bind(i.as_ref());
         }
+        query.fetch_all(db).await
+    }
+
+    pub async fn get_recent_games_with_players(
+        db: &SqlitePool,
+        duration: TimeDelta,
+    ) -> Result<Vec<SimpleGameWithPlayers>, sqlx::Error> {
+        let params = if duration.num_minutes().abs() > 0 {
+            format!("{} minutes", duration.num_minutes())
+        } else {
+            format!("{} seconds", duration.num_seconds())
+        };
+        let query_str = format!("select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, ( select count(*) from players where players.game_id = games.game_id ) as num_players from games where end_time >= Datetime('now', '{}')", params);
+
+        let query = sqlx::query_as(&query_str);
         query.fetch_all(db).await
     }
 

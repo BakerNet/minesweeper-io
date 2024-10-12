@@ -1,6 +1,7 @@
 use ::chrono::{DateTime, Utc};
 use anyhow::{anyhow, bail, Result};
 use axum::extract::ws::{Message, WebSocket};
+use chrono::TimeDelta;
 use futures::{sink::SinkExt, stream::SplitSink};
 use minesweeper_lib::{
     board::Board,
@@ -114,16 +115,11 @@ impl GameManager {
             .is_some()
     }
 
-    pub async fn get_multiplayer_not_started(&self) -> Vec<SimpleGameWithPlayers> {
+    pub async fn get_active_games(&self) -> Vec<SimpleGameWithPlayers> {
         let game_ids = {
             let games = self.games.read().await;
             games
                 .iter()
-                .filter(|gh| {
-                    gh.1.max_players > 1
-                        && gh.1.start_time.is_none()
-                        && gh.1.players.len() < gh.1.max_players as usize
-                })
                 .map(|gh| gh.0)
                 .cloned()
                 .collect::<Vec<String>>()
@@ -131,29 +127,13 @@ impl GameManager {
         if game_ids.len() == 0 {
             return Vec::new();
         }
-        Game::get_games_with_players(&self.db, &game_ids)
+        Game::get_games_with_players_by_ids(&self.db, &game_ids)
             .await
             .unwrap_or_default()
     }
 
-    pub async fn get_other_games(&self) -> Vec<SimpleGameWithPlayers> {
-        let game_ids = {
-            let games = self.games.read().await;
-            games
-                .iter()
-                .filter(|gh| {
-                    gh.1.max_players == 1
-                        || gh.1.start_time.is_some()
-                        || gh.1.players.len() == gh.1.max_players as usize
-                })
-                .map(|gh| gh.0)
-                .cloned()
-                .collect::<Vec<String>>()
-        };
-        if game_ids.len() == 0 {
-            return Vec::new();
-        }
-        Game::get_games_with_players(&self.db, &game_ids)
+    pub async fn get_recent_games(&self) -> Vec<SimpleGameWithPlayers> {
+        Game::get_recent_games_with_players(&self.db, TimeDelta::minutes(-5))
             .await
             .unwrap_or_default()
     }

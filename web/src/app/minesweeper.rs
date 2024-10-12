@@ -2,6 +2,7 @@ mod cell;
 mod client;
 mod entry;
 mod game;
+mod games;
 mod players;
 mod replay;
 mod widgets;
@@ -9,6 +10,7 @@ mod widgets;
 use chrono::{DateTime, Utc};
 pub use entry::{GameMode, JoinOrCreateGame};
 pub use game::{GameView, GameWrapper, ReplayView};
+pub use games::{ActiveGames, RecentGames};
 
 use serde::{Deserialize, Serialize};
 

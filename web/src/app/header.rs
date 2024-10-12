@@ -68,6 +68,9 @@ pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl Into
             <A href="/active" attr:class=format!("{} flex items-center space-x-2 text-lg", aclass)>
                 "Active Games"
             </A>
+            <A href="/recent" attr:class=format!("{} flex items-center space-x-2 text-lg", aclass)>
+                "Recent Games"
+            </A>
             <div class="flex grow justify-end items-center space-x-2">
                 <Transition fallback=move || ()>
                     {move || Suspend::new(async move {

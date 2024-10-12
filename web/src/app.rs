@@ -1,4 +1,3 @@
-mod active;
 mod auth;
 mod error_template;
 mod footer;
