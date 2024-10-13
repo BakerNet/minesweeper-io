@@ -66,6 +66,7 @@ pub struct GameManager {
     games: Arc<RwLock<HashMap<String, GameHandle>>>,
     // use active cache to avoid frequent read locks on games
     active_cache: Arc<CachedValue<Vec<SimpleGameWithPlayers>>>,
+    recent_cache: Arc<CachedValue<Vec<SimpleGameWithPlayers>>>,
 }
 
 impl GameManager {
@@ -75,6 +76,7 @@ impl GameManager {
             games: RwLock::new(HashMap::new()).into(),
             // 1.5 second active cache
             active_cache: CachedValue::new(Duration::from_millis(1500)).into(),
+            recent_cache: CachedValue::new(Duration::from_secs(4)).into(),
         }
     }
 
@@ -144,9 +146,14 @@ impl GameManager {
     }
 
     pub async fn get_recent_games(&self) -> Vec<SimpleGameWithPlayers> {
-        Game::get_recent_games_with_players(&self.db, TimeDelta::hours(-1))
+        if let Some(games) = self.recent_cache.get().await {
+            return games;
+        }
+        let games = Game::get_recent_games_with_players(&self.db, TimeDelta::hours(-1))
             .await
-            .unwrap_or_default()
+            .unwrap_or_default();
+        self.recent_cache.set(games.clone()).await;
+        games
     }
 
     pub async fn get_game(&self, game_id: &str) -> Result<Game> {
@@ -321,12 +328,6 @@ impl GameManager {
     }
 
     async fn save_game(&self, game_id: &str, board: Board<PlayerCell>) -> Result<()> {
-        {
-            let games = self.games.read().await;
-            if !games.contains_key(game_id) {
-                bail!("Game with id {game_id} doesn't exist")
-            }
-        }
         Game::save_board(&self.db, game_id, board.into()).await?;
         Ok(())
     }
