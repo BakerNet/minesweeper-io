@@ -144,7 +144,7 @@ impl GameManager {
     }
 
     pub async fn get_recent_games(&self) -> Vec<SimpleGameWithPlayers> {
-        Game::get_recent_games_with_players(&self.db, TimeDelta::minutes(-5))
+        Game::get_recent_games_with_players(&self.db, TimeDelta::hours(-1))
             .await
             .unwrap_or_default()
     }

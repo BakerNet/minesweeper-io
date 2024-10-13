@@ -73,41 +73,6 @@ pub async fn get_recent_games() -> Result<Vec<SimpleGameInfo>, ServerFnError> {
 }
 
 #[component]
-fn NoneCard(children: Children) -> impl IntoView {
-    view! {
-        <div class="flex justify-center items-center h-16 w-full col-span-full text-gray-900 dark:text-gray-200">
-            {children()}
-        </div>
-    }
-}
-
-#[component]
-fn GameCard(games: Vec<SimpleGameInfo>) -> impl IntoView {
-    match games.len() {
-        0 => Either::Left(view! { <NoneCard>"No games found"</NoneCard> }),
-        count => Either::Right(
-            games
-                .clone()
-                .into_iter()
-                .enumerate()
-                .map(|(i, game_info)| {
-                    let offset = if i == 0 && count < 3 {
-                        if count == 1 {
-                            "sm:col-start-2"
-                        } else {
-                            "xl:col-start-2"
-                        }
-                    } else {
-                        ""
-                    };
-                    view! { <GameSummary game_info style=offset.to_owned() /> }
-                })
-                .collect_view(),
-        ),
-    }
-}
-
-#[component]
 pub fn ActiveGames() -> impl IntoView {
     let active_games = Resource::new(move || (), move |_| async { get_active_games().await });
 
@@ -187,6 +152,41 @@ pub fn RecentGames() -> impl IntoView {
 }
 
 #[component]
+fn NoneCard(children: Children) -> impl IntoView {
+    view! {
+        <div class="flex justify-center items-center h-16 w-full col-span-full text-gray-900 dark:text-gray-200">
+            {children()}
+        </div>
+    }
+}
+
+#[component]
+fn GameCard(games: Vec<SimpleGameInfo>) -> impl IntoView {
+    match games.len() {
+        0 => Either::Left(view! { <NoneCard>"No games found"</NoneCard> }),
+        count => Either::Right(
+            games
+                .clone()
+                .into_iter()
+                .enumerate()
+                .map(|(i, game_info)| {
+                    let offset = if i == 0 && count < 3 {
+                        if count == 1 {
+                            "sm:col-start-2"
+                        } else {
+                            "xl:col-start-2"
+                        }
+                    } else {
+                        ""
+                    };
+                    view! { <GameSummary game_info style=offset.to_owned() /> }
+                })
+                .collect_view(),
+        ),
+    }
+}
+
+#[component]
 fn GameSummary(game_info: SimpleGameInfo, style: String) -> impl IntoView {
     let url = format!("/game/{}", game_info.game_id);
     let section_class =
@@ -201,14 +201,12 @@ fn GameSummary(game_info: SimpleGameInfo, style: String) -> impl IntoView {
             _ => EitherOf3::B(view! { <>"Unknown"</> }),
         }
     } else {
-        EitherOf3::C(
-            view! {
-                <>
-                    {Utc::now().signed_duration_since(game_info.start_time.unwrap()).num_seconds()}
-                    " seconds"
-                </>
-            },
-        )
+        EitherOf3::C(view! {
+            <>
+                {Utc::now().signed_duration_since(game_info.start_time.unwrap()).num_seconds()}
+                " seconds"
+            </>
+        })
     };
     view! {
         <A href=url attr:class=style>
