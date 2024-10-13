@@ -1,4 +1,7 @@
-use std::time::{Duration, Instant};
+use std::{
+    future::Future,
+    time::{Duration, Instant},
+};
 
 use tokio::sync::Mutex;
 
@@ -16,13 +19,14 @@ impl<T: Clone> CachedValue<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get(&self) -> Option<T> {
-        let mut value = self.current.lock().await;
-        match &(*value) {
+        let mut current = self.current.lock().await;
+        match &(*current) {
             None => None,
             Some(inner) => {
                 if Instant::now() - self.ttl > inner.0 {
-                    *value = None;
+                    *current = None;
                     return None;
                 }
                 Some(inner.1.clone())
@@ -30,8 +34,32 @@ impl<T: Clone> CachedValue<T> {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn set(&self, value: T) {
         let mut current = self.current.lock().await;
         *current = Some((Instant::now(), value));
+    }
+
+    pub async fn get_or_set<F, Fut>(&self, f: F) -> T
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = T>,
+    {
+        let mut current = self.current.lock().await;
+        match &(*current) {
+            None => {
+                let new = f().await;
+                *current = Some((Instant::now(), new.clone()));
+                new
+            }
+            Some(inner) => {
+                if Instant::now() - self.ttl > inner.0 {
+                    let new = f().await;
+                    *current = Some((Instant::now(), new.clone()));
+                    return new;
+                }
+                inner.1.clone()
+            }
+        }
     }
 }

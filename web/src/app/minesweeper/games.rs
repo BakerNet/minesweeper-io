@@ -54,7 +54,7 @@ pub async fn get_active_games() -> Result<(Vec<SimpleGameInfo>, Vec<SimpleGameIn
         .fold((Vec::new(), Vec::new()), |acc, game| {
             let mut multiplayer_not_started = acc.0;
             let mut other = acc.1;
-            if game.max_players > 1 && game.num_players < game.max_players && !game.is_started {
+            if game.max_players > 1 && game.num_players < game.max_players {
                 multiplayer_not_started.push(game.into());
             } else {
                 other.push(game.into());
@@ -192,16 +192,16 @@ fn GameSummary(game_info: SimpleGameInfo, style: String) -> impl IntoView {
     let section_class =
         "flex justify-center items-center border border-slate-100 dark:border-slate-700 p-1";
     let time = if game_info.start_time.is_none() {
-        EitherOf3::A(view! { <>"Not started"</> })
+        EitherOf4::A(view! { <>"Not started"</> })
     } else if game_info.is_completed {
         match (game_info.start_time, game_info.end_time) {
-            (Some(st), Some(et)) => EitherOf3::C(
+            (Some(st), Some(et)) => EitherOf4::B(
                 view! { <>{999.min(et.signed_duration_since(st).num_seconds())} " seconds"</> },
             ),
-            _ => EitherOf3::B(view! { <>"Unknown"</> }),
+            _ => EitherOf4::C(view! { <>"Unknown"</> }),
         }
     } else {
-        EitherOf3::C(view! {
+        EitherOf4::D(view! {
             <>
                 {Utc::now().signed_duration_since(game_info.start_time.unwrap()).num_seconds()}
                 " seconds"

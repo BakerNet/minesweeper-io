@@ -13,7 +13,7 @@ use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
 use tokio::{
     sync::{broadcast, mpsc, Mutex, RwLock},
-    time::{interval, sleep, Duration},
+    time::{interval, Duration},
 };
 
 use crate::{
@@ -123,37 +123,34 @@ impl GameManager {
     }
 
     pub async fn get_active_games(&self) -> Vec<SimpleGameWithPlayers> {
-        if let Some(games) = self.active_cache.get().await {
-            return games;
-        }
-        let game_ids = {
-            let games = self.games.read().await;
-            games
-                .iter()
-                .map(|gh| gh.0)
-                .cloned()
-                .collect::<Vec<String>>()
-        };
-        if game_ids.is_empty() {
-            self.active_cache.set(Vec::new()).await;
-            return Vec::new();
-        }
-        let games = Game::get_games_with_players_by_ids(&self.db, &game_ids)
+        self.active_cache
+            .get_or_set(|| async {
+                let game_ids = {
+                    let games = self.games.read().await;
+                    games
+                        .iter()
+                        .map(|gh| gh.0)
+                        .cloned()
+                        .collect::<Vec<String>>()
+                };
+                if game_ids.is_empty() {
+                    return Vec::new();
+                }
+                Game::get_games_with_players_by_ids(&self.db, &game_ids)
+                    .await
+                    .unwrap_or_default()
+            })
             .await
-            .unwrap_or_default();
-        self.active_cache.set(games.clone()).await;
-        games
     }
 
     pub async fn get_recent_games(&self) -> Vec<SimpleGameWithPlayers> {
-        if let Some(games) = self.recent_cache.get().await {
-            return games;
-        }
-        let games = Game::get_recent_games_with_players(&self.db, TimeDelta::hours(-1))
+        self.recent_cache
+            .get_or_set(|| async {
+                Game::get_recent_games_with_players(&self.db, TimeDelta::hours(-1))
+                    .await
+                    .unwrap_or_default()
+            })
             .await
-            .unwrap_or_default();
-        self.recent_cache.set(games.clone()).await;
-        games
     }
 
     pub async fn get_game(&self, game_id: &str) -> Result<Game> {
@@ -409,18 +406,17 @@ impl GameHandler {
     }
 
     async fn handle_game(mut self) {
-        let timeout = sleep(Duration::from_secs(1200)); // timeout >999 seconds
-        tokio::pin!(timeout);
-        let mut save_interval = interval(Duration::from_secs(20)); // save every 20 seconds
+        let mut checks_interval = interval(Duration::from_secs(20)); // save every 20 seconds
 
         let mut first_play = false;
         let mut needs_save = false;
         let mut start_time = None;
+        let mut last_action = Utc::now();
 
         loop {
             tokio::select! {
                 Some(msg) = self.receiver.recv() => {
-                    log::debug!("Message received: {}", msg);
+                    log::debug!("Message received {}: {}", self.game.game_id, msg);
                     let played = self.handle_message(&msg).await.is_some();
                     needs_save = played;
                     if played && !first_play {
@@ -432,29 +428,33 @@ impl GameHandler {
                         log::debug!("Sending sync_msg {:?}", sync_msg);
                         let _ = self.broadcaster.send(sync_msg);
                     }
+                    last_action = Utc::now();
                     if self.minesweeper.is_over() {
                         break;
                     }
                 },
                 Some(event) = self.game_events.recv() => {
-                    log::debug!("Game update received: {:?}", event);
+                    log::debug!("Game update received {}: {:?}", self.game.game_id, event);
                     self.handle_game_event(event).await;
+                    last_action = Utc::now();
                 }
-                _ = save_interval.tick() => {
-                    log::debug!("Checking for game save");
+                _ = checks_interval.tick() => {
+                    log::debug!("Checking for game {}", self.game.game_id);
                     if needs_save {
                         self.save_game_state().await;
                         needs_save = false;
                     }
+                    let now = Utc::now();
                     if let Some(st) = start_time {
-                        if Utc::now().signed_duration_since(st).num_seconds() >= 999 {
+                        if now.signed_duration_since(st).num_seconds() >= 999 {
+                            log::debug!("Game over time {}", self.game.game_id);
                             break;
                         }
                     }
-                },
-                () = &mut timeout => {
-                    log::debug!("Game timeout reached {}", self.game.game_id);
-                    break;
+                    if now.signed_duration_since(last_action).num_seconds() >= 120 {
+                        log::debug!("Game timed out {}", self.game.game_id);
+                        break;
+                    }
                 },
             }
         }
