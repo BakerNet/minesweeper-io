@@ -45,7 +45,7 @@ pub fn ProfileView(
     let title = move || {
         let user = user.get().flatten();
         let is_user = user.is_some();
-        let display_name = user.map(|u| u.display_name).flatten();
+        let display_name = user.and_then(|u| u.display_name);
         format!(
             "Profile - {}",
             FrontendUser::display_name_or_anon(display_name.as_ref(), is_user)

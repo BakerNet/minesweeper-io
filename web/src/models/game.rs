@@ -64,7 +64,16 @@ impl Game {
         T: AsRef<str> + Send + Sync,
     {
         let params = format!("?{}", ", ?".repeat(game_ids.len() - 1));
-        let query_str = format!("select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, ( select count(*) from players where players.game_id = games.game_id ) as num_players from games where game_id in ( {} )", params);
+        let query_str = format!(
+            r#"
+            select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, 
+            ( select count(*) from players where players.game_id = games.game_id ) as num_players 
+            from games 
+            where game_id in ( {} ) 
+            limit 100
+            "#,
+            params
+        );
 
         let mut query = sqlx::query_as(&query_str);
         for i in game_ids {
@@ -82,7 +91,16 @@ impl Game {
         } else {
             format!("{} seconds", duration.num_seconds())
         };
-        let query_str = format!("select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, ( select count(*) from players where players.game_id = games.game_id ) as num_players from games where end_time >= Datetime('now', '{}')", params);
+        let query_str = format!(
+            r#"
+            select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, 
+            ( select count(*) from players where players.game_id = games.game_id ) as num_players 
+            from games 
+            where end_time >= Datetime('now', '{}') 
+            limit 100
+            "#,
+            params
+        );
 
         let query = sqlx::query_as(&query_str);
         query.fetch_all(db).await

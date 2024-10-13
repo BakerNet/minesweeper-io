@@ -157,7 +157,7 @@ pub fn ActiveGames() -> impl IntoView {
 pub fn RecentGames() -> impl IntoView {
     let recent_games = Resource::new(move || (), move |_| async { get_recent_games().await });
 
-    let UseIntervalReturn { counter, .. } = use_interval(2000);
+    let UseIntervalReturn { counter, .. } = use_interval(5000);
 
     Effect::watch(
         counter,
@@ -191,22 +191,24 @@ fn GameSummary(game_info: SimpleGameInfo, style: String) -> impl IntoView {
     let url = format!("/game/{}", game_info.game_id);
     let section_class =
         "flex justify-center items-center border border-slate-100 dark:border-slate-700 p-1";
-    let time = if !game_info.is_started {
+    let time = if game_info.start_time.is_none() {
         EitherOf3::A(view! { <>"Not started"</> })
     } else if game_info.is_completed {
         match (game_info.start_time, game_info.end_time) {
-            (Some(st), Some(et)) => {
-                EitherOf3::C(view! { <>{et.signed_duration_since(st).num_seconds()} " seconds"</> })
-            }
+            (Some(st), Some(et)) => EitherOf3::C(
+                view! { <>{999.min(et.signed_duration_since(st).num_seconds())} " seconds"</> },
+            ),
             _ => EitherOf3::B(view! { <>"Unknown"</> }),
         }
     } else {
-        match game_info.start_time {
-            None => EitherOf3::B(view! { <>"Unknown"</> }),
-            Some(t) => EitherOf3::C(
-                view! { <>{Utc::now().signed_duration_since(t).num_seconds()} " seconds"</> },
-            ),
-        }
+        EitherOf3::C(
+            view! {
+                <>
+                    {Utc::now().signed_duration_since(game_info.start_time.unwrap()).num_seconds()}
+                    " seconds"
+                </>
+            },
+        )
     };
     view! {
         <A href=url attr:class=style>

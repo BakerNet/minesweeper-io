@@ -27,6 +27,8 @@ use crate::{
     },
 };
 
+use super::cache::CachedValue;
+
 #[derive(Clone, Debug)]
 struct PlayerHandle {
     user_id: Option<i64>,
@@ -62,13 +64,17 @@ struct GameHandle {
 pub struct GameManager {
     db: SqlitePool,
     games: Arc<RwLock<HashMap<String, GameHandle>>>,
+    // use active cache to avoid frequent read locks on games
+    active_cache: Arc<CachedValue<Vec<SimpleGameWithPlayers>>>,
 }
 
 impl GameManager {
     pub fn new(db: SqlitePool) -> Self {
         GameManager {
             db,
-            games: Arc::new(RwLock::new(HashMap::new())),
+            games: RwLock::new(HashMap::new()).into(),
+            // 1.5 second active cache
+            active_cache: CachedValue::new(Duration::from_millis(1500)).into(),
         }
     }
 
@@ -78,10 +84,6 @@ impl GameManager {
         game_id: &str,
         game_parameters: GameParameters,
     ) -> Result<()> {
-        let mut games = self.games.write().await;
-        if games.contains_key(game_id) {
-            bail!("Game with id {game_id} already exists")
-        }
         let max_players = game_parameters.max_players;
         let mut game = Game::create_game(&self.db, game_id, &user, game_parameters).await?;
         if max_players == 1 {
@@ -100,7 +102,10 @@ impl GameManager {
             owner: user.map(|u| u.id),
             start_time: None,
         };
-        games.insert(game_id.to_string(), handle);
+        {
+            let mut games = self.games.write().await;
+            games.insert(game_id.to_string(), handle);
+        }
         let self_clone = self.clone();
         let game_handler = GameHandler::new(game, self_clone, bc_tx, mp_rx, ch_rx);
         tokio::spawn(async move { game_handler.handle_game().await });
@@ -116,6 +121,9 @@ impl GameManager {
     }
 
     pub async fn get_active_games(&self) -> Vec<SimpleGameWithPlayers> {
+        if let Some(games) = self.active_cache.get().await {
+            return games;
+        }
         let game_ids = {
             let games = self.games.read().await;
             games
@@ -124,12 +132,15 @@ impl GameManager {
                 .cloned()
                 .collect::<Vec<String>>()
         };
-        if game_ids.len() == 0 {
+        if game_ids.is_empty() {
+            self.active_cache.set(Vec::new()).await;
             return Vec::new();
         }
-        Game::get_games_with_players_by_ids(&self.db, &game_ids)
+        let games = Game::get_games_with_players_by_ids(&self.db, &game_ids)
             .await
-            .unwrap_or_default()
+            .unwrap_or_default();
+        self.active_cache.set(games.clone()).await;
+        games
     }
 
     pub async fn get_recent_games(&self) -> Vec<SimpleGameWithPlayers> {
@@ -172,23 +183,29 @@ impl GameManager {
         game_id: &str,
         ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> Result<broadcast::Receiver<String>> {
-        let games = self.games.read().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
-        let handle = games.get(game_id).unwrap();
-        if let Some(dt) = &handle.start_time {
+        let (start_time, game_events, to_client) = {
+            let games = self.games.read().await;
+            if !games.contains_key(game_id) {
+                bail!("Game with id {game_id} doesn't exist")
+            }
+            let handle = games.get(game_id).unwrap();
+            (
+                handle.start_time,
+                handle.game_events.clone(),
+                handle.to_client.clone(),
+            )
+        };
+        if let Some(dt) = start_time {
             let mut sender = ws_sender.lock().await;
             let start_time_msg =
                 GameMessage::SyncTimer(Utc::now().signed_duration_since(dt).num_seconds() as usize)
                     .into_json();
             let _ = sender.send(Message::Text(start_time_msg)).await;
         };
-        handle
-            .game_events
+        game_events
             .send(GameEvent::Viewer(ViewerHandle { ws_sender }))
             .await?;
-        Ok(handle.to_client.subscribe())
+        Ok(to_client.subscribe())
     }
 
     pub async fn play_game(
@@ -197,45 +214,62 @@ impl GameManager {
         user: &Option<User>,
         ws_sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     ) -> Result<mpsc::Sender<String>> {
-        let mut games = self.games.write().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
-        let handle = games.get_mut(game_id).unwrap();
         let user_id = user.as_ref().map(|u| u.id);
         let display_name = user.as_ref().and_then(|u| u.display_name.as_ref());
-        let found = handle
-            .players
-            .iter_mut()
-            .find(|p| user_id.is_some() && p.user_id == user_id);
-        let player_id = match found {
-            None => {
-                let player_id = handle.players.len();
-                if player_id >= handle.max_players as usize {
-                    bail!("Game already has max players")
+
+        let (player_id, save_player, game_events, from_client) = {
+            let mut games = self.games.write().await;
+            if !games.contains_key(game_id) {
+                bail!("Game with id {game_id} doesn't exist")
+            }
+
+            let handle = games.get_mut(game_id).unwrap();
+            let found = handle
+                .players
+                .iter_mut()
+                .find(|p| user_id.is_some() && p.user_id == user_id);
+
+            let mut save_player = false;
+            let player_id = match found {
+                None => {
+                    let player_id = handle.players.len();
+                    if player_id >= handle.max_players as usize {
+                        bail!("Game already has max players")
+                    }
+                    save_player = true;
+                    handle.players.push(PlayerHandle {
+                        user_id,
+                        player_id,
+                        display_name: FrontendUser::display_name_or_anon(
+                            display_name,
+                            user.is_some(),
+                        ),
+                        ws_sender: Arc::clone(&ws_sender),
+                    });
+                    player_id
                 }
-                // TODO - implement nicknames
-                Player::add_player(&self.db, game_id, user, &None, player_id as u8).await?;
-                handle.players.push(PlayerHandle {
-                    user_id,
-                    player_id,
-                    display_name: FrontendUser::display_name_or_anon(display_name, user.is_some()),
-                    ws_sender: Arc::clone(&ws_sender),
-                });
-                player_id
-            }
-            Some(p) => {
-                p.ws_sender = Arc::clone(&ws_sender);
-                p.player_id
-            }
+                Some(p) => {
+                    p.ws_sender = Arc::clone(&ws_sender);
+                    p.player_id
+                }
+            };
+
+            (
+                player_id,
+                save_player,
+                handle.game_events.clone(),
+                handle.from_client.clone(),
+            )
         };
+        if save_player {
+            Player::add_player(&self.db, game_id, user, &None, player_id as u8).await?;
+        }
         {
             let mut send = ws_sender.lock().await;
             let msg = GameMessage::PlayerId(player_id);
             (send).send(Message::Text(msg.into_json())).await?;
         }
-        handle
-            .game_events
+        game_events
             .send(GameEvent::Player(PlayerHandle {
                 user_id,
                 player_id,
@@ -243,61 +277,67 @@ impl GameManager {
                 ws_sender: Arc::clone(&ws_sender),
             }))
             .await?;
-        Ok(handle.from_client.clone())
+        Ok(from_client)
     }
 
     pub async fn start_game(&self, game_id: &str, user: &Option<User>) -> Result<()> {
-        let mut games = self.games.write().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
-        let handle = games.get_mut(game_id).unwrap();
-        if let Some(owner) = handle.owner {
-            match user {
-                None => {
-                    bail!("Owned game attempted to be started by guest")
-                }
-                Some(user) => {
-                    if owner != user.id {
-                        bail!("Owned game attempted to be started by non-owner")
+        let sender = {
+            let mut games = self.games.write().await;
+            if !games.contains_key(game_id) {
+                bail!("Game with id {game_id} doesn't exist")
+            }
+            let handle = games.get_mut(game_id).unwrap();
+            if let Some(owner) = handle.owner {
+                match user {
+                    None => {
+                        bail!("Owned game attempted to be started by guest")
+                    }
+                    Some(user) => {
+                        if owner != user.id {
+                            bail!("Owned game attempted to be started by non-owner")
+                        }
                     }
                 }
             }
-        }
+            handle.game_events.clone()
+        };
+        sender.send(GameEvent::Start).await?;
         Game::start_game(&self.db, game_id).await?;
-        handle.game_events.send(GameEvent::Start).await?;
         Ok(())
     }
 
     pub async fn set_start_time(&self, game_id: &str) -> Result<DateTime<Utc>> {
-        let mut games = self.games.write().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
         let now = Utc::now();
-        let handle = games.get_mut(game_id).unwrap();
-        handle.start_time = Some(now);
+        {
+            let mut games = self.games.write().await;
+            if !games.contains_key(game_id) {
+                bail!("Game with id {game_id} doesn't exist")
+            }
+            let handle = games.get_mut(game_id).unwrap();
+            handle.start_time = Some(now);
+        }
         Game::set_start_time(&self.db, game_id, now).await?;
         Ok(now)
     }
 
     async fn save_game(&self, game_id: &str, board: Board<PlayerCell>) -> Result<()> {
-        let games = self.games.read().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
+        {
+            let games = self.games.read().await;
+            if !games.contains_key(game_id) {
+                bail!("Game with id {game_id} doesn't exist")
+            }
         }
         Game::save_board(&self.db, game_id, board.into()).await?;
         Ok(())
     }
 
     async fn complete_game(&self, game_id: &str, final_board: Board<PlayerCell>) -> Result<()> {
-        let mut games = self.games.write().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
         let now = Utc::now();
         Game::complete_game(&self.db, game_id, final_board.into(), now).await?;
-        games.remove(game_id).unwrap();
+        {
+            let mut games = self.games.write().await;
+            games.remove(game_id);
+        }
         Ok(())
     }
 
@@ -307,10 +347,6 @@ impl GameManager {
     }
 
     async fn update_players(&self, game_id: &str, players: Vec<ClientPlayer>) -> Result<()> {
-        let games = self.games.read().await;
-        if !games.contains_key(game_id) {
-            bail!("Game with id {game_id} doesn't exist")
-        }
         Player::update_players(&self.db, game_id, players).await?;
         Ok(())
     }
