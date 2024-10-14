@@ -22,6 +22,8 @@ pub struct Game {
     pub is_started: bool,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
+    pub timed_out: Option<bool>,
+    pub seconds: Option<i64>,
     #[sqlx(json)]
     pub final_board: Option<Vec<Vec<PlayerCell>>>,
 }
@@ -38,7 +40,10 @@ pub struct SimpleGameWithPlayers {
     pub is_started: bool,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
+    pub timed_out: Option<bool>,
+    pub seconds: Option<i64>,
     pub num_players: u8,
+    pub top_score: Option<i64>,
 }
 
 pub struct GameParameters {
@@ -50,7 +55,7 @@ pub struct GameParameters {
 
 impl Game {
     pub async fn get_game(db: &SqlitePool, game_id: &str) -> Result<Option<Game>, sqlx::Error> {
-        sqlx::query_as("select * from games where game_id = ?")
+        sqlx::query_as("SELECT * FROM games WHERE game_id = ?")
             .bind(game_id)
             .fetch_optional(db)
             .await
@@ -66,11 +71,14 @@ impl Game {
         let params = format!("?{}", ", ?".repeat(game_ids.len() - 1));
         let query_str = format!(
             r#"
-            select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, 
-            ( select count(*) from players where players.game_id = games.game_id ) as num_players 
-            from games 
-            where game_id in ( {} ) 
-            limit 100
+            SELECT
+              game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, timed_out, seconds,
+              ( SELECT count(*) FROM players WHERE players.game_id = games.game_id ) as num_players,
+              ( SELECT max(score) FROM players WHERE players.game_id = games.game_id ) as top_score
+            FROM games
+            WHERE game_id IN ( {} )
+            ORDER BY start_time DESC
+            LIMIT 100
             "#,
             params
         );
@@ -93,11 +101,14 @@ impl Game {
         };
         let query_str = format!(
             r#"
-            select game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, 
-            ( select count(*) from players where players.game_id = games.game_id ) as num_players 
-            from games 
-            where end_time >= Datetime('now', '{}') 
-            limit 100
+            SELECT 
+              game_id, owner, rows, cols, num_mines, max_players, is_completed, is_started, start_time, end_time, timed_out, seconds,
+              ( SELECT count(*) FROM players WHERE players.game_id = games.game_id ) as num_players,
+              ( SELECT max(score) FROM players WHERE players.game_id = games.game_id ) as top_score
+            FROM games
+            WHERE is_completed = 1 AND start_time >= Datetime('now', '{}')
+            ORDER BY start_time DESC
+            LIMIT 100
             "#,
             params
         );
@@ -115,9 +126,9 @@ impl Game {
         let id = owner.as_ref().map(|u| u.id);
         sqlx::query_as(
             r#"
-            insert into games (game_id, owner, rows, cols, num_mines, max_players, final_board)
-            values (?, ?, ?, ?, ?, ?, ?)
-            returning *
+            INSERT INTO games (game_id, owner, rows, cols, num_mines, max_players, final_board)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            RETURNING *
             "#,
         )
         .bind(game_id)
@@ -132,7 +143,7 @@ impl Game {
     }
 
     pub async fn start_game(db: &SqlitePool, game_id: &str) -> Result<(), sqlx::Error> {
-        sqlx::query("update games set is_started = 1 where game_id = ?")
+        sqlx::query("UPDATE games SET is_started = 1 WHERE game_id = ?")
             .bind(game_id)
             .execute(db)
             .await
@@ -144,7 +155,7 @@ impl Game {
         game_id: &str,
         timestamp: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("update games set start_time = ? where game_id = ?")
+        sqlx::query("UPDATE games SET start_time = ? WHERE game_id = ?")
             .bind(timestamp)
             .bind(game_id)
             .execute(db)
@@ -157,7 +168,7 @@ impl Game {
         game_id: &str,
         board: Vec<Vec<PlayerCell>>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query("update games set final_board = ? where game_id = ?")
+        sqlx::query("UPDATE games SET final_board = ? WHERE game_id = ?")
             .bind(Json(board))
             .bind(game_id)
             .execute(db)
@@ -169,13 +180,26 @@ impl Game {
         db: &SqlitePool,
         game_id: &str,
         final_board: Vec<Vec<PlayerCell>>,
-        end_time: DateTime<Utc>,
+        end_time: Option<DateTime<Utc>>,
+        seconds: Option<i64>,
+        timed_out: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "update games set is_completed = 1, final_board = ?, end_time = ? where game_id = ?",
+            r#"
+            UPDATE games
+            SET
+              is_completed = 1,
+              final_board = ?,
+              end_time = ?,
+              timed_out = ?,
+              seconds = ?
+            WHERE game_id = ?
+            "#,
         )
         .bind(Json(final_board))
         .bind(end_time)
+        .bind(timed_out)
+        .bind(seconds)
         .bind(game_id)
         .execute(db)
         .await
@@ -183,7 +207,7 @@ impl Game {
     }
 
     pub async fn set_all_games_completed(db: &SqlitePool) -> Result<(), sqlx::Error> {
-        sqlx::query("update games set is_completed = 1")
+        sqlx::query("UPDATE games SET is_completed = 1")
             .execute(db)
             .await
             .map(|_| ())
@@ -237,7 +261,14 @@ impl Player {
         game_id: &str,
     ) -> Result<Vec<PlayerUser>, sqlx::Error> {
         sqlx::query_as(
-            "select players.*, users.display_name from players left join users on players.user = users.id where players.game_id = ?",
+            r#"
+            SELECT
+               players.*,
+               users.display_name
+            FROM players
+            LEFT JOIN users ON players.user = users.id
+            WHERE players.game_id = ?
+            "#,
         )
         .bind(game_id)
         .fetch_all(db)
@@ -250,7 +281,16 @@ impl Player {
         limit: i64,
     ) -> Result<Vec<PlayerGame>, sqlx::Error> {
         sqlx::query_as(
-            "select players.game_id, players.player, players.dead, players.victory_click, players.top_score, players.score, games.start_time, games.end_time, games.rows, games.cols, games.num_mines, games.max_players from players left join games on players.game_id = games.game_id where players.user = ? order by games.start_time desc limit ?",
+            r#"
+            SELECT
+              players.game_id, players.player, players.dead, players.victory_click, players.top_score, players.score,
+              games.start_time, games.end_time, games.rows, games.cols, games.num_mines, games.max_players
+            FROM players
+            LEFT JOIN games ON players.game_id = games.game_id
+            WHERE players.user = ?
+            ORDER BY games.start_time desc
+            LIMIT ?
+            "#,
         )
         .bind(user.id)
         .bind(limit)
@@ -268,8 +308,8 @@ impl Player {
         let id = user.as_ref().map(|u| u.id);
         sqlx::query(
             r#"
-            insert into players (game_id, user, nickname, player)
-            values (?, ?, ?, ?)
+            INSERT INTO players (game_id, user, nickname, player)
+            VALUES (?, ?, ?, ?)
             "#,
         )
         .bind(game_id)
@@ -288,7 +328,7 @@ impl Player {
     ) -> Result<(), sqlx::Error> {
         let mut transaction = db.begin().await?;
         for p in players {
-            sqlx::query("update players set dead = ?, score = ?, victory_click = ?, top_score = ? where game_id = ? and player = ?")
+            sqlx::query("UPDATE players SET dead = ?, score = ?, victory_click = ?, top_score = ? WHERE game_id = ? AND player = ?")
                 .bind(p.dead)
                 .bind(p.score as i64)
                 .bind(p.victory_click)
@@ -312,7 +352,7 @@ pub struct GameLog {
 
 impl GameLog {
     pub async fn get_log(db: &SqlitePool, game_id: &str) -> Result<Option<GameLog>, sqlx::Error> {
-        sqlx::query_as("select * from game_log where game_id = ?")
+        sqlx::query_as("SELECT * FROM game_log WHERE game_id = ?")
             .bind(game_id)
             .fetch_optional(db)
             .await
@@ -325,9 +365,9 @@ impl GameLog {
     ) -> Result<GameLog, sqlx::Error> {
         sqlx::query_as(
             r#"
-            insert into game_log (game_id, log)
-            values (?, ?)
-            returning *
+            INSERT INTO game_log (game_id, log)
+            VALUES (?, ?)
+            RETURNING *
             "#,
         )
         .bind(game_id)

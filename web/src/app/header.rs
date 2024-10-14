@@ -65,12 +65,15 @@ pub fn Header(user: Resource<Option<FrontendUser>, JsonSerdeCodec>) -> impl Into
             <A href="/" attr:class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
             </A>
-            <A href="/active" attr:class=format!("{} flex items-center space-x-2 text-lg", aclass)>
-                "Active Games"
-            </A>
-            <A href="/recent" attr:class=format!("{} flex items-center space-x-2 text-lg", aclass)>
-                "Recent Games"
-            </A>
+            <div class="flex items-center space-x-2">
+                <A href="/active" attr:class=format!("{} text-lg", aclass)>
+                    "Active Games"
+                </A>
+                <span>"|"</span>
+                <A href="/recent" attr:class=format!("{} text-lg", aclass)>
+                    "Recent Games"
+                </A>
+            </div>
             <div class="flex grow justify-end items-center space-x-2">
                 <Transition fallback=move || ()>
                     {move || Suspend::new(async move {

@@ -329,9 +329,23 @@ impl GameManager {
         Ok(())
     }
 
-    async fn complete_game(&self, game_id: &str, final_board: Board<PlayerCell>) -> Result<()> {
-        let now = Utc::now();
-        Game::complete_game(&self.db, game_id, final_board.into(), now).await?;
+    async fn complete_game(
+        &self,
+        game_id: &str,
+        final_board: Board<PlayerCell>,
+        end_time: Option<DateTime<Utc>>,
+        seconds: Option<i64>,
+        timed_out: bool,
+    ) -> Result<()> {
+        Game::complete_game(
+            &self.db,
+            game_id,
+            final_board.into(),
+            end_time,
+            seconds,
+            timed_out,
+        )
+        .await?;
         {
             let mut games = self.games.write().await;
             games.remove(game_id);
@@ -406,10 +420,11 @@ impl GameHandler {
     }
 
     async fn handle_game(mut self) {
-        let mut checks_interval = interval(Duration::from_secs(20)); // save every 20 seconds
+        let mut checks_interval = interval(Duration::from_secs(5));
 
         let mut first_play = false;
         let mut needs_save = false;
+        let mut timed_out = false;
         let mut start_time = None;
         let mut last_action = Utc::now();
 
@@ -418,7 +433,9 @@ impl GameHandler {
                 Some(msg) = self.receiver.recv() => {
                     log::debug!("Message received {}: {}", self.game.game_id, msg);
                     let played = self.handle_message(&msg).await.is_some();
-                    needs_save = played;
+                    if played {
+                        needs_save = true;
+                    }
                     if played && !first_play {
                         first_play = true;
                         if let Ok(st) = self.game_manager.set_start_time(&self.game.game_id).await.map_err(|e| log::error!("Error setting start time: {e}")) {
@@ -440,10 +457,6 @@ impl GameHandler {
                 }
                 _ = checks_interval.tick() => {
                     log::debug!("Checking for game {}", self.game.game_id);
-                    if needs_save {
-                        self.save_game_state().await;
-                        needs_save = false;
-                    }
                     let now = Utc::now();
                     if let Some(st) = start_time {
                         if now.signed_duration_since(st).num_seconds() >= 999 {
@@ -453,7 +466,12 @@ impl GameHandler {
                     }
                     if now.signed_duration_since(last_action).num_seconds() >= 120 {
                         log::debug!("Game timed out {}", self.game.game_id);
+                        timed_out = true;
                         break;
+                    }
+                    if needs_save {
+                        self.save_game_state_nonblocking();
+                        needs_save = false;
                     }
                 },
             }
@@ -463,9 +481,26 @@ impl GameHandler {
             self.save_game_state().await;
         }
         let minesweeper = self.minesweeper.complete();
+        let (end_time, seconds) = if let Some(st) = start_time {
+            if !timed_out {
+                let now = Utc::now();
+                let seconds = 999.min(now.signed_duration_since(st).num_seconds());
+                (Some(now), Some(seconds))
+            } else {
+                (None, None)
+            }
+        } else {
+            (None, None)
+        };
         let _ = self
             .game_manager
-            .complete_game(&self.game.game_id, minesweeper.viewer_board_final())
+            .complete_game(
+                &self.game.game_id,
+                minesweeper.viewer_board_final(),
+                end_time,
+                seconds,
+                timed_out,
+            )
             .await
             .map_err(|e| log::error!("Error completing game: {e}"));
         if let Some(game_log) = minesweeper.get_log() {
@@ -522,6 +557,29 @@ impl GameHandler {
             .save_game(&self.game.game_id, self.minesweeper.viewer_board())
             .await
             .map_err(|e| log::error!("Error saving game: {e}"));
+    }
+
+    fn save_game_state_nonblocking(&self) {
+        let players = self
+            .handles_to_client_players()
+            .into_iter()
+            .flatten()
+            .collect();
+        let game_id = self.game.game_id.clone();
+        let board = self.minesweeper.viewer_board();
+        let game_manager = self.game_manager.clone();
+        log::debug!("Saving game - players: {:?}", &players);
+        tokio::spawn(async move {
+            let game_id = game_id;
+            let _ = game_manager
+                .update_players(&game_id, players)
+                .await
+                .map_err(|e| log::error!("Error updating players: {e}"));
+            let _ = game_manager
+                .save_game(&game_id, board)
+                .await
+                .map_err(|e| log::error!("Error saving game: {e}"));
+        });
     }
 
     async fn handle_game_event(&mut self, event: GameEvent) {
