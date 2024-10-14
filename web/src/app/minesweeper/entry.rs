@@ -29,23 +29,23 @@ pub enum GameMode {
 impl GameMode {
     pub fn short_name(self) -> &'static str {
         match self {
-            GameMode::ClassicBeginner => "Beginner",
-            GameMode::ClassicIntermediate => "Intermediate",
-            GameMode::ClassicExpert => "Expert",
-            GameMode::SmallMultiplayer => "Small",
-            GameMode::LargeMultiplayer => "Large",
-            GameMode::Custom => "Custom",
+            Self::ClassicBeginner => "Beginner",
+            Self::ClassicIntermediate => "Intermediate",
+            Self::ClassicExpert => "Expert",
+            Self::SmallMultiplayer => "Small",
+            Self::LargeMultiplayer => "Large",
+            Self::Custom => "Custom",
         }
     }
 
     pub fn long_name(self) -> &'static str {
         match self {
-            GameMode::ClassicBeginner => "Classic Beginner",
-            GameMode::ClassicIntermediate => "Classic Intermediate",
-            GameMode::ClassicExpert => "Classic Expert",
-            GameMode::SmallMultiplayer => "Multiplayer Small",
-            GameMode::LargeMultiplayer => "Multiplayer Large",
-            GameMode::Custom => "Custom",
+            Self::ClassicBeginner => "Classic Beginner",
+            Self::ClassicIntermediate => "Classic Intermediate",
+            Self::ClassicExpert => "Classic Expert",
+            Self::SmallMultiplayer => "Multiplayer Small",
+            Self::LargeMultiplayer => "Multiplayer Large",
+            Self::Custom => "Custom",
         }
     }
 }
@@ -59,32 +59,32 @@ impl Default for GameMode {
 impl From<&GameMode> for GameSettings {
     fn from(value: &GameMode) -> Self {
         match value {
-            GameMode::ClassicBeginner => GameSettings {
+            GameMode::ClassicBeginner => Self {
                 rows: 9,
                 cols: 9,
                 num_mines: 10,
                 max_players: 1,
             },
-            GameMode::ClassicIntermediate => GameSettings {
+            GameMode::ClassicIntermediate => Self {
                 rows: 16,
                 cols: 16,
                 num_mines: 40,
                 max_players: 1,
             },
-            GameMode::ClassicExpert => GameSettings {
+            GameMode::ClassicExpert => Self {
                 rows: 16,
                 cols: 30,
                 num_mines: 99,
                 max_players: 1,
             },
-            GameMode::SmallMultiplayer => GameSettings {
+            GameMode::SmallMultiplayer => Self {
                 rows: 16,
                 cols: 30,
                 num_mines: 80,
                 max_players: 2,
             },
-            GameMode::LargeMultiplayer => GameSettings::default(),
-            GameMode::Custom => GameSettings::default(),
+            GameMode::LargeMultiplayer => Self::default(),
+            GameMode::Custom => Self::default(),
         }
     }
 }
@@ -103,32 +103,32 @@ impl From<&GameSettings> for GameMode {
                 cols: 9,
                 num_mines: 10,
                 max_players: 1,
-            } => GameMode::ClassicBeginner,
+            } => Self::ClassicBeginner,
             GameSettings {
                 rows: 16,
                 cols: 16,
                 num_mines: 40,
                 max_players: 1,
-            } => GameMode::ClassicIntermediate,
+            } => Self::ClassicIntermediate,
             GameSettings {
                 rows: 16,
                 cols: 30,
                 num_mines: 99,
                 max_players: 1,
-            } => GameMode::ClassicExpert,
+            } => Self::ClassicExpert,
             GameSettings {
                 rows: 16,
                 cols: 30,
                 num_mines: 80,
                 max_players: 2,
-            } => GameMode::SmallMultiplayer,
+            } => Self::SmallMultiplayer,
             GameSettings {
                 rows: 50,
                 cols: 50,
                 num_mines: 500,
                 max_players: 8,
-            } => GameMode::LargeMultiplayer,
-            _ => GameMode::Custom,
+            } => Self::LargeMultiplayer,
+            _ => Self::Custom,
         }
     }
 }

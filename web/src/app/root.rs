@@ -2,25 +2,23 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
-use crate::{
-    app::footer::Footer,
-    components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal},
-};
+use crate::components::info::{use_controls_info_keybinds, ControlsInfoButton, ControlsInfoModal};
 
 use super::{
     auth::{get_frontend_user, Login, Logout},
     error_template::{AppError, ErrorTemplate},
+    footer::Footer,
     header::Header,
     home::HomeView,
     login::LoginView,
-    minesweeper::{GameView, GameWrapper, ReplayView},
+    minesweeper::{ActiveGames, GameView, GameWrapper, RecentGames, ReplayView},
     profile::ProfileView,
 };
 
 #[cfg(feature = "ssr")]
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
-        <!DOCTYPE html> 
+        <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="utf-8" />
@@ -90,6 +88,8 @@ pub fn App() -> impl IntoView {
                         <Route path=path!("/replay") view=ReplayView />
                         <Route path=path!("/") view=GameView />
                     </ParentRoute>
+                    <Route path=path!("/active") view=ActiveGames />
+                    <Route path=path!("/recent") view=RecentGames />
                 </Routes>
                 <Footer />
                 <ControlsInfoButton set_show_info />

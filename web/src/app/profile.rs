@@ -45,7 +45,7 @@ pub fn ProfileView(
     let title = move || {
         let user = user.get().flatten();
         let is_user = user.is_some();
-        let display_name = user.map(|u| u.display_name).flatten();
+        let display_name = user.and_then(|u| u.display_name);
         format!(
             "Profile - {}",
             FrontendUser::display_name_or_anon(display_name.as_ref(), is_user)
@@ -226,6 +226,7 @@ async fn get_player_games() -> Result<Vec<PlayerGame>, ServerFnError> {
 fn GameHistory() -> impl IntoView {
     let player_games = Resource::new(|| (), move |_| async { get_player_games().await });
     let td_class = "border border-slate-100 dark:border-slate-700 p-1";
+    let header_class = "border dark:border-slate-600 font-medium p-4 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
 
     let loading_row = move |num: usize| {
         let player_class = player_class!(0).to_owned() + " text-black";
@@ -301,27 +302,15 @@ fn GameHistory() -> impl IntoView {
     view! {
         <h2 class="text-2xl my-4 text-gray-900 dark:text-gray-200">"Game History"</h2>
         <div class="max-w-full overflow-x-auto">
-            <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center">
+            <table class="border border-solid border-slate-400 border-collapse table-auto text-sm text-center bg-neutral-200/80 dark:bg-neutral-800/80">
                 <thead>
                     <tr>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Game"
-                        </th>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Date"
-                        </th>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Game Mode"
-                        </th>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Duration"
-                        </th>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Status"
-                        </th>
-                        <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                            "Score"
-                        </th>
+                        <th class=header_class>"Game"</th>
+                        <th class=header_class>"Date"</th>
+                        <th class=header_class>"Game Mode"</th>
+                        <th class=header_class>"Duration"</th>
+                        <th class=header_class>"Status"</th>
+                        <th class=header_class>"Score"</th>
                     </tr>
                 </thead>
                 <tbody>

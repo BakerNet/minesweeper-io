@@ -17,19 +17,14 @@ use super::client::FrontendGame;
 
 #[component]
 fn Scoreboard(children: Children) -> impl IntoView {
+    let header_class = "border dark:border-slate-600 font-medium p-4 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
     view! {
-        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center">
+        <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center bg-neutral-200/80 dark:bg-neutral-800/80">
             <thead>
                 <tr>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Player"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Username"
-                    </th>
-                    <th class="border dark:border-slate-600 font-medium p-4 text-slate-400 dark:text-slate-200 ">
-                        "Score"
-                    </th>
+                    <th class=header_class>"Player"</th>
+                    <th class=header_class>"Username"</th>
+                    <th class=header_class>"Score"</th>
                 </tr>
             </thead>
             <tbody>{children()}</tbody>

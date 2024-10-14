@@ -1,5 +1,6 @@
 mod app;
 mod auth;
+mod cache;
 mod fileserv;
 mod game_manager;
 mod users;
