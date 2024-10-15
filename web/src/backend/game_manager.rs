@@ -21,7 +21,8 @@ use crate::{
     messages::{ClientMessage, GameMessage},
     models::{
         game::{
-            Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser, SimpleGameWithPlayers,
+            AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
+            SimpleGameWithPlayers,
         },
         user::User,
     },
@@ -175,6 +176,15 @@ impl GameManager {
         Player::get_player_games_for_user(&self.db, user, 100)
             .await
             .map_err(|e| e.into())
+    }
+
+    pub async fn get_aggregate_stats_for_user(&self, user: &User) -> Result<AggregateStats> {
+        Player::get_aggregate_stats_for_user(&self.db, user)
+            .await
+            .map_err(|e| {
+                log::debug!("Error fetching aggregate stats: {}", e);
+                e.into()
+            })
     }
 
     pub async fn game_is_active(&self, game_id: &str) -> bool {

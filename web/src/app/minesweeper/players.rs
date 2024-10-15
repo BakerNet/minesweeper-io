@@ -244,7 +244,7 @@ fn PlayForm(join_trigger: Trigger) -> impl IntoView {
 }
 
 #[server]
-async fn start_game(game_id: String) -> Result<(), ServerFnError> {
+pub async fn start_game(game_id: String) -> Result<(), ServerFnError> {
     let auth_session = use_context::<AuthSession>()
         .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
     let game_manager = use_context::<GameManager>()
