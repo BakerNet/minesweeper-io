@@ -39,11 +39,11 @@ async fn oauth_callback(
     }): Query<AuthzResp>,
 ) -> impl IntoResponse {
     let Ok(Some(old_state)) = session.get(CSRF_STATE_KEY).await else {
-                return StatusCode::BAD_REQUEST.into_response();
-            };
+        return StatusCode::BAD_REQUEST.into_response();
+    };
     let Ok(Some(oauth_target)) = session.get(OAUTH_TARGET).await else {
-                return StatusCode::BAD_REQUEST.into_response();
-            };
+        return StatusCode::BAD_REQUEST.into_response();
+    };
 
     let creds = OAuthCreds {
         code,

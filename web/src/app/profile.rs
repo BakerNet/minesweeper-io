@@ -13,7 +13,7 @@ use super::{
 };
 use display_name::SetDisplayName;
 use game_history::GameHistory;
-use stats::PlayerStats;
+use stats::{PlayerStatsTable, TimelineStatsGraphs};
 
 #[cfg(feature = "ssr")]
 use super::{auth::get_user, minesweeper::GameSettings};
@@ -51,7 +51,8 @@ pub fn ProfileView(
                                 <hr class="w-full" />
                             </span>
                         </div>
-                        <PlayerStats />
+                        <PlayerStatsTable />
+                        <TimelineStatsGraphs />
                         <GameHistory />
                     </div>
                 </>

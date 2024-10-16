@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -61,9 +63,42 @@ pub async fn get_player_stats() -> Result<PlayerStats, ServerFnError> {
     })
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TimelinePlayerStats {
+    pub beginner: Vec<(bool, i64)>,
+    pub intermediate: Vec<(bool, i64)>,
+    pub expert: Vec<(bool, i64)>,
+}
+
+#[server]
+pub async fn get_timeline_stats() -> Result<TimelinePlayerStats, ServerFnError> {
+    let auth_session = use_context::<AuthSession>()
+        .ok_or_else(|| ServerFnError::new("Unable to find auth session".to_string()))?;
+    let user = auth_session.user.ok_or(ServerFnError::new(
+        "Cannot find player games when not logged in".to_string(),
+    ))?;
+    let game_manager = use_context::<GameManager>()
+        .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
+
+    let stats = game_manager
+        .get_timeline_stats_for_user(&user)
+        .await
+        .map_err(|e| ServerFnError::new(e.to_string()))?;
+
+    let beginner = stats.beginner;
+    let intermediate = stats.intermediate;
+    let expert = stats.expert;
+
+    Ok(TimelinePlayerStats {
+        beginner,
+        intermediate,
+        expert,
+    })
+}
+
 #[component]
-pub fn PlayerStats() -> impl IntoView {
-    let td_class = "border border-slate-100 dark:border-slate-700 p-1";
+pub fn PlayerStatsTable() -> impl IntoView {
+    let td_class = "border border-slate-100 dark:border-slate-700 py-1 px-2";
     let header_class = "border dark:border-slate-600 font-medium p-4 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
     let player_stats = Resource::new(|| (), move |_| async { get_player_stats().await });
 
@@ -131,5 +166,75 @@ pub fn PlayerStats() -> impl IntoView {
                 </tbody>
             </table>
         </div>
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct GraphPoint {
+    games: usize,
+    winrate: f64,
+    speed: f64,
+}
+
+#[component]
+pub fn TimelineStatsGraphs() -> impl IntoView {
+    let timeline_stats = Resource::new(|| (), move |_| async { get_timeline_stats().await });
+
+    let mode_view = move |mode: GameMode, stats: Vec<(bool, i64)>| {
+        let len = stats.len();
+        // TODO - when this is > 100, chunk it up
+        let (_, _, collections) = stats.into_iter().enumerate().fold(
+            (
+                VecDeque::with_capacity(10),
+                VecDeque::with_capacity(10),
+                Vec::with_capacity(len),
+            ),
+            |(mut speed_acc, mut wr_acc, mut collections), (i, (v, s))| {
+                if wr_acc.len() == 10 {
+                    wr_acc.pop_front();
+                }
+                wr_acc.push_back(v);
+                if v {
+                    if speed_acc.len() == 10 {
+                        speed_acc.pop_front();
+                    }
+                    speed_acc.push_back(s);
+                }
+                let ave_wr = wr_acc.iter().copied().filter(|b| *b).count() as f64
+                    / wr_acc.len() as f64
+                    * 100.0;
+                let ave_time =
+                    speed_acc.iter().map(|x| *x as f64).sum::<f64>() / speed_acc.len() as f64;
+                collections.push(GraphPoint {
+                    games: i,
+                    winrate: ave_wr,
+                    speed: ave_time,
+                });
+                (speed_acc, wr_acc, collections)
+            },
+        );
+
+        view! {
+            <div>{mode.short_name()}": "</div>
+            <div>{format!("{:?}", collections)}</div>
+        }
+    };
+
+    view! {
+        <Suspense>
+            {move || Suspend::new(async move {
+                let stats = timeline_stats.await;
+                stats
+                    .map(|stats| {
+                        view! {
+                            <>
+                                {mode_view(GameMode::ClassicBeginner, stats.beginner)}
+                                {mode_view(GameMode::ClassicIntermediate, stats.intermediate)}
+                                {mode_view(GameMode::ClassicExpert, stats.expert)}
+                            </>
+                        }
+                    })
+            })}
+        </Suspense>
     }
 }

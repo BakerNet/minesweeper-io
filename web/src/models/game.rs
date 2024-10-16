@@ -270,6 +270,13 @@ pub struct AggregateStats {
     pub expert: GameStats,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TimelineStats {
+    pub beginner: Vec<(bool, i64)>,
+    pub intermediate: Vec<(bool, i64)>,
+    pub expert: Vec<(bool, i64)>,
+}
+
 impl Player {
     pub async fn get_players(
         db: &SqlitePool,
@@ -396,6 +403,48 @@ impl Player {
             expert: sqlx::query_as(&queries[2])
                 .bind(user.id)
                 .fetch_one(db)
+                .await?,
+        })
+    }
+
+    pub async fn get_timeline_stats_for_user(
+        db: &SqlitePool,
+        user: &User,
+    ) -> Result<TimelineStats, sqlx::Error> {
+        let modes = [(9, 9, 10), (16, 16, 40), (16, 30, 99)];
+        let mut queries = [String::new(), String::new(), String::new()];
+        modes.into_iter().enumerate().for_each(|(i, mode)| {
+            queries[i] = format!(
+                r#"
+                SELECT
+                players.victory_click,
+                games.seconds
+                FROM players
+                LEFT JOIN games ON players.game_id = games.game_id
+                WHERE 
+                  players.user = ?
+                  AND games.rows = {} AND games.cols = {} AND games.num_mines = {} AND games.max_players = 1 
+                  AND games.seconds IS NOT NULL
+                LIMIT 1000
+                "#,
+                mode.0,
+                mode.1,
+                mode.2
+            );
+        });
+
+        Ok(TimelineStats {
+            beginner: sqlx::query_as(&queries[0])
+                .bind(user.id)
+                .fetch_all(db)
+                .await?,
+            intermediate: sqlx::query_as(&queries[1])
+                .bind(user.id)
+                .fetch_all(db)
+                .await?,
+            expert: sqlx::query_as(&queries[2])
+                .bind(user.id)
+                .fetch_all(db)
                 .await?,
         })
     }
