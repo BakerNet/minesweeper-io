@@ -1,6 +1,9 @@
 use std::collections::VecDeque;
 
+use anyhow::{bail, Result};
 use leptos::prelude::*;
+use plotters::prelude::*;
+use plotters_canvas::CanvasBackend;
 use serde::{Deserialize, Serialize};
 
 use super::GameMode;
@@ -98,7 +101,8 @@ pub async fn get_timeline_stats() -> Result<TimelinePlayerStats, ServerFnError> 
 
 #[component]
 pub fn PlayerStatsTable() -> impl IntoView {
-    let td_class = "border border-slate-100 dark:border-slate-700 py-1 px-2";
+    let td_class =
+        "border border-slate-100 dark:border-slate-700 py-1 px-2 text-gray-900 dark:text-gray-200";
     let header_class = "border dark:border-slate-600 font-medium p-4 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
     let player_stats = Resource::new(|| (), move |_| async { get_player_stats().await });
 
@@ -169,72 +173,146 @@ pub fn PlayerStatsTable() -> impl IntoView {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct GraphPoint {
-    games: usize,
-    winrate: f64,
-    speed: f64,
+fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
+    let len = stats.len();
+    let (_, _, speed_series, winrate_series) = stats.iter().enumerate().fold(
+        (
+            VecDeque::with_capacity(10),
+            VecDeque::with_capacity(10),
+            Vec::with_capacity(len),
+            Vec::with_capacity(len),
+        ),
+        |(mut speed_acc, mut wr_acc, mut speed_series, mut wr_series), (i, (v, s))| {
+            if wr_acc.len() == 10 {
+                wr_acc.pop_front();
+            }
+            wr_acc.push_back(*v);
+            if *v {
+                if speed_acc.len() == 10 {
+                    speed_acc.pop_front();
+                }
+                speed_acc.push_back(*s);
+            }
+            let ave_wr =
+                wr_acc.iter().copied().filter(|b| *b).count() as f64 / wr_acc.len() as f64 * 100.0;
+            let ave_time =
+                speed_acc.iter().map(|x| *x as f64).sum::<f64>() / speed_acc.len() as f64;
+            speed_series.push((i, ave_time));
+            wr_series.push((i, ave_wr));
+            (speed_acc, wr_acc, speed_series, wr_series)
+        },
+    );
+
+    let max = speed_series
+        .iter()
+        .map(|(_, y)| *y)
+        .max_by(|a, b| a.total_cmp(b))
+        .expect("Should be able to find max");
+    let canvas = match mode {
+        GameMode::ClassicBeginner => "beginner_stats",
+        GameMode::ClassicIntermediate => "intermediate_stats",
+        GameMode::ClassicExpert => "expert_stats",
+        _ => bail!("Mode is not Classic"),
+    };
+
+    let backend = CanvasBackend::new(canvas).expect("canvas should exist");
+    let root = backend.into_drawing_area();
+    let largefont: FontDesc = ("sans-serif", 20.0).into();
+    let small_font: FontDesc = ("sans-serif", 14.0).into();
+    let tiny_font: FontDesc = ("sans-serif", 12.0).into();
+
+    root.fill(&WHITE)?;
+
+    let root = root.titled(&format!("{} Stats", mode.short_name()), largefont)?;
+
+    let mut chart = ChartBuilder::on(&root)
+        .margin(2)
+        .caption("10 game moving average", small_font.clone())
+        .x_label_area_size(35)
+        .y_label_area_size(40)
+        .right_y_label_area_size(40)
+        .build_cartesian_2d(0usize..len, 0.0..max + 5.0)?
+        .set_secondary_coord(0usize..len - 1, 0.0..100.0);
+
+    let drop_decimal_places = |x: &f64| format!("{:.0}", x);
+
+    chart
+        .configure_mesh()
+        .max_light_lines(1)
+        .disable_x_mesh()
+        .x_labels(20.min(len))
+        .x_desc("Games")
+        .y_labels(10)
+        .y_desc("Seconds")
+        .y_label_formatter(&drop_decimal_places)
+        .y_label_offset(-10)
+        .axis_desc_style(small_font.clone())
+        .y_label_style(tiny_font.clone())
+        .draw()?;
+
+    chart
+        .configure_secondary_axes()
+        .y_labels(10)
+        .y_desc("Winrate")
+        .y_label_formatter(&drop_decimal_places)
+        .y_label_offset(-10)
+        .axis_desc_style(small_font)
+        .label_style(tiny_font)
+        .draw()?;
+
+    let speed_style = ShapeStyle {
+        color: RED.into(),
+        filled: false,
+        stroke_width: 4,
+    };
+    chart
+        .draw_series(LineSeries::new(speed_series.into_iter(), speed_style).point_size(1))?
+        .label("Time")
+        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], RED));
+
+    let time_style = ShapeStyle {
+        color: BLUE.into(),
+        filled: false,
+        stroke_width: 4,
+    };
+    chart
+        .draw_secondary_series(
+            LineSeries::new(winrate_series.into_iter(), time_style).point_size(1),
+        )?
+        .label("Winrate")
+        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], BLUE));
+
+    chart
+        .configure_series_labels()
+        .position(SeriesLabelPosition::LowerLeft)
+        .background_style(RGBAColor(128, 128, 128, 0.4))
+        .draw()?;
+
+    root.present()?;
+    Ok(())
 }
 
 #[component]
 pub fn TimelineStatsGraphs() -> impl IntoView {
     let timeline_stats = Resource::new(|| (), move |_| async { get_timeline_stats().await });
 
-    let mode_view = move |mode: GameMode, stats: Vec<(bool, i64)>| {
-        let len = stats.len();
-        // TODO - when this is > 100, chunk it up
-        let (_, _, collections) = stats.into_iter().enumerate().fold(
-            (
-                VecDeque::with_capacity(10),
-                VecDeque::with_capacity(10),
-                Vec::with_capacity(len),
-            ),
-            |(mut speed_acc, mut wr_acc, mut collections), (i, (v, s))| {
-                if wr_acc.len() == 10 {
-                    wr_acc.pop_front();
-                }
-                wr_acc.push_back(v);
-                if v {
-                    if speed_acc.len() == 10 {
-                        speed_acc.pop_front();
-                    }
-                    speed_acc.push_back(s);
-                }
-                let ave_wr = wr_acc.iter().copied().filter(|b| *b).count() as f64
-                    / wr_acc.len() as f64
-                    * 100.0;
-                let ave_time =
-                    speed_acc.iter().map(|x| *x as f64).sum::<f64>() / speed_acc.len() as f64;
-                collections.push(GraphPoint {
-                    games: i,
-                    winrate: ave_wr,
-                    speed: ave_time,
-                });
-                (speed_acc, wr_acc, collections)
-            },
-        );
-
-        view! {
-            <div>{mode.short_name()}": "</div>
-            <div>{format!("{:?}", collections)}</div>
-        }
-    };
+    Effect::watch(
+        move || timeline_stats.get(),
+        |tstats, _, _| {
+            log::debug!("{:?}", tstats);
+            let stats = if let Some(Ok(stats)) = tstats {
+                stats
+            } else {
+                return;
+            };
+            if let Err(e) = draw_chart(GameMode::ClassicBeginner, &stats.beginner) {
+                log::debug!("Unable to draw chart: {}", e);
+            };
+        },
+        true,
+    );
 
     view! {
-        <Suspense>
-            {move || Suspend::new(async move {
-                let stats = timeline_stats.await;
-                stats
-                    .map(|stats| {
-                        view! {
-                            <>
-                                {mode_view(GameMode::ClassicBeginner, stats.beginner)}
-                                {mode_view(GameMode::ClassicIntermediate, stats.intermediate)}
-                                {mode_view(GameMode::ClassicExpert, stats.expert)}
-                            </>
-                        }
-                    })
-            })}
-        </Suspense>
+        <canvas id="beginner_stats" width="500px" height="300px" />
     }
 }
