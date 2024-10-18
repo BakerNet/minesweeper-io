@@ -173,7 +173,7 @@ pub fn PlayerStatsTable() -> impl IntoView {
     }
 }
 
-fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
+fn parse_stats(stats: &Vec<(bool, i64)>) -> (Vec<(usize, f64)>, Vec<(usize, f64)>) {
     let len = stats.len();
     let (_, _, speed_series, winrate_series) = stats.iter().enumerate().fold(
         (
@@ -202,6 +202,13 @@ fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
             (speed_acc, wr_acc, speed_series, wr_series)
         },
     );
+    (speed_series, winrate_series)
+}
+
+fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
+    let len = stats.len();
+
+    let (speed_series, winrate_series) = parse_stats(stats);
 
     let max = speed_series
         .iter()
