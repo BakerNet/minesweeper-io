@@ -1,15 +1,21 @@
 use std::collections::VecDeque;
 
-use anyhow::{bail, Result};
-use leptos::prelude::*;
+use anyhow::Result;
+use codee::string::JsonSerdeWasmCodec;
+use full_palette::{CYAN_200, CYAN_500, INDIGO_200, WHITE};
+use leptos::{html::Canvas, prelude::*};
+use leptos_use::storage::{use_local_storage_with_options, UseStorageOptions};
 use plotters::prelude::*;
 use plotters_canvas::CanvasBackend;
 use serde::{Deserialize, Serialize};
+use wasm_bindgen::JsValue;
+use web_sys::HtmlCanvasElement;
 
 use super::GameMode;
 
 #[cfg(feature = "ssr")]
 use crate::backend::{AuthSession, GameManager};
+use crate::button_class;
 #[cfg(feature = "ssr")]
 use crate::models::game::GameStats;
 
@@ -173,71 +179,162 @@ pub fn PlayerStatsTable() -> impl IntoView {
     }
 }
 
-fn parse_stats(stats: &Vec<(bool, i64)>) -> (Vec<(usize, f64)>, Vec<(usize, f64)>) {
+#[component]
+pub fn StatSelectButtons(
+    selected: Signal<GameMode>,
+    set_selected: WriteSignal<GameMode>,
+) -> impl IntoView {
+    let classic_modes = [
+        GameMode::ClassicBeginner,
+        GameMode::ClassicIntermediate,
+        GameMode::ClassicExpert,
+    ];
+
+    let class_signal = move |mode: GameMode| {
+        let selected = selected.get();
+        if mode == selected {
+            button_class!(
+                "w-full rounded rounded-lg",
+                "bg-neutral-800 text-neutral-50 border-neutral-500"
+            )
+        } else {
+            button_class!("w-full rounded rounded-lg")
+        }
+    };
+
+    let mode_button = move |mode: GameMode| {
+        view! {
+            <div class="flex-1">
+                <button
+                    type="button"
+                    class=move || class_signal(mode)
+                    on:click=move |_| {
+                        set_selected(mode);
+                    }
+                >
+
+                    {mode.short_name()}
+                </button>
+            </div>
+        }
+    };
+
+    view! {
+        <div class="w-full space-y-2">
+            <div class="flex w-full space-x-2">{classic_modes.map(mode_button).collect_view()}</div>
+        </div>
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ParsedMode {
+    speed: Vec<(usize, f64)>,
+    winrate: Vec<(usize, f64)>,
+    best_time: Vec<(usize, f64)>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ParsedStats {
+    beginner: ParsedMode,
+    intermediate: ParsedMode,
+    expert: ParsedMode,
+}
+
+fn parse_stats(stats: &[(bool, i64)]) -> ParsedMode {
     let len = stats.len();
-    let (_, _, speed_series, winrate_series) = stats.iter().enumerate().fold(
+    let (_, _, speed_series, winrate_series, mut best_time_series) = stats.iter().enumerate().fold(
         (
             VecDeque::with_capacity(10),
             VecDeque::with_capacity(10),
             Vec::with_capacity(len),
             Vec::with_capacity(len),
+            Vec::with_capacity(len),
         ),
-        |(mut speed_acc, mut wr_acc, mut speed_series, mut wr_series), (i, (v, s))| {
+        |(mut speed_acc, mut wr_acc, mut speed_series, mut wr_series, mut best_time),
+         (i, (v, s))| {
             if wr_acc.len() == 10 {
                 wr_acc.pop_front();
             }
             wr_acc.push_back(*v);
+            let ave_wr =
+                wr_acc.iter().copied().filter(|b| *b).count() as f64 / wr_acc.len() as f64 * 100.0;
+            wr_series.push((i, ave_wr));
+
             if *v {
                 if speed_acc.len() == 10 {
                     speed_acc.pop_front();
                 }
-                speed_acc.push_back(*s);
+                let s = *s as f64;
+                speed_acc.push_back(s);
+                let ave_time = speed_acc.iter().sum::<f64>() / speed_acc.len() as f64;
+                speed_series.push((i, ave_time));
+
+                if best_time.is_empty() {
+                    best_time.push((i, s));
+                }
+                let prev_best = best_time.last().unwrap().1;
+                if s < prev_best {
+                    best_time.push((i, prev_best));
+                    best_time.push((i, s));
+                }
             }
-            let ave_wr =
-                wr_acc.iter().copied().filter(|b| *b).count() as f64 / wr_acc.len() as f64 * 100.0;
-            let ave_time =
-                speed_acc.iter().map(|x| *x as f64).sum::<f64>() / speed_acc.len() as f64;
-            speed_series.push((i, ave_time));
-            wr_series.push((i, ave_wr));
-            (speed_acc, wr_acc, speed_series, wr_series)
+
+            (speed_acc, wr_acc, speed_series, wr_series, best_time)
         },
     );
-    (speed_series, winrate_series)
+    if let Some(best_time_last) = best_time_series.last() {
+        if best_time_last.0 < winrate_series.len() - 1 {
+            best_time_series.push((winrate_series.len() - 1, best_time_last.1));
+        }
+    }
+    ParsedMode {
+        speed: speed_series,
+        winrate: winrate_series,
+        best_time: best_time_series,
+    }
 }
 
-fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
-    let len = stats.len();
+fn draw_chart(canvas: HtmlCanvasElement, mode: GameMode, stats: &ParsedMode) -> Result<()> {
+    let len = 10.max(stats.winrate.len());
 
-    let (speed_series, winrate_series) = parse_stats(stats);
+    let ParsedMode {
+        speed: speed_series,
+        winrate: winrate_series,
+        best_time: best_time_series,
+    } = stats;
 
     let max = speed_series
         .iter()
         .map(|(_, y)| *y)
         .max_by(|a, b| a.total_cmp(b))
-        .expect("Should be able to find max");
-    let canvas = match mode {
-        GameMode::ClassicBeginner => "beginner_stats",
-        GameMode::ClassicIntermediate => "intermediate_stats",
-        GameMode::ClassicExpert => "expert_stats",
-        _ => bail!("Mode is not Classic"),
-    };
+        .unwrap_or_default();
+    let max = 10.0_f64.max(max);
 
-    let backend = CanvasBackend::new(canvas).expect("canvas should exist");
+    let backend = CanvasBackend::with_canvas_object(canvas).expect("should be able to init canvas");
     let root = backend.into_drawing_area();
-    let largefont: FontDesc = ("sans-serif", 20.0).into();
-    let small_font: FontDesc = ("sans-serif", 14.0).into();
-    let tiny_font: FontDesc = ("sans-serif", 12.0).into();
+    root.fill(&RGBColor(17, 24, 39))?;
 
-    root.fill(&WHITE)?;
+    let large_font = ("sans-serif", 20.0)
+        .with_color(WHITE)
+        .into_text_style(&root);
+    let small_font = ("sans-serif", 14.0)
+        .with_color(WHITE)
+        .into_text_style(&root);
+    let tiny_font = ("sans-serif", 12.0)
+        .with_color(WHITE)
+        .into_text_style(&root);
 
-    let root = root.titled(&format!("{} Stats", mode.short_name()), largefont)?;
+    let root = root.titled(&format!("{} Stats", mode.short_name()), large_font)?;
 
     let mut chart = ChartBuilder::on(&root)
         .margin(2)
-        .caption("10 game moving average", small_font.clone())
+        .caption(
+            "Winrate & Time - 10 game moving average",
+            small_font.clone(),
+        )
         .x_label_area_size(35)
-        .y_label_area_size(40)
-        .right_y_label_area_size(40)
+        .y_label_area_size(45)
+        .right_y_label_area_size(45)
         .build_cartesian_2d(0usize..len, 0.0..max + 5.0)?
         .set_secondary_coord(0usize..len - 1, 0.0..100.0);
 
@@ -250,49 +347,77 @@ fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
         .x_labels(20.min(len))
         .x_desc("Games")
         .y_labels(10)
-        .y_desc("Seconds")
+        .y_desc("Time (Seconds - victories only)")
         .y_label_formatter(&drop_decimal_places)
         .y_label_offset(-10)
         .axis_desc_style(small_font.clone())
         .y_label_style(tiny_font.clone())
+        .x_label_style(tiny_font.clone())
+        .bold_line_style(TRANSPARENT)
+        .light_line_style(WHITE)
+        .axis_style(WHITE)
         .draw()?;
 
     chart
         .configure_secondary_axes()
         .y_labels(10)
-        .y_desc("Winrate")
+        .y_desc("Winrate (%)")
         .y_label_formatter(&drop_decimal_places)
         .y_label_offset(-10)
         .axis_desc_style(small_font)
-        .label_style(tiny_font)
+        .label_style(tiny_font.clone())
+        .axis_style(WHITE)
         .draw()?;
 
-    let speed_style = ShapeStyle {
-        color: RED.into(),
-        filled: false,
-        stroke_width: 4,
-    };
     chart
-        .draw_series(LineSeries::new(speed_series.into_iter(), speed_style).point_size(1))?
+        .draw_series(
+            LineSeries::new(speed_series.clone(), CYAN_200.stroke_width(2).filled()).point_size(2),
+        )?
         .label("Time")
-        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], CYAN_200));
 
-    let time_style = ShapeStyle {
-        color: BLUE.into(),
-        filled: false,
-        stroke_width: 4,
-    };
+    chart
+        .draw_series(LineSeries::new(
+            best_time_series.clone(),
+            CYAN_500.stroke_width(2).filled(),
+        ))?
+        .label("Best Time")
+        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], CYAN_500));
+
+    let mut seen_t = 999.0_f64;
+    chart.draw_series(PointSeries::of_element(
+        best_time_series
+            .iter()
+            .filter(|(_, t)| {
+                let ret = *t != seen_t;
+                seen_t = *t;
+                ret
+            })
+            .cloned(),
+        2,
+        CYAN_500,
+        &|coord, size, style| {
+            EmptyElement::at(coord)
+                + Circle::new((0, 0), size, style)
+                + Text::new(format!("{:.0}s", coord.1), (0, 5), tiny_font.clone())
+        },
+    ))?;
+
     chart
         .draw_secondary_series(
-            LineSeries::new(winrate_series.into_iter(), time_style).point_size(1),
+            LineSeries::new(winrate_series.clone(), INDIGO_200.stroke_width(2).filled())
+                .point_size(2),
         )?
         .label("Winrate")
-        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], BLUE));
+        .legend(|(x, y)| PathElement::new(vec![(x, y - 5), (x + 20, y - 5)], INDIGO_200));
 
     chart
         .configure_series_labels()
         .position(SeriesLabelPosition::LowerLeft)
-        .background_style(RGBAColor(128, 128, 128, 0.4))
+        .background_style(RGBAColor(65, 65, 65, 0.8))
+        .label_font(tiny_font)
+        .margin(2)
+        .legend_area_size(20)
         .draw()?;
 
     root.present()?;
@@ -301,18 +426,49 @@ fn draw_chart(mode: GameMode, stats: &Vec<(bool, i64)>) -> Result<()> {
 
 #[component]
 pub fn TimelineStatsGraphs() -> impl IntoView {
-    let timeline_stats = Resource::new(|| (), move |_| async { get_timeline_stats().await });
+    let timeline_stats = Resource::new(
+        || (),
+        move |_| async {
+            let stats = get_timeline_stats().await;
+            stats.map(|ts| ParsedStats {
+                beginner: parse_stats(&ts.beginner),
+                intermediate: parse_stats(&ts.intermediate),
+                expert: parse_stats(&ts.expert),
+            })
+        },
+    );
+    let canvas_ref = NodeRef::<Canvas>::new();
+
+    let storage_options = UseStorageOptions::<GameMode, serde_json::Error, JsValue>::default()
+        .initial_value(GameMode::ClassicBeginner)
+        .delay_during_hydration(true);
+    let (selected_mode, set_selected_mode, _) = use_local_storage_with_options::<
+        GameMode,
+        JsonSerdeWasmCodec,
+    >("game_mode_stats", storage_options);
 
     Effect::watch(
-        move || timeline_stats.get(),
-        |tstats, _, _| {
-            log::debug!("{:?}", tstats);
+        move || (timeline_stats.get(), selected_mode.get(), canvas_ref.get()),
+        |(tstats, mode, canvas), _, _| {
+            let canvas: HtmlCanvasElement = if let Some(el) = canvas {
+                el.to_owned()
+            } else {
+                log::debug!("canvas not ready");
+                return;
+            };
+            log::debug!("Stats: {:?}", tstats);
             let stats = if let Some(Ok(stats)) = tstats {
                 stats
             } else {
                 return;
             };
-            if let Err(e) = draw_chart(GameMode::ClassicBeginner, &stats.beginner) {
+            let stats = match mode {
+                GameMode::ClassicBeginner => &stats.beginner,
+                GameMode::ClassicIntermediate => &stats.intermediate,
+                GameMode::ClassicExpert => &stats.expert,
+                _ => return,
+            };
+            if let Err(e) = draw_chart(canvas, *mode, stats) {
                 log::debug!("Unable to draw chart: {}", e);
             };
         },
@@ -320,6 +476,15 @@ pub fn TimelineStatsGraphs() -> impl IntoView {
     );
 
     view! {
-        <canvas id="beginner_stats" width="500px" height="300px" />
+        <div class="flex flex-col w-full max-w-xs space-y-2">
+            <StatSelectButtons selected=selected_mode set_selected=set_selected_mode />
+        </div>
+        <canvas
+            node_ref=canvas_ref
+            id="stats_canvas"
+            class="max-w-full"
+            width="800px"
+            height="500px"
+        />
     }
 }
