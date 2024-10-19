@@ -24,7 +24,7 @@ leptos = { version = "0.7.0-gamma", features = ["nightly"] }
 leptos_axum = { version = "0.7.0-gamma", optional = true }
 leptos_meta = { version = "0.7.0-gamma" }
 leptos_router = { version = "0.7.0-gamma", features = ["nightly"] }
-leptos-use = { version = "0.14.0-beta" }
+leptos-use = { version = "0.14.0-gamma" }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
 oauth2 = { version = "4.4", optional = true }

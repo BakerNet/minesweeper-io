@@ -252,13 +252,14 @@ fn parse_stats(stats: &[(bool, i64)]) -> ParsedMode {
         ),
         |(mut speed_acc, mut wr_acc, mut speed_series, mut wr_series, mut best_time),
          (i, (v, s))| {
+            let x = i + 1;
             if wr_acc.len() == 10 {
                 wr_acc.pop_front();
             }
             wr_acc.push_back(*v);
             let ave_wr =
                 wr_acc.iter().copied().filter(|b| *b).count() as f64 / wr_acc.len() as f64 * 100.0;
-            wr_series.push((i, ave_wr));
+            wr_series.push((x, ave_wr));
 
             if *v {
                 if speed_acc.len() == 10 {
@@ -267,15 +268,15 @@ fn parse_stats(stats: &[(bool, i64)]) -> ParsedMode {
                 let s = *s as f64;
                 speed_acc.push_back(s);
                 let ave_time = speed_acc.iter().sum::<f64>() / speed_acc.len() as f64;
-                speed_series.push((i, ave_time));
+                speed_series.push((x, ave_time));
 
                 if best_time.is_empty() {
-                    best_time.push((i, s));
+                    best_time.push((x, s));
                 }
                 let prev_best = best_time.last().unwrap().1;
                 if s < prev_best {
-                    best_time.push((i, prev_best));
-                    best_time.push((i, s));
+                    best_time.push((x, prev_best));
+                    best_time.push((x, s));
                 }
             }
 
@@ -283,8 +284,8 @@ fn parse_stats(stats: &[(bool, i64)]) -> ParsedMode {
         },
     );
     if let Some(best_time_last) = best_time_series.last() {
-        if best_time_last.0 < winrate_series.len() - 1 {
-            best_time_series.push((winrate_series.len() - 1, best_time_last.1));
+        if best_time_last.0 < winrate_series.len() {
+            best_time_series.push((winrate_series.len(), best_time_last.1));
         }
     }
     ParsedMode {
@@ -335,8 +336,8 @@ fn draw_chart(canvas: HtmlCanvasElement, mode: GameMode, stats: &ParsedMode) -> 
         .x_label_area_size(35)
         .y_label_area_size(45)
         .right_y_label_area_size(45)
-        .build_cartesian_2d(0usize..len, 0.0..max + 5.0)?
-        .set_secondary_coord(0usize..len - 1, 0.0..100.0);
+        .build_cartesian_2d(1usize..len, 0.0..max + 5.0)?
+        .set_secondary_coord(1usize..len, 0.0..100.0);
 
     let drop_decimal_places = |x: &f64| format!("{:.0}", x);
 
