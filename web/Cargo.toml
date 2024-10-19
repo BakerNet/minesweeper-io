@@ -24,7 +24,7 @@ leptos = { version = "0.7.0-gamma", features = ["nightly"] }
 leptos_axum = { version = "0.7.0-gamma", optional = true }
 leptos_meta = { version = "0.7.0-gamma" }
 leptos_router = { version = "0.7.0-gamma", features = ["nightly"] }
-leptos-use = { version = "0.14.0-beta" }
+leptos-use = { version = "0.14.0-gamma" }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
 oauth2 = { version = "4.4", optional = true }
@@ -47,6 +47,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = tr
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = ["WebSocket", "Performance"] }
 getrandom = { version = "0.2", features = ["js"] }
+plotters = "0.3.7"
+plotters-canvas = "0.3.0"
 
 [features]
 hydrate = ["leptos/hydrate", "leptos/nightly"]

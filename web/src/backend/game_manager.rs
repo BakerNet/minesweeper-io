@@ -21,7 +21,8 @@ use crate::{
     messages::{ClientMessage, GameMessage},
     models::{
         game::{
-            Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser, SimpleGameWithPlayers,
+            AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
+            SimpleGameWithPlayers, TimelineStats,
         },
         user::User,
     },
@@ -155,26 +156,56 @@ impl GameManager {
 
     pub async fn get_game(&self, game_id: &str) -> Result<Game> {
         Game::get_game(&self.db, game_id)
-            .await?
+            .await
+            .map_err(|e| {
+                log::debug!("Error fetching game: {}", e);
+                e
+            })?
             .ok_or(anyhow!("Game does not exist"))
     }
 
     pub async fn get_game_log(&self, game_id: &str) -> Result<GameLog> {
         GameLog::get_log(&self.db, game_id)
-            .await?
+            .await
+            .map_err(|e| {
+                log::debug!("Error fetching game log: {}", e);
+                e
+            })?
             .ok_or(anyhow!("Game does not exist"))
     }
 
     pub async fn get_players(&self, game_id: &str) -> Result<Vec<PlayerUser>> {
-        Player::get_players(&self.db, game_id)
-            .await
-            .map_err(|e| e.into())
+        Player::get_players(&self.db, game_id).await.map_err(|e| {
+            log::debug!("Error fetching players: {}", e);
+            e.into()
+        })
     }
 
     pub async fn get_player_games_for_user(&self, user: &User) -> Result<Vec<PlayerGame>> {
         Player::get_player_games_for_user(&self.db, user, 100)
             .await
-            .map_err(|e| e.into())
+            .map_err(|e| {
+                log::debug!("Error fetching player games: {}", e);
+                e.into()
+            })
+    }
+
+    pub async fn get_aggregate_stats_for_user(&self, user: &User) -> Result<AggregateStats> {
+        Player::get_aggregate_stats_for_user(&self.db, user)
+            .await
+            .map_err(|e| {
+                log::debug!("Error fetching aggregate stats: {}", e);
+                e.into()
+            })
+    }
+
+    pub async fn get_timeline_stats_for_user(&self, user: &User) -> Result<TimelineStats> {
+        Player::get_timeline_stats_for_user(&self.db, user)
+            .await
+            .map_err(|e| {
+                log::debug!("Error fetching timeline stats: {}", e);
+                e.into()
+            })
     }
 
     pub async fn game_is_active(&self, game_id: &str) -> bool {

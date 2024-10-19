@@ -30,10 +30,3 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = "abort"
-
-[patch.crates-io]
-leptos = { git = "https://github.com/leptos-rs/leptos", rev = "699c54e16cea34e4e2353a0f447c4cea02b41b99" }
-leptos_axum = { git = "https://github.com/leptos-rs/leptos", rev = "699c54e16cea34e4e2353a0f447c4cea02b41b99", optional = true }
-leptos_meta = { git = "https://github.com/leptos-rs/leptos", rev = "699c54e16cea34e4e2353a0f447c4cea02b41b99" }
-leptos_router = { git = "https://github.com/leptos-rs/leptos", rev = "699c54e16cea34e4e2353a0f447c4cea02b41b99" }
-server_fn = { git = "https://github.com/leptos-rs/leptos", rev = "699c54e16cea34e4e2353a0f447c4cea02b41b99" }
