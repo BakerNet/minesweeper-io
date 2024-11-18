@@ -52,7 +52,7 @@ impl GameMode {
 
 impl Default for GameMode {
     fn default() -> Self {
-        Self::LargeMultiplayer
+        Self::ClassicBeginner
     }
 }
 
@@ -250,17 +250,17 @@ pub fn PresetButtons(
     view! {
         <div class="w-full space-y-2">
             <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
+                "Singleplayer Presets"
+            </div>
+            <div class="flex w-full space-x-2">{classic_modes.map(mode_button).collect_view()}</div>
+        </div>
+        <div class="w-full space-y-2">
+            <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
                 "Multiplayer Presets"
             </div>
             <div class="flex w-full space-x-2">
                 {multiplayer_modes.map(mode_button).collect_view()}
             </div>
-        </div>
-        <div class="w-full space-y-2">
-            <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
-                "Classic Presets"
-            </div>
-            <div class="flex w-full space-x-2">{classic_modes.map(mode_button).collect_view()}</div>
         </div>
         <div class="w-full space-y-2">
             <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
@@ -507,7 +507,7 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                 </div>
                 <button
                     type="submit"
-                    class=button_class!("w-full max-w-xs h-12")
+                    class=button_class!("w-full max-w-xs h-12", "text-neutral-50 bg-sky-700 hover:bg-sky-900/90")
                     disabled=new_game.pending()
                 >
                     "Create New Game"

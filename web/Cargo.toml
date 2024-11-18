@@ -17,22 +17,22 @@ codee = { version = "0.2", features = ["json_serde_wasm"] }
 console_error_panic_hook = "0.1"
 console_log = "1.0"
 cfg-if = "1.0"
-dotenvy = "0.15"
+dotenvy = { version = "0.15", optional = true }
 futures = { version = "0.3", optional = true }
 http = { version = "1.1" }
-leptos = { version = "0.7.0-gamma", features = ["nightly"] }
-leptos_axum = { version = "0.7.0-gamma", optional = true }
-leptos_meta = { version = "0.7.0-gamma" }
-leptos_router = { version = "0.7.0-gamma", features = ["nightly"] }
-leptos-use = { version = "0.14.0-gamma" }
+leptos = { version = "0.7.0-rc", features = ["nightly"] }
+leptos_axum = { version = "0.7.0-rc", optional = true }
+leptos_meta = { version = "0.7.0-rc" }
+leptos_router = { version = "0.7.0-rc", features = ["nightly"] }
+leptos-use = { version = "0.14.0-rc", features = ["storage", "use_document", "use_event_listener", "use_color_mode"] }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
 oauth2 = { version = "4.4", optional = true }
 regex = "1.10"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"], optional = true }
 serde = "1.0"
 serde_json = "1.0"
-server_fn = { version = "0.7.0-gamma" }
+server_fn = { version = "0.7.0-rc" }
 simple_logger = "5"
 sqlx = { version = "0.7", features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
 thiserror = "1.0"
@@ -44,7 +44,7 @@ tower-sessions = { version = "0.12", optional = true }
 tower-sessions-sqlx-store = { version = "0.12.0", optional = true, features = ["sqlite"] }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
-wasm-bindgen = "0.2"
+wasm-bindgen = "=0.2.95"
 web-sys = { version = "0.3", features = ["WebSocket", "Performance"] }
 getrandom = { version = "0.2", features = ["js"] }
 plotters = "0.3.7"
@@ -67,6 +67,8 @@ ssr = [
     "dep:tower-sessions-sqlx-store",
     "dep:tracing",
     "dep:tracing-subscriber",
+    "dep:dotenvy",
+    "dep:reqwest",
     "leptos/ssr",
     "leptos_meta/ssr",
     "leptos_router/ssr",
@@ -105,7 +107,7 @@ tailwind-config-file = "tailwind.config.js"
 assets-dir = "public"
 
 # The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
-site-addr = "127.0.0.1:3000"
+site-addr = "0.0.0.0:3000"
 
 # The port to use for automatic reload monitoring
 reload-port = 3001
