@@ -6,8 +6,8 @@ use leptos_router::{components::*, hooks::*};
 use leptos_use::{
     core::ConnectionReadyState, use_document, use_event_listener, use_websocket, UseWebSocketReturn,
 };
-use std::sync::Arc;
-use web_sys::{KeyboardEvent, MouseEvent};
+use std::{sync::Arc, time::Duration};
+use web_sys::{KeyboardEvent, MouseEvent, TouchEvent};
 
 use minesweeper_lib::{
     analysis::AnalyzedCell,
@@ -380,6 +380,7 @@ where
     let (skip_mouseup, set_skip_mouseup) = signal::<usize>(0);
     let (game_is_active, set_game_is_active) = signal(false);
     let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
+    let (touch_timer, set_touch_timer) = signal(None::<TimeoutHandle>);
 
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         game.with_value(|game| {
@@ -393,10 +394,10 @@ where
     };
 
     let handle_keydown = move |ev: KeyboardEvent| {
-        if !game_is_active.get() {
+        if !game_is_active.get_untracked() {
             return;
         }
-        let BoardPoint { row, col } = active_cell.get();
+        let BoardPoint { row, col } = active_cell.get_untracked();
         match ev.key().as_str() {
             " " => {
                 ev.prevent_default();
@@ -424,12 +425,33 @@ where
         }
     };
     let handle_mouseup = move |ev: MouseEvent, row: usize, col: usize| {
-        if skip_mouseup.get() > 0 {
+        if skip_mouseup.get_untracked() > 0 {
             set_skip_mouseup.set(skip_mouseup() - 1);
             return;
         }
         if ev.button() == 0 {
             handle_action(PlayAction::Reveal, row, col);
+        }
+    };
+
+    let handle_touchstart = move |_: TouchEvent, row: usize, col: usize| {
+        let res = set_timeout_with_handle(
+            move || {
+                handle_action(PlayAction::Flag, row, col);
+                set_touch_timer(None);
+            },
+            Duration::from_millis(200),
+        );
+        if let Ok(t) = res {
+            set_touch_timer(Some(t));
+        }
+    };
+
+    let handle_touchend = move |_: TouchEvent, _: usize, _: usize| {
+        let timer = touch_timer.get_untracked();
+        if let Some(t) = timer {
+            t.clear();
+            set_touch_timer(None);
         }
     };
 
@@ -442,6 +464,8 @@ where
                 set_active=set_active_cell
                 mousedown_handler=handle_mousedown
                 mouseup_handler=handle_mouseup
+                touchstart_handler=handle_touchstart
+                touchend_handler=handle_touchend
             />
         }
     };

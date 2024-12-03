@@ -1,7 +1,7 @@
 use leptos::either::*;
 use leptos::prelude::*;
 use minesweeper_lib::{analysis::AnalyzedCell, replay::ReplayAnalysisCell};
-use web_sys::MouseEvent;
+use web_sys::{MouseEvent, TouchEvent};
 
 use minesweeper_lib::{
     board::BoardPoint,
@@ -52,17 +52,21 @@ fn cell_player_class(cell: PlayerCell) -> &'static str {
 }
 
 #[component]
-pub fn ActiveCell<F, F2>(
+pub fn ActiveCell<F, F2, F3, F4>(
     row: usize,
     col: usize,
     cell: ReadSignal<PlayerCell>,
     set_active: WriteSignal<BoardPoint>,
     mousedown_handler: F,
     mouseup_handler: F2,
+    touchstart_handler: F3,
+    touchend_handler: F4,
 ) -> impl IntoView
 where
     F: Fn(MouseEvent, usize, usize) + Copy + 'static,
     F2: Fn(MouseEvent, usize, usize) + Copy + 'static,
+    F3: Fn(TouchEvent, usize, usize) + Copy + 'static,
+    F4: Fn(TouchEvent, usize, usize) + Copy + 'static,
 {
     let id = format!("{}_{}", row, col);
     let class = move || {
@@ -76,6 +80,9 @@ where
             id=id
             on:mousedown=move |ev| mousedown_handler(ev, row, col)
             on:mouseup=move |ev| mouseup_handler(ev, row, col)
+            on:touchstart=move |ev| touchstart_handler(ev, row, col)
+            on:touchend=move |ev| touchend_handler(ev, row, col)
+            on:touchcancel=move |ev| touchend_handler(ev, row, col)
             on:mouseenter=move |_| set_active(BoardPoint { row, col })
             oncontextmenu="event.preventDefault();"
         >

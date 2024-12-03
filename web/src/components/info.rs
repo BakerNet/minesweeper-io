@@ -22,7 +22,7 @@ pub fn ControlsInfoButton(set_show_info: WriteSignal<bool>) -> impl IntoView {
 
 #[component]
 pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
-    let key_class = "rounded bg-neutral-600 dark:bg-neutral-900 text-zinc-200 font-light p-1 px-2";
+    let key_class = "rounded whitespace-nowrap bg-neutral-600 dark:bg-neutral-900 text-zinc-200 font-light p-1 px-2";
     view! {
         <div
             class="fixed flex flex-col justify-center items-center left-0 right-0 top-0 bottom-0 z-50 bg-neutral-500/50"
@@ -37,12 +37,16 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                     <span class=key_class>"Left Click"</span>
                     " or "
                     <span class=key_class>"Spacebar"</span>
+                    " or "
+                    <span class=key_class>"Tap (touchscreen)"</span>
                     " to reveal cell"
                 </div>
                 <div class="text-l my-2">
                     <span class=key_class>"Right Click"</span>
                     " or "
                     <span class=key_class>"F"</span>
+                    " or "
+                    <span class=key_class>"Long Press (touchscreen)"</span>
                     " to plant flag"
                 </div>
                 <div class="text-l my-2">
