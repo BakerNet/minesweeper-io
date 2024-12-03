@@ -507,7 +507,9 @@ pub fn JoinOrCreateGame() -> impl IntoView {
                 </div>
                 <button
                     type="submit"
-                    class=button_class!("w-full max-w-xs h-12", "text-neutral-50 bg-sky-700 hover:bg-sky-900/90")
+                    class=button_class!(
+                        "w-full max-w-xs h-12", "text-neutral-50 bg-sky-700 hover:bg-sky-900/90"
+                    )
                     disabled=new_game.pending()
                 >
                     "Create New Game"
