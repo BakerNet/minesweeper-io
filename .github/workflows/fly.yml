@@ -14,3 +14,20 @@ jobs:
       - run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  purge-cache:
+    name: Purge Cloudflare Cache
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+    - name: Call CloudFlare API
+      env:
+        CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      run: |
+        [[ -n "$CLOUDFLARE_TOKEN" ]] || \
+          ( echo "Error: Must set CLOUDFLARE_TOKEN secret"; exit 1 )
+        curl -sS -X POST \
+          "https://api.cloudflare.com/client/v4/zones/ff163f5e0b86948e108ef2cfa967d0fd/purge_cache" \
+          -H "Authorization: Bearer $CLOUDFLARE_TOKEN" \
+          -H "Content-Type: application/json" \
+          --data '{"purge_everything": true}'
