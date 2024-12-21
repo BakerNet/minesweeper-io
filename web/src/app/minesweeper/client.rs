@@ -162,7 +162,7 @@ impl FrontendGame {
         let game: &mut MinesweeperClient = &mut (*self.game).write().unwrap();
         match game_message {
             GameMessage::PlayerId(player_id) => {
-                (self.set_player_id)(Some(player_id));
+                self.set_player_id.set(Some(player_id));
                 Ok(())
             }
             GameMessage::PlayOutcome(po) => {
@@ -172,18 +172,19 @@ impl FrontendGame {
                     self.update_cell(*point, *cell);
                 });
                 if game.game_over {
-                    (self.set_completed)(true);
+                    self.set_completed.set(true);
                 }
                 Ok(())
             }
             GameMessage::PlayerUpdate(pu) => {
                 game.add_or_update_player(pu.player_id, Some(pu.score), Some(pu.dead));
-                self.player_signals[pu.player_id](Some(pu));
+                self.player_signals[pu.player_id].set(Some(pu));
                 Ok(())
             }
             GameMessage::Error(e) => Err(anyhow!(e)),
             GameMessage::GameState(gs) => {
-                let old_board = game.player_board().clone();
+                let old_board = game.player_board().to_owned();
+                let mut flag_count = self.flag_count.get_untracked();
                 game.set_state(gs);
                 game.player_board()
                     .rows_iter()
@@ -192,10 +193,16 @@ impl FrontendGame {
                     .for_each(|(row, (new, old))| {
                         new.iter().enumerate().for_each(|(col, cell)| {
                             if *cell != old[col] {
-                                (self.cell_signals[row][col])(*cell);
+                                self.cell_signals[row][col].set(*cell);
+                            }
+                            if matches!(cell, PlayerCell::Hidden(HiddenCell::Flag)) {
+                                flag_count += 1;
                             }
                         })
                     });
+                if flag_count > 0 {
+                    self.set_flag_count.set(flag_count);
+                }
                 Ok(())
             }
             GameMessage::PlayersState(ps) => {
@@ -203,18 +210,18 @@ impl FrontendGame {
                     if let Some(cp) = cp {
                         game.add_or_update_player(cp.player_id, Some(cp.score), Some(cp.dead));
                         log::debug!("Sending player signal {:?}", cp);
-                        self.player_signals[cp.player_id](Some(cp));
+                        self.player_signals[cp.player_id].set(Some(cp));
                     }
                 });
-                (self.set_players_loaded)(true);
+                self.set_players_loaded.set(true);
                 Ok(())
             }
             GameMessage::GameStarted => {
-                (self.set_started)(true);
+                self.set_started.set(true);
                 Ok(())
             }
             GameMessage::SyncTimer(secs) => {
-                (self.set_sync_time)(Some(secs));
+                self.set_sync_time.set(Some(secs));
                 Ok(())
             }
         }
@@ -243,7 +250,7 @@ impl FrontendGame {
             }
             _ => {}
         }
-        self.cell_signals[point.row][point.col](cell);
+        self.cell_signals[point.row][point.col].set(cell);
     }
 
     pub fn send(&self, m: ClientMessage) {
