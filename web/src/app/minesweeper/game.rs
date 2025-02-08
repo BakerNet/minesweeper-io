@@ -319,6 +319,7 @@ where
     let game = FrontendGame::new(&game_info, set_error, Arc::new(send));
     let flag_count = game.flag_count;
     let completed = game.completed;
+    let top_score = game.top_score;
     let sync_time = game.sync_time;
     let join_trigger = game.join_trigger;
     let players = Arc::clone(&game.players);
@@ -484,7 +485,7 @@ where
     let cells = view! { {game.with_value(|game| game.cells.iter().enumerate().map(cell_row).collect_view())} };
 
     view! {
-        <ActivePlayers players title="Players">
+        <ActivePlayers players top_score title="Players">
             <PlayerButtons game />
         </ActivePlayers>
         <GameWidgets>
@@ -550,6 +551,7 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
 fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
+    let (top_score, _) = signal(None);
     let (flag_count, set_flag_count) = signal(0);
     let (replay_started, set_replay_started) = signal(false);
 
@@ -598,7 +600,7 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     ));
 
     view! {
-        <ActivePlayers players=player_read_signals.into() title="Replay">
+        <ActivePlayers players=player_read_signals.into() top_score title="Replay">
             {}
         </ActivePlayers>
         <GameWidgets>

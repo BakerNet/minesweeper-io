@@ -19,6 +19,7 @@ pub enum GameMessage {
     GameState(Board<PlayerCell>),
     PlayersState(Vec<Option<ClientPlayer>>),
     GameStarted,
+    TopScore(usize),
     SyncTimer(usize),
     Error(String),
 }

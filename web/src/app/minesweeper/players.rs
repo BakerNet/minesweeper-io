@@ -35,6 +35,7 @@ fn Scoreboard(children: Children) -> impl IntoView {
 #[component]
 pub fn ActivePlayers(
     players: Arc<Vec<ReadSignal<Option<ClientPlayer>>>>,
+    top_score: ReadSignal<Option<usize>>,
     title: &'static str,
     children: Children,
 ) -> impl IntoView {
@@ -42,7 +43,7 @@ pub fn ActivePlayers(
         .iter()
         .enumerate()
         .map(move |(n, player)| {
-            view! { <ActivePlayer player_num=n player=*player /> }
+            view! { <ActivePlayer player_num=n player=*player top_score /> }
         })
         .collect_view();
     view! {
@@ -127,10 +128,23 @@ pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>, title: &'static str) 
 }
 
 #[component]
-fn ActivePlayer(player_num: usize, player: ReadSignal<Option<ClientPlayer>>) -> impl IntoView {
+fn ActivePlayer(
+    player_num: usize,
+    player: ReadSignal<Option<ClientPlayer>>,
+    top_score: ReadSignal<Option<usize>>,
+) -> impl IntoView {
     view! {
         {move || {
-            view! { <PlayerRow player_num=player_num player=player() /> }
+            let mut player = player.get();
+            let top_score = top_score.get();
+            if let Some(ts) = top_score {
+                if let Some(player) = &mut player {
+                    if player.top_score && player.score < ts {
+                        player.top_score = false;
+                    }
+                }
+            }
+            view! { <PlayerRow player_num=player_num player /> }
         }}
     }
 }
