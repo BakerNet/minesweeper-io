@@ -1,6 +1,6 @@
 # [toolchain]
 # channel = "nightly"
 
-# Won't compile on newer nightly as of Feb 2025
+# Won't compile on MacOS with newer nightly as of Feb 2025
 [toolchain]
 channel = "nightly-2024-08-04"
