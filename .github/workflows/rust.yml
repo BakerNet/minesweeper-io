@@ -32,11 +32,11 @@ jobs:
         targets: "wasm32-unknown-unknown"
         components: "clippy"
     - name: Install cargo-leptos
-      uses: baptiste0928/cargo-install@v3.1.1
+      uses: baptiste0928/cargo-install@v3.3.0
       with:
         crate: cargo-leptos
     - name: Install leptosfmt
-      uses: baptiste0928/cargo-install@v3.1.1
+      uses: baptiste0928/cargo-install@v3.3.0
       with:
         crate: leptosfmt
     - name: Install plotters-rs deps
