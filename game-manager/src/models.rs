@@ -1,4 +1,3 @@
-#![cfg(feature = "ssr")]
 use chrono::{DateTime, TimeDelta, Utc};
 use minesweeper_lib::{
     cell::PlayerCell,
@@ -8,7 +7,7 @@ use minesweeper_lib::{
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Json, FromRow, SqlitePool};
 
-use super::user::User;
+use web_auth::{models::User, FrontendUser};
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]
 pub struct Game {
@@ -237,6 +236,28 @@ pub struct PlayerUser {
     pub score: i64,
     pub display_name: Option<String>,
     pub player: u8,
+}
+
+impl From<&PlayerUser> for ClientPlayer {
+    fn from(value: &PlayerUser) -> Self {
+        ClientPlayer {
+            player_id: value.player as usize,
+            username: FrontendUser::display_name_or_anon(
+                value.display_name.as_ref(),
+                value.user.is_some(),
+            ),
+            dead: value.dead,
+            victory_click: value.victory_click,
+            top_score: value.top_score,
+            score: value.score as usize,
+        }
+    }
+}
+
+impl From<PlayerUser> for ClientPlayer {
+    fn from(value: PlayerUser) -> Self {
+        ClientPlayer::from(&value)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, FromRow)]

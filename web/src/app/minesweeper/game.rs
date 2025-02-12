@@ -1,40 +1,29 @@
-use chrono::DateTime;
 use codee::string::JsonSerdeWasmCodec;
-use leptos::{either::*, ev, prelude::*};
+use leptos::{either::*, prelude::*};
 use leptos_meta::*;
 use leptos_router::{components::*, hooks::*};
-use leptos_use::{
-    core::ConnectionReadyState, use_document, use_event_listener, use_websocket, UseWebSocketReturn,
-};
-use std::{sync::Arc, time::Duration};
-use web_sys::{KeyboardEvent, MouseEvent, TouchEvent};
+use leptos_use::{core::ConnectionReadyState, use_websocket, UseWebSocketReturn};
+use std::sync::Arc;
 
 use minesweeper_lib::{
     analysis::AnalyzedCell,
-    board::BoardPoint,
     cell::{HiddenCell, PlayerCell},
     game::{Action as PlayAction, CompletedMinesweeper},
     replay::ReplayAnalysisCell,
 };
 
 use super::{
-    cell::{ActiveCell, InactiveCell, ReplayCell},
-    client::FrontendGame,
-    entry::ReCreateGame,
-    players::{ActivePlayers, InactivePlayers, PlayerButtons},
-    replay::{OpenReplay, ReplayControls},
-    widgets::{ActiveMines, ActiveTimer, CopyGameLink, GameWidgets, InactiveMines, InactiveTimer},
-    {GameInfo, GameInfoWithLog, GameSettings},
+    client::FrontendGame, entry::ReCreateGame, players::PlayerButtons, replay::OpenReplayButton,
 };
+use game_ui::*;
 
 #[cfg(feature = "ssr")]
-use crate::backend::{AuthSession, GameManager};
-use crate::{
-    button_class,
-    messages::{ClientMessage, GameMessage},
-};
+use game_manager::GameManager;
+use game_manager::{ClientMessage, GameMessage};
 #[cfg(feature = "ssr")]
 use minesweeper_lib::{board::Board, client::ClientPlayer};
+#[cfg(feature = "ssr")]
+use web_auth::AuthSession;
 
 #[server]
 pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
@@ -221,8 +210,8 @@ pub fn GameView() -> impl IntoView {
     let refetch = move || game_info.refetch();
 
     let game_view = move |game_info: GameInfo| match game_info.is_completed {
-        true => Either::Left(view! { <InactiveGame game_info /> }),
-        false => Either::Right(view! { <ActiveGame game_info refetch /> }),
+        true => Either::Left(view! { <WebInactiveGame game_info /> }),
+        false => Either::Right(view! { <WebActiveGame game_info refetch /> }),
     };
 
     view! {
@@ -253,7 +242,7 @@ pub fn ReplayView() -> impl IntoView {
     let game_info = Resource::new(game_id, get_replay);
 
     let game_view = move |replay_data: GameInfoWithLog| match replay_data.game_info.is_completed {
-        true => Either::Left(view! { <ReplayGame replay_data /> }),
+        true => Either::Left(view! { <WebReplayGame replay_data /> }),
         false => Either::Right(
             view! { <Redirect path=format!("/game/{}", replay_data.game_info.game_id) /> },
         ),
@@ -280,27 +269,7 @@ pub fn ReplayView() -> impl IntoView {
 }
 
 #[component]
-fn GameBorder<F>(set_active: F, children: Children) -> impl IntoView
-where
-    F: Fn(bool) + Copy + 'static,
-{
-    view! {
-        <div class="select-none overflow-x-auto overflow-y-hidden mb-8">
-            <div class="w-fit border-solid border border-black mx-auto">
-                <div
-                    class="w-fit border-groove border-24 bg-gray-900"
-                    on:mouseenter=move |_| set_active(true)
-                    on:mouseleave=move |_| set_active(false)
-                >
-                    {children()}
-                </div>
-            </div>
-        </div>
-    }
-}
-
-#[component]
-fn ActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
+fn WebActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
 where
     F: Fn() + Clone + 'static,
 {
@@ -322,7 +291,8 @@ where
     let top_score = game.top_score;
     let sync_time = game.sync_time;
     let join_trigger = game.join_trigger;
-    let players = Arc::clone(&game.players);
+    let players = (*game.players).clone();
+    let cells = (*game.cells).clone();
 
     let game = StoredValue::new(game);
 
@@ -378,11 +348,6 @@ where
         })
     });
 
-    let (skip_mouseup, set_skip_mouseup) = signal::<usize>(0);
-    let (game_is_active, set_game_is_active) = signal(false);
-    let (active_cell, set_active_cell) = signal(BoardPoint { row: 0, col: 0 });
-    let (touch_timer, set_touch_timer) = signal(None::<TimeoutHandle>);
-
     let handle_action = move |pa: PlayAction, row: usize, col: usize| {
         game.with_value(|game| {
             let res = match pa {
@@ -394,112 +359,22 @@ where
         })
     };
 
-    let handle_keydown = move |ev: KeyboardEvent| {
-        if !game_is_active.get_untracked() {
-            return;
-        }
-        let BoardPoint { row, col } = active_cell.get_untracked();
-        match ev.key().as_str() {
-            " " => {
-                ev.prevent_default();
-                handle_action(PlayAction::Reveal, row, col);
-            }
-            "d" => {
-                handle_action(PlayAction::RevealAdjacent, row, col);
-            }
-            "f" => {
-                handle_action(PlayAction::Flag, row, col);
-            }
-            _ => {}
-        }
-    };
-    let _ = use_event_listener(use_document(), ev::keydown, handle_keydown);
-
-    let handle_mousedown = move |ev: MouseEvent, row: usize, col: usize| {
-        let set_skip_signal = { set_skip_mouseup };
-        if ev.button() == 2 {
-            handle_action(PlayAction::Flag, row, col);
-        }
-        if ev.buttons() == 3 {
-            set_skip_signal.set(2);
-            handle_action(PlayAction::RevealAdjacent, row, col);
-        }
-    };
-    let handle_mouseup = move |ev: MouseEvent, row: usize, col: usize| {
-        if skip_mouseup.get_untracked() > 0 {
-            set_skip_mouseup.set(skip_mouseup() - 1);
-            return;
-        }
-        if ev.button() == 0 {
-            handle_action(PlayAction::Reveal, row, col);
-        }
-    };
-
-    let handle_touchstart = move |_: TouchEvent, row: usize, col: usize| {
-        let res = set_timeout_with_handle(
-            move || {
-                handle_action(PlayAction::Flag, row, col);
-                set_touch_timer(None);
-            },
-            Duration::from_millis(200),
-        );
-        if let Ok(t) = res {
-            set_touch_timer(Some(t));
-        }
-    };
-
-    let handle_touchend = move |_: TouchEvent, _: usize, _: usize| {
-        let timer = touch_timer.get_untracked();
-        if let Some(t) = timer {
-            t.clear();
-            set_touch_timer(None);
-        }
-    };
-
-    let active_cell = move |row: usize, col: usize, cell: ReadSignal<PlayerCell>| {
-        view! {
-            <ActiveCell
-                row=row
-                col=col
-                cell=cell
-                set_active=set_active_cell
-                mousedown_handler=handle_mousedown
-                mouseup_handler=handle_mouseup
-                touchstart_handler=handle_touchstart
-                touchend_handler=handle_touchend
-            />
-        }
-    };
-    let cell_row = move |(row, vec): (usize, &Vec<ReadSignal<PlayerCell>>)| {
-        view! {
-            <div class="whitespace-nowrap">
-                {vec
-                    .iter()
-                    .copied()
-                    .enumerate()
-                    .map(move |(col, cell)| { active_cell(row, col, cell) })
-                    .collect_view()}
-            </div>
-        }
-    };
-    let cells = view! { {game.with_value(|game| game.cells.iter().enumerate().map(cell_row).collect_view())} };
-
     view! {
-        <ActivePlayers players top_score title="Players">
+        <ActivePlayers players=players top_score title="Players">
             <PlayerButtons game />
         </ActivePlayers>
         <GameWidgets>
             <ActiveMines num_mines=game_info.num_mines flag_count />
-            <CopyGameLink game_id=game_info.game_id />
+            <WrappedCopyGameLink game_id=game_info.game_id />
             <ActiveTimer sync_time completed />
         </GameWidgets>
-        <GameBorder set_active=set_game_is_active>{cells}</GameBorder>
+        <ActiveGame cell_read_signals=cells action_handler=handle_action />
         <div class="text-red-600 h-8">{error}</div>
     }
 }
 
 #[component]
-fn InactiveGame(game_info: GameInfo) -> impl IntoView {
+fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
     let game_settings = GameSettings::from(&game_info);
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let num_mines = game_info
@@ -514,23 +389,6 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         .filter_map(|cp| cp.as_ref())
         .any(|cp| cp.victory_click);
 
-    let cell_row = |(row, vec): (usize, &[PlayerCell])| {
-        view! {
-            <div class="whitespace-nowrap">
-                {vec
-                    .iter()
-                    .copied()
-                    .enumerate()
-                    .map(move |(col, cell)| {
-                        view! { <InactiveCell row=row col=col cell=cell /> }
-                    })
-                    .collect_view()}
-            </div>
-        }
-    };
-    let cells =
-        view! { {game_info.final_board.rows_iter().enumerate().map(cell_row).collect_view()} };
-
     view! {
         <InactivePlayers
             players=game_info.players
@@ -538,17 +396,17 @@ fn InactiveGame(game_info: GameInfo) -> impl IntoView {
         />
         <GameWidgets>
             <InactiveMines num_mines=num_mines />
-            <CopyGameLink game_id=game_info.game_id />
+            <WrappedCopyGameLink game_id=game_info.game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <GameBorder set_active=move |_| {}>{cells}</GameBorder>
+        <InactiveGame board=game_info.final_board />
         <ReCreateGame game_settings />
-        <OpenReplay />
+        <OpenReplayButton />
     }
 }
 
 #[component]
-fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
+fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_info = replay_data.game_info;
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let (top_score, _) = signal(None);
@@ -573,42 +431,29 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         })
         .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
 
-    let cell_row = |(row, cells): (usize, &Vec<ReadSignal<ReplayAnalysisCell>>)| {
-        view! {
-            <div class="whitespace-nowrap">
-                {cells
-                    .iter()
-                    .enumerate()
-                    .map(move |(col, &cell)| view! { <ReplayCell row=row col=col cell=cell /> })
-                    .collect_view()}
-            </div>
-        }
-    };
-    let cells = view! { {cell_read_signals.iter().enumerate().map(cell_row).collect_view()} };
-
     let completed_minesweeper = CompletedMinesweeper::from_log(
         game_info.final_board,
         replay_data.log,
         game_info.players.into_iter().flatten().collect(),
     );
     let replay_data = StoredValue::new((
-        completed_minesweeper,
+        Arc::new(completed_minesweeper),
         replay_data.player_num,
-        cell_read_signals,
-        cell_write_signals,
-        player_write_signals,
+        Arc::new(cell_read_signals.clone()),
+        Arc::new(cell_write_signals),
+        Arc::new(player_write_signals),
     ));
 
     view! {
-        <ActivePlayers players=player_read_signals.into() top_score title="Replay">
+        <ActivePlayers players=player_read_signals top_score title="Replay">
             {}
         </ActivePlayers>
         <GameWidgets>
             <ActiveMines num_mines=game_info.num_mines flag_count />
-            <CopyGameLink game_id=game_info.game_id />
+            <WrappedCopyGameLink game_id=game_info.game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <GameBorder set_active=move |_| ()>{cells}</GameBorder>
+        <ReplayGame cell_read_signals />
         <Show
             when=replay_started
             fallback=move || {
@@ -646,10 +491,10 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
                         view! {
                             <ReplayControls
                                 replay
-                                cell_read_signals=cell_read_signals.to_vec()
-                                cell_write_signals=cell_write_signals.to_vec()
-                                set_flag_count
-                                player_write_signals=player_write_signals.to_vec()
+                                cell_read_signals=cell_read_signals.clone()
+                                cell_write_signals=cell_write_signals.clone()
+                                flag_count_setter=Some(set_flag_count)
+                                player_write_signals=Some(player_write_signals.clone())
                             />
                         }
                     })
@@ -658,12 +503,14 @@ fn ReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     }
 }
 
-fn game_time_from_start_end<T: chrono::TimeZone>(
-    start_time: Option<DateTime<T>>,
-    end_time: Option<DateTime<T>>,
-) -> usize {
-    (match (start_time, end_time) {
-        (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
-        _ => 999,
-    }) as usize
+#[component]
+fn WrappedCopyGameLink(game_id: String) -> impl IntoView {
+    #[cfg(not(feature = "ssr"))]
+    let origin = { window().location().origin().unwrap_or_default() };
+    #[cfg(feature = "ssr")]
+    let origin = String::new();
+    let game_url = format!("{}/game/{}", origin, game_id);
+    view! {
+        <CopyGameLink game_url />
+    }
 }

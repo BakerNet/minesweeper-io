@@ -1,15 +1,16 @@
 use leptos::prelude::*;
 use regex::Regex;
 
-use super::FrontendUser;
-use crate::{button_class, input_class};
+use web_auth::FrontendUser;
+
+use game_ui::{button_class, input_class};
 
 #[cfg(feature = "ssr")]
 use super::get_user;
 #[cfg(feature = "ssr")]
-use crate::backend::AuthSession;
-#[cfg(feature = "ssr")]
 use axum_login::AuthUser;
+#[cfg(feature = "ssr")]
+use web_auth::AuthSession;
 
 fn no_prefix_serverfnerror(s: ServerFnError) -> String {
     s.to_string()

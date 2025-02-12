@@ -1,0 +1,42 @@
+[package]
+name = "web-auth"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1.0"
+async-trait = "0.1"
+axum = { version = "0.7", features = ["ws", "macros"], optional = true }
+axum-login = { version = "0.15", optional = true }
+chrono = { version = "0.4", features = ["serde"] }
+cfg-if = "1.0"
+futures = { version = "0.3", optional = true }
+http = { version = "1.1" }
+log = "0.4"
+oauth2 = { version = "4.4", optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+serde = "1.0"
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
+thiserror = "1.0"
+time = "0.3"
+tokio = { version = "1", features = ["full"], optional = true }
+tower-sessions = { version = "0.12", optional = true }
+tracing = { version = "0.1", optional = true }
+getrandom = { version = "0.2", features = ["js"] }
+
+[features]
+ssr = [
+    "dep:axum",
+    "dep:axum-login",
+    "dep:futures",
+    "dep:oauth2",
+    "dep:sqlx",
+    "dep:tokio",
+    "dep:tower-sessions",
+    "dep:tracing",
+    "dep:reqwest",
+]

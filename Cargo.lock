@@ -1099,6 +1099,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "game-manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "cfg-if",
+ "chrono",
+ "futures",
+ "getrandom",
+ "http 1.1.0",
+ "log",
+ "minesweeper-lib",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tracing",
+ "web-auth",
+]
+
+[[package]]
+name = "game-ui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cfg-if",
+ "chrono",
+ "codee",
+ "getrandom",
+ "leptos",
+ "leptos-use",
+ "log",
+ "minesweeper-lib",
+ "plotters",
+ "plotters-canvas",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2174,6 +2219,8 @@ dependencies = [
  "console_log",
  "dotenvy",
  "futures",
+ "game-manager",
+ "game-ui",
  "getrandom",
  "http 1.1.0",
  "leptos",
@@ -2204,6 +2251,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",
+ "web-auth",
  "web-sys",
 ]
 
@@ -4765,6 +4813,32 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "web-auth"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "axum-login",
+ "cfg-if",
+ "chrono",
+ "futures",
+ "getrandom",
+ "http 1.1.0",
+ "log",
+ "oauth2",
+ "reqwest 0.12.9",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tower-sessions",
+ "tracing",
 ]
 
 [[package]]

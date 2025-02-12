@@ -24,7 +24,6 @@ pub enum GameMessage {
     Error(String),
 }
 
-#[cfg(feature = "ssr")]
 impl GameMessage {
     pub fn into_json(self) -> String {
         serde_json::to_string::<GameMessage>(&self)

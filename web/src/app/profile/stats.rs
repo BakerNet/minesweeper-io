@@ -11,13 +11,12 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::JsValue;
 use web_sys::HtmlCanvasElement;
 
-use super::GameMode;
+use game_ui::{button_class, GameMode};
 
 #[cfg(feature = "ssr")]
-use crate::backend::{AuthSession, GameManager};
-use crate::button_class;
+use game_manager::{models::GameStats, GameManager};
 #[cfg(feature = "ssr")]
-use crate::models::game::GameStats;
+use web_auth::AuthSession;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameModeStats {

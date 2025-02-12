@@ -7,16 +7,15 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::*;
 
-use super::{
-    auth::{FrontendUser, LogOutForm, Logout},
-    minesweeper::GameMode,
-};
+use web_auth::FrontendUser;
+
+use super::auth::{LogOutForm, Logout};
 use display_name::SetDisplayName;
 use game_history::GameHistory;
 use stats::{PlayerStatsTable, TimelineStatsGraphs};
 
 #[cfg(feature = "ssr")]
-use super::{auth::get_user, minesweeper::GameSettings};
+use super::auth::get_user;
 
 #[component]
 pub fn ProfileView(

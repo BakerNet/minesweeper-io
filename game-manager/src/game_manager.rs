@@ -15,16 +15,13 @@ use tokio::{
     sync::{broadcast, mpsc, Mutex, RwLock},
     time::{interval, Duration},
 };
+use web_auth::{models::User, FrontendUser};
 
 use crate::{
-    app::FrontendUser,
     messages::{ClientMessage, GameMessage},
     models::{
-        game::{
-            AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
-            SimpleGameWithPlayers, TimelineStats,
-        },
-        user::User,
+        AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
+        SimpleGameWithPlayers, TimelineStats,
     },
 };
 

@@ -1,7 +1,5 @@
 mod app;
 mod components;
-mod messages;
-mod models;
 
 #[cfg(feature = "ssr")]
 pub mod backend;

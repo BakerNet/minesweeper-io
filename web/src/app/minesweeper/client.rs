@@ -9,9 +9,9 @@ use minesweeper_lib::{
     game::{Action as PlayAction, Play},
 };
 
-use crate::messages::{ClientMessage, GameMessage};
+use game_manager::{ClientMessage, GameMessage};
 
-use super::GameInfo;
+use game_ui::GameInfo;
 
 #[derive(Clone)]
 pub struct FrontendGame {

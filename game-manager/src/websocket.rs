@@ -1,37 +1,35 @@
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        Path, State,
+        ws::{Message, WebSocket},
+        Path, State, WebSocketUpgrade,
     },
     response::IntoResponse,
-    routing::get,
-    Router,
 };
 use futures::{sink::SinkExt, StreamExt};
-use http::StatusCode;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use web_auth::{models::User, AuthSession};
 
-use crate::{messages::ClientMessage, models::user::User};
+use crate::{game_manager::GameManager, messages::ClientMessage};
 
-use super::{app::AppState, game_manager::GameManager, users::AuthSession};
-
-pub fn router() -> Router<AppState> {
-    Router::<AppState>::new().route("/api/websocket/game/:id", get(websocket_handler))
+pub trait ExtractGameManager {
+    fn game_manager(&self) -> GameManager;
 }
 
-pub async fn websocket_handler(
+pub async fn websocket_handler<T>(
     ws: WebSocketUpgrade,
     auth_session: AuthSession,
     Path(game_id): Path<String>,
-    State(app_state): State<AppState>,
-) -> impl IntoResponse {
-    if !app_state.game_manager.game_exists(&game_id).await
-        || !app_state.game_manager.game_is_active(&game_id).await
-    {
-        return StatusCode::BAD_REQUEST.into_response();
+    State(app_state): State<T>,
+) -> impl IntoResponse
+where
+    T: ExtractGameManager,
+{
+    let manager = app_state.game_manager();
+    if !manager.game_exists(&game_id).await || !manager.game_is_active(&game_id).await {
+        return http::StatusCode::BAD_REQUEST.into_response();
     }
-    ws.on_upgrade(|socket| websocket(socket, auth_session.user, game_id, app_state.game_manager))
+    ws.on_upgrade(|socket| websocket(socket, auth_session.user, game_id, manager))
 }
 
 // This function deals with a single websocket connection, i.e., a single

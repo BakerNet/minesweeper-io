@@ -11,6 +11,3 @@ mod root;
 #[cfg(feature = "ssr")]
 pub use root::shell;
 pub use root::App;
-
-#[cfg(feature = "ssr")]
-pub use auth::{FrontendUser, OAuthTarget};

@@ -8,6 +8,9 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 minesweeper-lib = { path="../minesweeper-lib" }
+game-manager = { path="../game-manager" }
+game-ui = { path="../game-ui" }
+web-auth = { path="../web-auth" }
 anyhow = "1.0"
 async-trait = "0.1"
 axum = { version = "0.7", features = ["ws", "macros"], optional = true }
@@ -73,6 +76,8 @@ ssr = [
     "leptos_meta/ssr",
     "leptos_router/ssr",
     "leptos-use/ssr",
+    "game-manager/ssr",
+    "web-auth/ssr",
 ]
 
 [package.metadata.leptos]

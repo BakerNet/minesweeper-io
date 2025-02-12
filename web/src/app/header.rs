@@ -3,13 +3,10 @@ use leptos::either::*;
 use leptos::prelude::*;
 use leptos_router::components::*;
 
-use crate::{
-    cell_class,
-    components::{dark_mode::DarkModeToggle, icons::Flag},
-    number_class,
-};
+use web_auth::FrontendUser;
 
-use super::auth::FrontendUser;
+use crate::components::dark_mode::DarkModeToggle;
+use game_ui::{cell_class, icons::Flag, number_class};
 
 fn logo() -> impl IntoView {
     let white_bg = "bg-white hover:bg-neutral-300";
