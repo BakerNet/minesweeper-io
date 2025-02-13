@@ -360,7 +360,7 @@ where
     };
 
     view! {
-        <ActivePlayers players=players top_score title="Players">
+        <ActivePlayers players=players top_score>
             <PlayerButtons game />
         </ActivePlayers>
         <GameWidgets>
@@ -383,17 +383,9 @@ fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
         .flatten()
         .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
         .count();
-    let is_victory = game_info
-        .players
-        .iter()
-        .filter_map(|cp| cp.as_ref())
-        .any(|cp| cp.victory_click);
 
     view! {
-        <InactivePlayers
-            players=game_info.players
-            title=if is_victory { "Complete" } else { "Game Over" }
-        />
+        <InactivePlayers players=game_info.players />
         <GameWidgets>
             <InactiveMines num_mines=num_mines />
             <WrappedCopyGameLink game_id=game_info.game_id />
@@ -445,7 +437,7 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     ));
 
     view! {
-        <ActivePlayers players=player_read_signals top_score title="Replay">
+        <ActivePlayers players=player_read_signals top_score>
             {}
         </ActivePlayers>
         <GameWidgets>
@@ -510,7 +502,5 @@ fn WrappedCopyGameLink(game_id: String) -> impl IntoView {
     #[cfg(feature = "ssr")]
     let origin = String::new();
     let game_url = format!("{}/game/{}", origin, game_id);
-    view! {
-        <CopyGameLink game_url />
-    }
+    view! { <CopyGameLink game_url /> }
 }

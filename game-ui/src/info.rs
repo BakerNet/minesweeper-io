@@ -1,27 +1,17 @@
-use leptos::{ev, prelude::*};
+use leptos::{either::Either, ev, prelude::*};
 use leptos_use::{use_document, use_event_listener};
 use web_sys::KeyboardEvent;
 
-use game_ui::{
+use crate::{
     icons::{Mine, Star, Trophy},
     player_icon_holder,
 };
 
 #[component]
-pub fn ControlsInfoButton(set_show_info: WriteSignal<bool>) -> impl IntoView {
-    view! {
-        <button
-            type="button"
-            class="fixed bottom-2 left-2 sm:right-8 text-4xl h-12 w-12 rounded-full border border-black bg-white text-gray-900"
-            on:click=move |_| set_show_info(true)
-        >
-            "?"
-        </button>
-    }
-}
-
-#[component]
-pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
+pub fn ControlsInfoModal(
+    set_show_info: WriteSignal<bool>,
+    include_multiplayer: bool,
+) -> impl IntoView {
     let key_class = "rounded whitespace-nowrap bg-neutral-600 dark:bg-neutral-900 text-zinc-200 font-light p-1 px-2";
     view! {
         <div
@@ -75,13 +65,21 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                     <span class="font-medium">"Dead"</span>
                     " - the player died by revealing a mine"
                 </div>
-                <div class="text-l my-2">
-                    <span class=player_icon_holder!("bg-green-800")>
-                        <Trophy />
-                    </span>
-                    <span class="font-medium">"Top Score"</span>
-                    " - the player had the highest score in a multiplayer minesweeper game"
-                </div>
+                {if include_multiplayer {
+                    Either::Left(
+                        view! {
+                            <div class="text-l my-2">
+                                <span class=player_icon_holder!("bg-green-800")>
+                                    <Trophy />
+                                </span>
+                                <span class="font-medium">"Top Score"</span>
+                                " - the player had the highest score in a multiplayer minesweeper game"
+                            </div>
+                        },
+                    )
+                } else {
+                    Either::Right(())
+                }}
                 <div class="text-l my-2">
                     <span class=player_icon_holder!("bg-black")>
                         <Star />
@@ -89,20 +87,32 @@ pub fn ControlsInfoModal(set_show_info: WriteSignal<bool>) -> impl IntoView {
                     <span class="font-medium">"Victory Click"</span>
                     " - the player revealed the final non-mine cell on the map"
                 </div>
-                <h2 class="text-2xl font-bold tracking-wide my-3">"Multiplayer Rules"</h2>
-                <div class="text-l my-2">
-                    "Multiple players trying to reveal the same cell is hadled first-click-wins"
-                </div>
-                <div class="text-l my-2">
-                    " Each player gets one " <span class="font-medium">"\"Super Click\""</span>
-                    " - that is, the first hidden cell they reveal that is not within a 2-cell distance to any revealed cells is guaranteed to be an empty cell"
-                </div>
-                <div class="text-l my-2">
-                    "If a game is created by a " <span class="font-medium">"Guest"</span>
-                    ", then any player can start the game.  If the game is created by a "
-                    <span class="font-medium">"Logged In User"</span>
-                    ", only the creator can start the game"
-                </div>
+                {if include_multiplayer {
+                    Either::Left(
+                        view! {
+                            <h2 class="text-2xl font-bold tracking-wide my-3">
+                                "Multiplayer Rules"
+                            </h2>
+                            <div class="text-l my-2">
+                                "Multiple players trying to reveal the same cell is hadled first-click-wins"
+                            </div>
+                            <div class="text-l my-2">
+                                " Each player gets one "
+                                <span class="font-medium">"\"Super Click\""</span>
+                                " - that is, the first hidden cell they reveal that is not within a 2-cell distance to any revealed cells is guaranteed to be an empty cell"
+                            </div>
+                            <div class="text-l my-2">
+                                "If a game is created by a "
+                                <span class="font-medium">"Guest"</span>
+                                ", then any player can start the game.  If the game is created by a "
+                                <span class="font-medium">"Logged In User"</span>
+                                ", only the creator can start the game"
+                            </div>
+                        },
+                    )
+                } else {
+                    Either::Right(())
+                }}
             </div>
         </div>
     }

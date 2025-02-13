@@ -73,7 +73,7 @@ pub fn ReplayControls(
     let slider_el = NodeRef::<Input>::new();
 
     let (show_mines, set_show_mines) = signal(true);
-    let (show_analysis, set_show_analysis) = signal(false);
+    let (show_analysis, set_show_analysis) = signal(true);
     let (is_beginning, set_beginning) = signal(true);
     let (is_end, set_end) = signal(false);
     let (current_play, set_current_play) = signal::<Option<Play>>(None);
@@ -253,6 +253,7 @@ pub fn ReplayControls(
                         type="checkbox"
                         value=""
                         class="table-cell sr-only peer"
+                        checked
                         on:change=move |ev| {
                             set_show_analysis(event_target_checked(&ev));
                         }

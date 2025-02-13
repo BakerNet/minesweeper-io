@@ -175,21 +175,22 @@ pub fn PresetButtons(
             </div>
             <div class="flex w-full space-x-2">{classic_modes.map(mode_button).collect_view()}</div>
         </div>
-        { if include_multiplayer {
-            Either::Left(view!{
-
-            <div class="w-full space-y-2">
-                <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
-                    "Multiplayer Presets"
-                </div>
-                <div class="flex w-full space-x-2">
-                    {multiplayer_modes.map(mode_button).collect_view()}
-                </div>
-            </div>
-            })
+        {if include_multiplayer {
+            Either::Left(
+                view! {
+                    <div class="w-full space-y-2">
+                        <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
+                            "Multiplayer Presets"
+                        </div>
+                        <div class="flex w-full space-x-2">
+                            {multiplayer_modes.map(mode_button).collect_view()}
+                        </div>
+                    </div>
+                },
+            )
         } else {
-                Either::Right(())
-            }}
+            Either::Right(())
+        }}
         <div class="w-full space-y-2">
             <div class="flex-none w-full text-md font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50">
                 "Custom"
@@ -282,32 +283,37 @@ where
                     prop:value=num_mines
                 />
             </div>
-        { if include_multiplayer {
-            Either::Left(view!{
-            <div class="flex-1">
-                <label
-                    class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
-                    for="new_game_max_players"
-                >
-                    "Max Players:"
-                </label>
-                <input
-                    class=input_class!()
-                    type="number"
-                    id="new_game_max_players"
-                    name="max_players"
-                    min=0
-                    max=12
-                    on:change=move |ev| {
-                        set_max_players(event_target_value(&ev).parse::<i64>().unwrap_or_default());
-                        on_dirty();
-                    }
-                    prop:value=max_players
-                />
-            </div>
-        }) } else {
-            Either::Right(())
-        }}
+            {if include_multiplayer {
+                Either::Left(
+                    view! {
+                        <div class="flex-1">
+                            <label
+                                class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-neutral-950 dark:text-neutral-50"
+                                for="new_game_max_players"
+                            >
+                                "Max Players:"
+                            </label>
+                            <input
+                                class=input_class!()
+                                type="number"
+                                id="new_game_max_players"
+                                name="max_players"
+                                min=0
+                                max=12
+                                on:change=move |ev| {
+                                    set_max_players(
+                                        event_target_value(&ev).parse::<i64>().unwrap_or_default(),
+                                    );
+                                    on_dirty();
+                                }
+                                prop:value=max_players
+                            />
+                        </div>
+                    },
+                )
+            } else {
+                Either::Right(())
+            }}
         </div>
     }
 }

@@ -10,7 +10,7 @@ use crate::{
 
 #[component]
 fn Scoreboard(children: Children) -> impl IntoView {
-    let header_class = "border dark:border-slate-600 font-medium p-4 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
+    let header_class = "border dark:border-slate-600 font-medium p-2 text-gray-900 dark:text-gray-200 bg-neutral-500/50";
     view! {
         <table class="border border-solid border-slate-400 border-collapse table-auto w-full max-w-xs text-sm text-center bg-neutral-200/80 dark:bg-neutral-800/80">
             <thead>
@@ -29,7 +29,6 @@ fn Scoreboard(children: Children) -> impl IntoView {
 pub fn ActivePlayers(
     players: impl IntoIterator<Item = ReadSignal<Option<ClientPlayer>>>,
     top_score: ReadSignal<Option<usize>>,
-    title: &'static str,
     children: Children,
 ) -> impl IntoView {
     let players_view = players
@@ -41,7 +40,6 @@ pub fn ActivePlayers(
         .collect_view();
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h2 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h2>
             <Scoreboard>{players_view}</Scoreboard>
             {children()}
         </div>
@@ -49,10 +47,9 @@ pub fn ActivePlayers(
 }
 
 #[component]
-pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>, title: &'static str) -> impl IntoView {
+pub fn InactivePlayers(players: Vec<Option<ClientPlayer>>) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center my-8 space-y-4">
-            <h2 class="text-2xl my-4 text-gray-900 dark:text-gray-200">{title}</h2>
             <Scoreboard>
 
                 {players

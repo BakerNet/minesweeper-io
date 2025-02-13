@@ -1,5 +1,5 @@
+#![recursion_limit = "256"]
 mod app;
-mod components;
 
 #[cfg(feature = "ssr")]
 pub mod backend;

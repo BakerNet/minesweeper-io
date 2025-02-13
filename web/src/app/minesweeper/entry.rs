@@ -182,7 +182,11 @@ pub fn JoinOrCreateGame() -> impl IntoView {
             >
 
                 <div class="space-y-2">
-                    <PresetButtons selected=selected_mode set_selected=set_selected_mode include_multiplayer=true />
+                    <PresetButtons
+                        selected=selected_mode
+                        set_selected=set_selected_mode
+                        include_multiplayer=true
+                    />
                 </div>
                 <div class="space-y-2">
                     <SettingsInputs

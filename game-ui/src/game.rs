@@ -303,9 +303,7 @@ where
         .map(|(i, v)| cell_row(i, v.as_ref()))
         .collect_view();
 
-    view! {
-        <GameBorder set_active=set_game_is_active>{cells}</GameBorder>
-    }
+    view! { <GameBorder set_active=set_game_is_active>{cells}</GameBorder> }
 }
 
 #[component]
@@ -326,9 +324,7 @@ pub fn InactiveGame(board: Board<PlayerCell>) -> impl IntoView {
     };
     let cells = view! { {board.rows_iter().enumerate().map(cell_row).collect_view()} };
 
-    view! {
-        <GameBorder set_active=move |_| {}>{cells}</GameBorder>
-    }
+    view! { <GameBorder set_active=move |_| {}>{cells}</GameBorder> }
 }
 
 #[component]
@@ -353,7 +349,5 @@ pub fn ReplayGame(
         .map(|(i, v)| cell_row(i, v.as_ref()))
         .collect_view();
 
-    view! {
-        <GameBorder set_active=move |_| ()>{cells}</GameBorder>
-    }
+    view! { <GameBorder set_active=move |_| ()>{cells}</GameBorder> }
 }
