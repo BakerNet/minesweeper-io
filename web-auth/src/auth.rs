@@ -55,9 +55,7 @@ pub fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
     let client_secret = env::var(secret_key)
         .map(ClientSecret::new)
         .unwrap_or_else(|_| panic!("{} should be provided.", secret_key));
-    let redirect_host = env::var("REDIRECT_HOST")
-        .map(String::from)
-        .expect("REDIRECT_HOST should be provided");
+    let redirect_host = env::var("REDIRECT_HOST").expect("REDIRECT_HOST should be provided");
 
     let auth_url = AuthUrl::new(auth_url.to_string())?;
     let token_url = TokenUrl::new(token_url.to_string())?;

@@ -104,9 +104,7 @@ impl App {
         let reddit_client = oauth_client(OAuthTarget::Reddit)?;
         let github_client = oauth_client(OAuthTarget::Github)?;
 
-        let db_url = env::var("DATABASE_URL")
-            .map(String::from)
-            .expect("DATABASE_URL should be provided");
+        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL should be provided");
 
         let db = SqlitePool::connect(&db_url).await?;
         sqlx::migrate!("../migrations").run(&db).await?;
