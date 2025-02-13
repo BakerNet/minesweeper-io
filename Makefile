@@ -11,7 +11,7 @@ all: .minesweeper-up
 	touch .minesweeper-up
 
 mines.db:
-	touch mines.db
+	touch db/mines.db
 
 start:
 	docker start minesweeper-io

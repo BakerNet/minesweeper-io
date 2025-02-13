@@ -242,7 +242,7 @@ where
     };
     let handle_mouseup = move |ev: MouseEvent, row: usize, col: usize| {
         if skip_mouseup.get_value() > 0 {
-            skip_mouseup.update_value(|x| *x = *x - 1);
+            skip_mouseup.update_value(|x| *x -= 1);
             return;
         }
         if ev.button() == 0 {
