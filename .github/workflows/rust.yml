@@ -51,4 +51,5 @@ jobs:
         cargo clippy --features=ssr
         cargo clippy --features=hydrate
     - name: Run formatter
-      run: leptosfmt web --check
+      run: |
+        leptosfmt --check web game-ui
