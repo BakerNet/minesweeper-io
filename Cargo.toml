@@ -33,3 +33,7 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[patch.crates-io]
+#  Main has fixes for MacOS SIMD
+pathfinder_simd = { git = "https://github.com/theoparis/pathfinder.git", ref = "1b7c8bcdaf9da3f045af6a650b5f5c00f0c5a7eb" }
