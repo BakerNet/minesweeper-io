@@ -9,9 +9,9 @@ use minesweeper_lib::{
     game::{Action as PlayAction, Play},
 };
 
-use crate::messages::{ClientMessage, GameMessage};
+use game_manager::{ClientMessage, GameMessage};
 
-use super::GameInfo;
+use game_ui::GameInfo;
 
 #[derive(Clone)]
 pub struct FrontendGame {
@@ -25,6 +25,7 @@ pub struct FrontendGame {
     pub join_trigger: Trigger,
     pub started: ReadSignal<bool>,
     pub completed: ReadSignal<bool>,
+    pub top_score: ReadSignal<Option<usize>>,
     pub sync_time: ReadSignal<Option<usize>>,
     pub flag_count: ReadSignal<usize>,
     pub cells: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
@@ -34,6 +35,7 @@ pub struct FrontendGame {
     set_players_loaded: WriteSignal<bool>,
     set_started: WriteSignal<bool>,
     set_completed: WriteSignal<bool>,
+    set_top_score: WriteSignal<Option<usize>>,
     set_sync_time: WriteSignal<Option<usize>>,
     set_flag_count: WriteSignal<usize>,
     game: Arc<RwLock<MinesweeperClient>>,
@@ -59,6 +61,7 @@ impl FrontendGame {
         let join_trigger = Trigger::new();
         let (started, set_started) = signal(game_info.is_started);
         let (completed, set_completed) = signal(game_info.is_completed);
+        let (top_score, set_top_score) = signal::<Option<usize>>(None);
         let (sync_time, set_sync_time) = signal::<Option<usize>>(None);
         let (flag_count, set_flag_count) = signal(0);
         let rows = game_info.rows;
@@ -81,6 +84,8 @@ impl FrontendGame {
             set_started,
             completed,
             set_completed,
+            top_score,
+            set_top_score,
             sync_time,
             set_sync_time,
             flag_count,
@@ -179,6 +184,10 @@ impl FrontendGame {
             GameMessage::PlayerUpdate(pu) => {
                 game.add_or_update_player(pu.player_id, Some(pu.score), Some(pu.dead));
                 self.player_signals[pu.player_id].set(Some(pu));
+                Ok(())
+            }
+            GameMessage::TopScore(s) => {
+                self.set_top_score.set(Some(s));
                 Ok(())
             }
             GameMessage::Error(e) => Err(anyhow!(e)),

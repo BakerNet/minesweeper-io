@@ -1,8 +1,3 @@
-pub mod dark_mode;
-pub mod icons;
-pub mod info;
-pub mod socials;
-
 #[macro_export]
 macro_rules! input_class {
     () => {"flex h-10 w-full border border-blue-950 bg-white text-black px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50 flex-1"};

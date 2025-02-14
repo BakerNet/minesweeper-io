@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use leptos::prelude::*;
 use leptos_use::{
     use_clipboard, use_interval_fn_with_options, use_timeout_fn, utils::Pausable,
@@ -5,7 +6,7 @@ use leptos_use::{
 };
 
 use crate::{
-    components::icons::{Copy, IconTooltip, Mine, StopWatch},
+    icons::{Copy, IconTooltip, Mine, StopWatch},
     widget_icon_holder,
 };
 
@@ -16,6 +17,16 @@ pub fn GameWidgets(children: Children) -> impl IntoView {
             <div class="flex justify-between w-full max-w-xs mb-2">{children()}</div>
         </div>
     }
+}
+
+pub fn game_time_from_start_end<T: chrono::TimeZone>(
+    start_time: Option<DateTime<T>>,
+    end_time: Option<DateTime<T>>,
+) -> usize {
+    (match (start_time, end_time) {
+        (Some(st), Some(et)) => et.signed_duration_since(st).num_seconds(),
+        _ => 999,
+    }) as usize
 }
 
 #[component]
@@ -129,7 +140,7 @@ pub fn InactiveTimer(game_time: usize) -> impl IntoView {
 }
 
 #[component]
-pub fn CopyGameLink(game_id: String) -> impl IntoView {
+pub fn CopyGameLink(game_url: String) -> impl IntoView {
     let (show_tooltip, set_show_tooltip) = signal(false);
     let UseClipboardReturn { copy, .. } = use_clipboard();
     let UseTimeoutFnReturn { start, .. } = use_timeout_fn(
@@ -146,17 +157,12 @@ pub fn CopyGameLink(game_id: String) -> impl IntoView {
             ""
         }
     };
-    #[cfg(not(feature = "ssr"))]
-    let origin = { window().location().origin().unwrap_or_default() };
-    #[cfg(feature = "ssr")]
-    let origin = String::new();
-    let url = format!("{}/game/{}", origin, game_id);
     view! {
         <div class="flex flex-col items-center justify-center border-2 rounded-full border-slate-400 bg-neutral-200 text-neutral-800 font-medium px-2">
             <button
                 class=copy_class
                 on:click=move |_| {
-                    copy(&url);
+                    copy(&game_url);
                     set_show_tooltip(true);
                     start(());
                 }

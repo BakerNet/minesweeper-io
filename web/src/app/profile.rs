@@ -2,25 +2,23 @@ mod display_name;
 mod game_history;
 mod stats;
 
-use codee::string::JsonSerdeCodec;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::components::*;
 
-use super::{
-    auth::{FrontendUser, LogOutForm, Logout},
-    minesweeper::GameMode,
-};
+use web_auth::FrontendUser;
+
+use super::auth::{LogOutForm, Logout};
 use display_name::SetDisplayName;
 use game_history::GameHistory;
-use stats::{PlayerStatsTable, TimelineStatsGraphs};
+use stats::{WebPlayerStatsTable, WebTimelineStatsGraphs};
 
 #[cfg(feature = "ssr")]
-use super::{auth::get_user, minesweeper::GameSettings};
+use super::auth::get_user;
 
 #[component]
 pub fn ProfileView(
-    user: Resource<Option<FrontendUser>, JsonSerdeCodec>,
+    user: Resource<Option<FrontendUser>>,
     logout: ServerAction<Logout>,
     user_updated: WriteSignal<String>,
 ) -> impl IntoView {
@@ -51,8 +49,8 @@ pub fn ProfileView(
                                 <hr class="w-full" />
                             </span>
                         </div>
-                        <PlayerStatsTable />
-                        <TimelineStatsGraphs />
+                        <WebPlayerStatsTable />
+                        <WebTimelineStatsGraphs />
                         <GameHistory />
                     </div>
                 </>

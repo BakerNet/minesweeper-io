@@ -3,16 +3,17 @@ use leptos::prelude::*;
 use leptos_router::components::*;
 use serde::{Deserialize, Serialize};
 
-use super::GameMode;
-use crate::{
-    components::icons::{IconTooltip, Mine, Star, Trophy},
-    player_class, player_icon_holder,
+use game_ui::{
+    icons::{IconTooltip, Mine, Star, Trophy},
+    player_class, player_icon_holder, GameMode,
 };
 
 #[cfg(feature = "ssr")]
-use super::GameSettings;
+use game_manager::GameManager;
 #[cfg(feature = "ssr")]
-use crate::backend::{AuthSession, GameManager};
+use game_ui::GameSettings;
+#[cfg(feature = "ssr")]
+use web_auth::AuthSession;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerGame {

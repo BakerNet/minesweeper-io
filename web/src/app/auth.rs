@@ -1,39 +1,15 @@
 use leptos::prelude::ActionForm;
 use leptos::prelude::*;
-use serde::{Deserialize, Serialize};
 
-use crate::button_class;
 #[cfg(feature = "ssr")]
-use crate::{
-    backend::{AuthSession, CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET},
-    models::user::User,
-};
+use web_auth::models::User;
+use web_auth::{FrontendUser, OAuthTarget};
+
 #[cfg(feature = "ssr")]
 use axum_login::tower_sessions::Session;
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct FrontendUser {
-    pub display_name: Option<String>,
-}
-
-impl FrontendUser {
-    pub fn display_name_or_anon(display_name: Option<&String>, is_user: bool) -> String {
-        if let Some(name) = display_name {
-            name.to_owned()
-        } else if is_user {
-            "Anonymous".to_string()
-        } else {
-            "Guest".to_string()
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum OAuthTarget {
-    Google,
-    Reddit,
-    Github,
-}
+use game_ui::button_class;
+#[cfg(feature = "ssr")]
+use web_auth::{AuthSession, CSRF_STATE_KEY, NEXT_URL_KEY, OAUTH_TARGET};
 
 #[cfg(feature = "ssr")]
 pub async fn get_user() -> Result<Option<User>, ServerFnError> {

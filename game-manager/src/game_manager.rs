@@ -15,16 +15,13 @@ use tokio::{
     sync::{broadcast, mpsc, Mutex, RwLock},
     time::{interval, Duration},
 };
+use web_auth::{models::User, FrontendUser};
 
 use crate::{
-    app::FrontendUser,
     messages::{ClientMessage, GameMessage},
     models::{
-        game::{
-            AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
-            SimpleGameWithPlayers, TimelineStats,
-        },
-        user::User,
+        AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
+        SimpleGameWithPlayers, TimelineStats,
     },
 };
 
@@ -664,6 +661,7 @@ impl GameHandler {
         if play.player > self.player_handles.len() {
             return None;
         }
+        let starting_top_score = self.minesweeper.current_top_score();
         let player = if let Some(player) = &self.player_handles[play.player] {
             player
         } else {
@@ -707,6 +705,14 @@ impl GameHandler {
                 let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
                 let _ = self.broadcaster.send(outcome_msg);
                 let _ = self.broadcaster.send(player_state_message);
+                if top_score && starting_top_score.is_some() {
+                    let starting_top_score = starting_top_score.unwrap();
+                    let new_top_score = self.minesweeper.current_top_score().unwrap();
+                    if new_top_score > starting_top_score {
+                        let top_score_message = GameMessage::TopScore(new_top_score).into_json();
+                        let _ = self.broadcaster.send(top_score_message);
+                    }
+                }
                 Some(())
             }
         }

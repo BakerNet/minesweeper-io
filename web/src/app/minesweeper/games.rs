@@ -5,12 +5,10 @@ use leptos_router::components::*;
 use leptos_use::{use_interval, UseIntervalReturn};
 use serde::{Deserialize, Serialize};
 
-use super::{GameMode, GameSettings};
+use game_ui::{GameMode, GameSettings};
 
 #[cfg(feature = "ssr")]
-use crate::backend::GameManager;
-#[cfg(feature = "ssr")]
-use crate::models::game::SimpleGameWithPlayers;
+use game_manager::{models::SimpleGameWithPlayers, GameManager};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimpleGameInfo {

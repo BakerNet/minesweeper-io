@@ -1,5 +1,3 @@
-#![cfg(feature = "ssr")]
-
 use axum_login::AuthUser;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};

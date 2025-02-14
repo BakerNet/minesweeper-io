@@ -10,7 +10,7 @@ use axum_login::AuthManagerLayerBuilder;
 use http::Request;
 use leptos::prelude::*;
 use leptos_axum::*;
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
+use oauth2::basic::BasicClient;
 use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
 use time::Duration;
@@ -19,15 +19,12 @@ use tower_sessions::{
 };
 use tower_sessions_sqlx_store::SqliteStore;
 
-use crate::{
-    app::{shell, App as FrontendApp, OAuthTarget},
-    models::game::Game,
-};
+use game_manager::{models::Game, websocket_handler, ExtractGameManager, GameManager};
+use web_auth::{oauth_callback, oauth_client, AuthSession, Backend, OAuthTarget, REDIRECT_URL};
 
-use super::{
-    auth, auth::REDIRECT_URL, fileserv::file_and_error_handler, game_manager::GameManager, users,
-    users::AuthSession, websocket,
-};
+use crate::app::{shell, App as FrontendApp};
+
+use super::fileserv::file_and_error_handler;
 
 /// This takes advantage of Axum's SubStates feature by deriving FromRef. This is the only way to have more than one
 /// item in Axum's State. Leptos requires you to have leptosOptions in your State struct for the leptos route handlers
@@ -38,51 +35,27 @@ pub struct AppState {
     pub game_manager: GameManager,
 }
 
+impl ExtractGameManager for AppState {
+    fn game_manager(&self) -> GameManager {
+        self.game_manager.clone()
+    }
+}
+
+pub fn services_router() -> Router<AppState> {
+    Router::<AppState>::new()
+        .route(
+            "/api/websocket/game/:id",
+            get(websocket_handler::<AppState>),
+        )
+        .route(REDIRECT_URL, get(oauth_callback))
+}
+
 pub struct App {
     pub db: SqlitePool,
     pub google_client: BasicClient,
     pub reddit_client: BasicClient,
     pub github_client: BasicClient,
     pub session_store: SqliteStore,
-}
-
-fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
-    let (id_key, secret_key, auth_url, token_url) = match target {
-        OAuthTarget::Google => (
-            "GOOGLE_CLIENT_ID",
-            "GOOGLE_CLIENT_SECRET",
-            "https://accounts.google.com/o/oauth2/v2/auth",
-            "https://oauth2.googleapis.com/token",
-        ),
-        OAuthTarget::Reddit => (
-            "REDDIT_CLIENT_ID",
-            "REDDIT_CLIENT_SECRET",
-            "https://www.reddit.com/api/v1/authorize",
-            "https://www.reddit.com/api/v1/access_token",
-        ),
-        OAuthTarget::Github => (
-            "GITHUB_CLIENT_ID",
-            "GITHUB_CLIENT_SECRET",
-            "https://github.com/login/oauth/authorize",
-            "https://github.com/login/oauth/access_token",
-        ),
-    };
-    let client_id = env::var(id_key)
-        .map(ClientId::new)
-        .unwrap_or_else(|_| panic!("{} should be provided.", id_key));
-    let client_secret = env::var(secret_key)
-        .map(ClientSecret::new)
-        .unwrap_or_else(|_| panic!("{} should be provided.", secret_key));
-    let redirect_host = env::var("REDIRECT_HOST")
-        .map(String::from)
-        .expect("REDIRECT_HOST should be provided");
-
-    let auth_url = AuthUrl::new(auth_url.to_string())?;
-    let token_url = TokenUrl::new(token_url.to_string())?;
-    let client = BasicClient::new(client_id, Some(client_secret), auth_url, Some(token_url))
-        .set_redirect_uri(RedirectUrl::new(redirect_host + REDIRECT_URL)?);
-
-    Ok(client)
 }
 
 async fn server_fn_handler(
@@ -95,7 +68,7 @@ async fn server_fn_handler(
         move || {
             provide_context(auth_session.clone());
             provide_context(session.clone());
-            provide_context(app_state.game_manager.clone());
+            provide_context(app_state.game_manager());
         },
         request,
     )
@@ -131,12 +104,10 @@ impl App {
         let reddit_client = oauth_client(OAuthTarget::Reddit)?;
         let github_client = oauth_client(OAuthTarget::Github)?;
 
-        let db_url = env::var("DATABASE_URL")
-            .map(String::from)
-            .expect("DATABASE_URL should be provided");
+        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL should be provided");
 
         let db = SqlitePool::connect(&db_url).await?;
-        sqlx::migrate!().run(&db).await?;
+        sqlx::migrate!("../migrations").run(&db).await?;
         // Close out any dangling games from before restart
         Game::set_all_games_completed(&db).await?;
 
@@ -196,7 +167,7 @@ impl App {
         //
         // This combines the session layer with our backend to establish the auth
         // service which will provide the auth session as a request extension.
-        let backend = users::Backend::new(
+        let backend = Backend::new(
             self.db.clone(),
             self.google_client,
             self.reddit_client,
@@ -212,8 +183,7 @@ impl App {
             )
             .leptos_routes_with_handler(routes, get(leptos_routes_handler))
             .fallback(file_and_error_handler)
-            .merge(auth::router())
-            .merge(websocket::router())
+            .merge(services_router())
             .layer(auth_service)
             .with_state(app_state);
         (app, addr)

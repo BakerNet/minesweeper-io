@@ -1,7 +1,8 @@
 use leptos::prelude::*;
 use leptos_meta::*;
 
-use super::auth::{Login, LoginForm, OAuthTarget};
+use super::auth::{Login, LoginForm};
+use web_auth::OAuthTarget;
 
 #[component]
 pub fn LoginView(login: ServerAction<Login>) -> impl IntoView {

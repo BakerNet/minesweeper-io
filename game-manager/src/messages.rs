@@ -19,11 +19,11 @@ pub enum GameMessage {
     GameState(Board<PlayerCell>),
     PlayersState(Vec<Option<ClientPlayer>>),
     GameStarted,
+    TopScore(usize),
     SyncTimer(usize),
     Error(String),
 }
 
-#[cfg(feature = "ssr")]
 impl GameMessage {
     pub fn into_json(self) -> String {
         serde_json::to_string::<GameMessage>(&self)
