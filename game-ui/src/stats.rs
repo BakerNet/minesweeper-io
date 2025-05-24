@@ -96,11 +96,11 @@ fn StatSelectButtons(
         let selected = selected.get();
         if mode == selected {
             button_class!(
-                "w-full rounded rounded-lg",
+                "w-full rounded-lg",
                 "bg-neutral-800 text-neutral-50 border-neutral-500"
             )
         } else {
-            button_class!("w-full rounded rounded-lg")
+            button_class!("w-full rounded-lg")
         }
     };
 

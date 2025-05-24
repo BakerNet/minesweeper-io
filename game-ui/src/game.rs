@@ -190,7 +190,7 @@ where
 #[component]
 pub fn ActiveGame<F>(
     action_handler: F,
-    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<PlayerCell>>>,
+    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<PlayerCell>>> + 'static,
 ) -> impl IntoView
 where
     F: Fn(PlayAction, usize, usize) + Copy + 'static,
@@ -329,7 +329,7 @@ pub fn InactiveGame(board: Board<PlayerCell>) -> impl IntoView {
 
 #[component]
 pub fn ReplayGame(
-    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<ReplayAnalysisCell>>>,
+    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<ReplayAnalysisCell>>> + 'static,
 ) -> impl IntoView {
     let cell_row = |row: usize, cells: &[ReadSignal<ReplayAnalysisCell>]| {
         view! {

@@ -27,7 +27,7 @@ fn Scoreboard(children: Children) -> impl IntoView {
 
 #[component]
 pub fn ActivePlayers(
-    players: impl IntoIterator<Item = ReadSignal<Option<ClientPlayer>>>,
+    players: impl IntoIterator<Item = ReadSignal<Option<ClientPlayer>>> + 'static,
     top_score: ReadSignal<Option<usize>>,
     children: Children,
 ) -> impl IntoView {
