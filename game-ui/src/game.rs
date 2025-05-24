@@ -72,7 +72,7 @@ where
     F4: Fn(TouchEvent, usize, usize) + Copy + 'static,
     F5: Fn(TouchEvent, usize, usize) + Copy + 'static,
 {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = move || {
         let item = cell();
         cell_class!(cell_contents_class(item, true), cell_player_class(item))
@@ -101,7 +101,7 @@ where
 
 #[component]
 pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = cell_class!(cell_contents_class(cell, false), cell_player_class(cell));
 
     view! {
@@ -113,7 +113,7 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 
 #[component]
 pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<ReplayAnalysisCell>) -> impl IntoView {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = move || {
         let ReplayAnalysisCell(item, analysis) = cell();
         cell_class!(cell_replay_class(item, analysis), cell_player_class(item))

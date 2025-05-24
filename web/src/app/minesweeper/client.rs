@@ -173,7 +173,7 @@ impl FrontendGame {
             GameMessage::PlayOutcome(po) => {
                 let plays = game.update(po);
                 plays.iter().for_each(|(point, cell)| {
-                    log::debug!("Play outcome: {:?} {:?}", point, cell);
+                    log::debug!("Play outcome: {point:?} {cell:?}");
                     self.update_cell(*point, *cell);
                 });
                 if game.game_over {
@@ -218,7 +218,7 @@ impl FrontendGame {
                 ps.into_iter().for_each(|cp| {
                     if let Some(cp) = cp {
                         game.add_or_update_player(cp.player_id, Some(cp.score), Some(cp.dead));
-                        log::debug!("Sending player signal {:?}", cp);
+                        log::debug!("Sending player signal {cp:?}");
                         self.player_signals[cp.player_id].set(Some(cp));
                     }
                 });
