@@ -1,14 +1,13 @@
 # Get started with a build env with Rust nightly
-FROM rustlang/rust:nightly-bullseye as builder
+FROM rustlang/rust:nightly-bookworm AS builder
 
-# Install cargo-binstall, which makes it easier to install other
-# cargo extensions like cargo-leptos
-RUN wget https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz
-RUN tar -xvf cargo-binstall-x86_64-unknown-linux-musl.tgz
-RUN cp cargo-binstall /usr/local/cargo/bin
+# Install required tools
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends clang
 
 # Install cargo-leptos
-RUN cargo binstall cargo-leptos -y
+#  Not using binstall because it causes release build to hang in Docker build
+RUN cargo install cargo-leptos
 
 # Add the WASM target
 RUN rustup target add wasm32-unknown-unknown
@@ -21,9 +20,14 @@ COPY . .
 # Build the app
 RUN cargo leptos build --release -vv
 
-FROM rustlang/rust:nightly-bullseye as runner
+FROM debian:bookworm-slim AS runtime
+WORKDIR /app
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get autoremove -y \
+  && apt-get clean -y \
+  && rm -rf /var/lib/apt/lists/*
 
-# -- NB: update binary name from "minesweeper-web" to match your app name in Cargo.toml --
 # Copy the server binary to the /app directory
 COPY --from=builder /app/target/release/minesweeper-web /app/
 
