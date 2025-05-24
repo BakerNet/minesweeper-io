@@ -27,7 +27,7 @@ pub enum GameMessage {
 impl GameMessage {
     pub fn into_json(self) -> String {
         serde_json::to_string::<GameMessage>(&self)
-            .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {:?}", self))
+            .unwrap_or_else(|_| panic!("Should be able to serialize GameMessage {self:?}"))
     }
 }
 

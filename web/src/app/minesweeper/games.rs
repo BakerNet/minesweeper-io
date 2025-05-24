@@ -305,7 +305,7 @@ fn GameSummary(game_info: SimpleGameInfo, style: String) -> impl IntoView {
             (GameMode::ClassicExpert, 381) => "Victory".to_string(),
             _ => {
                 if game_info.start_time.is_some() {
-                    format!("{}", score)
+                    format!("{score}")
                 } else {
                     "N/A".to_string()
                 }

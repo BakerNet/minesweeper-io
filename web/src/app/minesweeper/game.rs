@@ -321,10 +321,10 @@ where
             log::debug!("before message");
             game.with_value(|game| {
                 if let Some(msg) = msg {
-                    log::debug!("after message {:?}", msg);
+                    log::debug!("after message {msg:?}");
                     let res = game.handle_message(msg.clone());
                     if let Err(e) = res {
-                        (game.err_signal)(Some(format!("{:?}", e)));
+                        (game.err_signal)(Some(format!("{e:?}")));
                     } else {
                         (game.err_signal)(None);
                     }
@@ -355,7 +355,7 @@ where
                 PlayAction::Flag => game.try_flag(row, col),
                 PlayAction::RevealAdjacent => game.try_reveal_adjacent(row, col),
             };
-            res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{:?}", e))));
+            res.unwrap_or_else(|e| (game.err_signal)(Some(format!("{e:?}"))));
         })
     };
 
@@ -501,6 +501,6 @@ fn WrappedCopyGameLink(game_id: String) -> impl IntoView {
     let origin = { window().location().origin().unwrap_or_default() };
     #[cfg(feature = "ssr")]
     let origin = String::new();
-    let game_url = format!("{}/game/{}", origin, game_id);
+    let game_url = format!("{origin}/game/{game_id}");
     view! { <CopyGameLink game_url /> }
 }

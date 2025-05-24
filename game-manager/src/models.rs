@@ -75,11 +75,10 @@ impl Game {
               ( SELECT count(*) FROM players WHERE players.game_id = games.game_id ) as num_players,
               ( SELECT max(score) FROM players WHERE players.game_id = games.game_id ) as top_score
             FROM games
-            WHERE game_id IN ( {} )
+            WHERE game_id IN ( {params} )
             ORDER BY start_time DESC
             LIMIT 100
-            "#,
-            params
+            "#
         );
 
         let mut query = sqlx::query_as(&query_str);
@@ -105,11 +104,10 @@ impl Game {
               ( SELECT count(*) FROM players WHERE players.game_id = games.game_id ) as num_players,
               ( SELECT max(score) FROM players WHERE players.game_id = games.game_id ) as top_score
             FROM games
-            WHERE is_completed = 1 AND start_time >= Datetime('now', '{}')
+            WHERE is_completed = 1 AND start_time >= Datetime('now', '{params}')
             ORDER BY start_time DESC
             LIMIT 100
-            "#,
-            params
+            "#
         );
 
         let query = sqlx::query_as(&query_str);

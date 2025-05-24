@@ -50,15 +50,15 @@ impl<T: Debug> Debug for Board<T> {
                 let row_slice = &self.board[(row * self.cols)..(row * self.cols + self.cols)];
                 let row_flat = row_slice
                     .iter()
-                    .fold(String::new(), |acc, item| acc + &format!("{:?}", item));
+                    .fold(String::new(), |acc, item| acc + &format!("{item:?}"));
                 row_flat
             })
             .fold(String::new(), |mut acc, s| {
-                acc.push_str(&format!("{}\n", s));
+                acc.push_str(&format!("{s}\n"));
                 acc
             });
         let row_trim = rows.trim_end();
-        write!(f, "{}", row_trim)
+        write!(f, "{row_trim}")
     }
 }
 
@@ -71,15 +71,15 @@ impl<T: Display> Display for Board<T> {
                 let row_slice = &self.board[(row * self.cols)..(row * self.cols + self.cols)];
                 let row_flat = row_slice
                     .iter()
-                    .fold(String::new(), |acc, item| acc + &format!("{}", item));
+                    .fold(String::new(), |acc, item| acc + &format!("{item}"));
                 row_flat
             })
             .fold(String::new(), |mut acc, s| {
-                acc.push_str(&format!("{}\n", s));
+                acc.push_str(&format!("{s}\n"));
                 acc
             });
         let row_trim = rows.trim_end();
-        write!(f, "{}", row_trim)
+        write!(f, "{row_trim}")
     }
 }
 
@@ -236,11 +236,7 @@ where
 {
     let first = first.into();
     let second = second.into();
-    if first >= second {
-        first - second
-    } else {
-        second - first
-    }
+    first.abs_diff(second)
 }
 
 #[derive(

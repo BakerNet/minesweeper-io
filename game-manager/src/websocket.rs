@@ -52,7 +52,7 @@ pub async fn websocket(
     let mut rx = game_manager
         .join_game(game_id, sender_clone)
         .await
-        .unwrap_or_else(|_| panic!("Failed to join game ({}) from websocket", game_id));
+        .unwrap_or_else(|_| panic!("Failed to join game ({game_id}) from websocket"));
 
     let sender_clone = Arc::clone(&sender);
     // Spawn the first task that will receive broadcast messages and send text
@@ -82,7 +82,7 @@ pub async fn websocket(
                 game_sender = Some(tx);
             }
             Err(e) => {
-                log::error!("Error playing game: {}", e)
+                log::error!("Error playing game: {e}")
             }
         }
     } else {
@@ -102,10 +102,10 @@ pub async fn websocket(
                                             game_sender = Some(tx);
                                             break;
                                         },
-                                        Err(e) => {log::error!("Error playing game: {}", e)},
+                                        Err(e) => {log::error!("Error playing game: {e}")},
                                     }
                                 }
-                                _ => log::debug!("Non PlayGame message: {:?}: {:?}", client_message, msg),
+                                _ => log::debug!("Non PlayGame message: {client_message:?}: {msg:?}"),
                             }
                         }
                         _ => break,

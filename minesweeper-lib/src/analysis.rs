@@ -38,7 +38,7 @@ impl Display for AnalysisCell {
             AnalysisCell::Hidden(AnalyzedCell::Empty) => write!(f, "c"),
             AnalysisCell::Hidden(AnalyzedCell::Mine) => write!(f, "m"),
             AnalysisCell::Revealed(Cell::Mine) => write!(f, "M"),
-            AnalysisCell::Revealed(Cell::Empty(x)) => write!(f, "{}", x),
+            AnalysisCell::Revealed(Cell::Empty(x)) => write!(f, "{x}"),
         }
     }
 }

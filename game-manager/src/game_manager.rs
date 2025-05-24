@@ -155,7 +155,7 @@ impl GameManager {
         Game::get_game(&self.db, game_id)
             .await
             .map_err(|e| {
-                log::debug!("Error fetching game: {}", e);
+                log::debug!("Error fetching game: {e}");
                 e
             })?
             .ok_or(anyhow!("Game does not exist"))
@@ -165,7 +165,7 @@ impl GameManager {
         GameLog::get_log(&self.db, game_id)
             .await
             .map_err(|e| {
-                log::debug!("Error fetching game log: {}", e);
+                log::debug!("Error fetching game log: {e}");
                 e
             })?
             .ok_or(anyhow!("Game does not exist"))
@@ -173,7 +173,7 @@ impl GameManager {
 
     pub async fn get_players(&self, game_id: &str) -> Result<Vec<PlayerUser>> {
         Player::get_players(&self.db, game_id).await.map_err(|e| {
-            log::debug!("Error fetching players: {}", e);
+            log::debug!("Error fetching players: {e}");
             e.into()
         })
     }
@@ -182,7 +182,7 @@ impl GameManager {
         Player::get_player_games_for_user(&self.db, user, 100)
             .await
             .map_err(|e| {
-                log::debug!("Error fetching player games: {}", e);
+                log::debug!("Error fetching player games: {e}");
                 e.into()
             })
     }
@@ -191,7 +191,7 @@ impl GameManager {
         Player::get_aggregate_stats_for_user(&self.db, user)
             .await
             .map_err(|e| {
-                log::debug!("Error fetching aggregate stats: {}", e);
+                log::debug!("Error fetching aggregate stats: {e}");
                 e.into()
             })
     }
@@ -200,7 +200,7 @@ impl GameManager {
         Player::get_timeline_stats_for_user(&self.db, user)
             .await
             .map_err(|e| {
-                log::debug!("Error fetching timeline stats: {}", e);
+                log::debug!("Error fetching timeline stats: {e}");
                 e.into()
             })
     }
@@ -470,7 +470,7 @@ impl GameHandler {
                             start_time = Some(st)
                         }
                         let sync_msg = GameMessage::SyncTimer(0).into_json();
-                        log::debug!("Sending sync_msg {:?}", sync_msg);
+                        log::debug!("Sending sync_msg {sync_msg:?}");
                         let _ = self.broadcaster.send(sync_msg);
                     }
                     last_action = Utc::now();
@@ -620,13 +620,13 @@ impl GameHandler {
                 {
                     let mut player_sender = player_sender.lock().await;
                     let player_msg = GameMessage::GameState(player_board).into_json();
-                    log::debug!("Sending player_msg {:?}", player_msg);
+                    log::debug!("Sending player_msg {player_msg:?}");
                     let _ = player_sender.send(Message::Text(player_msg)).await;
                 }
 
                 let players = self.handles_to_client_players();
                 let players_msg = GameMessage::PlayersState(players).into_json();
-                log::debug!("Sending players_msg {:?}", players_msg);
+                log::debug!("Sending players_msg {players_msg:?}");
                 let _ = self.broadcaster.send(players_msg);
             }
             GameEvent::Viewer(viewer) => {
@@ -634,7 +634,7 @@ impl GameHandler {
                 {
                     let mut viewer_sender = viewer.ws_sender.lock().await;
                     let viewer_msg = GameMessage::GameState(viewer_board).into_json();
-                    log::debug!("Sending viewer_msg {:?}", viewer_msg);
+                    log::debug!("Sending viewer_msg {viewer_msg:?}");
                     let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
                     let players = self.handles_to_client_players();
                     let players_msg = GameMessage::PlayersState(players).into_json();
@@ -671,7 +671,7 @@ impl GameHandler {
         let res = match outcome {
             Ok(res) => res,
             Err(e) => {
-                let err_msg = GameMessage::Error(format!("{:?}", e)).into_json();
+                let err_msg = GameMessage::Error(format!("{e:?}")).into_json();
                 {
                     let mut player_sender = player.ws_sender.lock().await;
                     let _ = player_sender.send(Message::Text(err_msg)).await;
@@ -705,14 +705,17 @@ impl GameHandler {
                 let player_state_message = GameMessage::PlayerUpdate(player_state).into_json();
                 let _ = self.broadcaster.send(outcome_msg);
                 let _ = self.broadcaster.send(player_state_message);
-                if top_score && starting_top_score.is_some() {
-                    let starting_top_score = starting_top_score.unwrap();
-                    let new_top_score = self.minesweeper.current_top_score().unwrap();
-                    if new_top_score > starting_top_score {
-                        let top_score_message = GameMessage::TopScore(new_top_score).into_json();
-                        let _ = self.broadcaster.send(top_score_message);
+                if top_score {
+                    if let Some(starting_top_score) = starting_top_score {
+                        let new_top_score = self.minesweeper.current_top_score().unwrap();
+                        if new_top_score > starting_top_score {
+                            let top_score_message =
+                                GameMessage::TopScore(new_top_score).into_json();
+                            let _ = self.broadcaster.send(top_score_message);
+                        }
                     }
                 }
+
                 Some(())
             }
         }

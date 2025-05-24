@@ -72,7 +72,7 @@ where
     F4: Fn(TouchEvent, usize, usize) + Copy + 'static,
     F5: Fn(TouchEvent, usize, usize) + Copy + 'static,
 {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = move || {
         let item = cell();
         cell_class!(cell_contents_class(item, true), cell_player_class(item))
@@ -101,7 +101,7 @@ where
 
 #[component]
 pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = cell_class!(cell_contents_class(cell, false), cell_player_class(cell));
 
     view! {
@@ -113,7 +113,7 @@ pub fn InactiveCell(row: usize, col: usize, cell: PlayerCell) -> impl IntoView {
 
 #[component]
 pub fn ReplayCell(row: usize, col: usize, cell: ReadSignal<ReplayAnalysisCell>) -> impl IntoView {
-    let id = format!("{}_{}", row, col);
+    let id = format!("{row}_{col}");
     let class = move || {
         let ReplayAnalysisCell(item, analysis) = cell();
         cell_class!(cell_replay_class(item, analysis), cell_player_class(item))
@@ -190,7 +190,7 @@ where
 #[component]
 pub fn ActiveGame<F>(
     action_handler: F,
-    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<PlayerCell>>>,
+    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<PlayerCell>>> + 'static,
 ) -> impl IntoView
 where
     F: Fn(PlayAction, usize, usize) + Copy + 'static,
@@ -329,7 +329,7 @@ pub fn InactiveGame(board: Board<PlayerCell>) -> impl IntoView {
 
 #[component]
 pub fn ReplayGame(
-    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<ReplayAnalysisCell>>>,
+    cell_read_signals: impl IntoIterator<Item = Vec<ReadSignal<ReplayAnalysisCell>>> + 'static,
 ) -> impl IntoView {
     let cell_row = |row: usize, cells: &[ReadSignal<ReplayAnalysisCell>]| {
         view! {

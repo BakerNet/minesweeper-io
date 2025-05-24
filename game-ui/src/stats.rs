@@ -96,11 +96,11 @@ fn StatSelectButtons(
         let selected = selected.get();
         if mode == selected {
             button_class!(
-                "w-full rounded rounded-lg",
+                "w-full rounded-lg",
                 "bg-neutral-800 text-neutral-50 border-neutral-500"
             )
         } else {
-            button_class!("w-full rounded rounded-lg")
+            button_class!("w-full rounded-lg")
         }
     };
 
@@ -245,7 +245,7 @@ fn draw_chart(
         .build_cartesian_2d(1usize..len, 0.0..max + 5.0)?
         .set_secondary_coord(1usize..len, 0.0..100.0);
 
-    let drop_decimal_places = |x: &f64| format!("{:.0}", x);
+    let drop_decimal_places = |x: &f64| format!("{x:.0}");
 
     chart
         .configure_mesh()
@@ -352,7 +352,7 @@ pub fn TimelineStatsGraphs(timeline_stats: Signal<Option<TimelineStats>>) -> imp
                 log::debug!("canvas not ready");
                 return;
             };
-            log::debug!("Stats: {:?}", tstats);
+            log::debug!("Stats: {tstats:?}");
             let stats = if let Some(stats) = tstats {
                 stats
             } else {
@@ -365,7 +365,7 @@ pub fn TimelineStatsGraphs(timeline_stats: Signal<Option<TimelineStats>>) -> imp
                 _ => return,
             };
             if let Err(e) = draw_chart(canvas, *mode, stats) {
-                log::debug!("Unable to draw chart: {}", e);
+                log::debug!("Unable to draw chart: {e}");
             };
         },
         true,

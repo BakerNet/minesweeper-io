@@ -12,7 +12,7 @@ pub fn ControlsInfoModal(
     set_show_info: WriteSignal<bool>,
     include_multiplayer: bool,
 ) -> impl IntoView {
-    let key_class = "rounded whitespace-nowrap bg-neutral-600 dark:bg-neutral-900 text-zinc-200 font-light p-1 px-2";
+    let key_class = "rounded-sm whitespace-nowrap bg-neutral-600 dark:bg-neutral-900 text-zinc-200 font-light p-1 px-2";
     view! {
         <div
             class="fixed flex flex-col justify-center items-center left-0 right-0 top-0 bottom-0 z-50 bg-neutral-500/50"

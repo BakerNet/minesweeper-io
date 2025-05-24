@@ -170,7 +170,7 @@ pub fn ReplayControls(
             if let Ok(res) = &res {
                 render_current();
                 let new_pos = res.to_num(max);
-                slider.set_value(&format!("{}", new_pos));
+                slider.set_value(&format!("{new_pos}"));
                 if matches!(res, ReplayPosition::End) {
                     set_end(true);
                 }
@@ -188,7 +188,7 @@ pub fn ReplayControls(
             if let Ok(res) = &res {
                 render_current();
                 let new_pos = res.to_num(max);
-                slider.set_value(&format!("{}", new_pos));
+                slider.set_value(&format!("{new_pos}"));
                 if matches!(res, ReplayPosition::Beginning) {
                     set_beginning(true);
                 }
@@ -210,7 +210,7 @@ pub fn ReplayControls(
             if res.is_ok() {
                 render_current();
             }
-            log::debug!("Slider: {} / {}", pos, max);
+            log::debug!("Slider: {pos} / {max}");
             match res {
                 Ok(ReplayPosition::Beginning) => {
                     set_beginning(true);

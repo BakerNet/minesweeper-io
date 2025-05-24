@@ -4,13 +4,13 @@ use leptos::prelude::*;
 macro_rules! player_icon_holder {
     ($bg:literal) => {
         concat!(
-            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded ",
+            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded-sm ",
             $bg
         )
     };
     ($bg:literal, true) => {
         concat!(
-            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded has-tooltip relative ",
+            "inline-block align-text-top h-5 w-5 p-0.5 mx-1 rounded-sm has-tooltip relative ",
             $bg
         )
     };
@@ -20,13 +20,13 @@ macro_rules! player_icon_holder {
 macro_rules! widget_icon_holder {
     ($bg:literal) => {
         concat!(
-            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded ",
+            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded-sm ",
             $bg
         )
     };
     ($bg:literal, true) => {
         concat!(
-            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded relative ",
+            "inline-block align-text-top h-6 w-6 p-0.5 mx-1 rounded-sm relative ",
             $bg
         )
     };
@@ -35,7 +35,7 @@ macro_rules! widget_icon_holder {
 #[component]
 pub fn IconTooltip(children: Children) -> impl IntoView {
     view! {
-        <span class="tooltip font-bold rounded whitespace-nowrap bg-white text-black px-1 top-0 left-0 -mt-5 cursor-default">
+        <span class="tooltip font-bold rounded-sm whitespace-nowrap bg-white text-black px-1 top-0 left-0 -mt-5 cursor-default">
             {children()}
         </span>
     }
