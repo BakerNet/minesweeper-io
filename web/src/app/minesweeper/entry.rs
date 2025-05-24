@@ -61,7 +61,7 @@ async fn new_game(
         )
         .await
         .map_err(|e| ServerFnError::new(e.to_string()))?;
-    leptos_axum::redirect(&format!("/game/{}", id));
+    leptos_axum::redirect(&format!("/game/{id}"));
     Ok(())
 }
 
@@ -71,11 +71,10 @@ async fn join_game(game_id: String) -> Result<(), ServerFnError> {
         .ok_or_else(|| ServerFnError::new("No game manager".to_string()))?;
     if !game_manager.game_exists(&game_id).await {
         return Err(ServerFnError::new(format!(
-            "Game with game_id {} does not exist",
-            game_id
+            "Game with game_id {game_id} does not exist"
         )));
     }
-    leptos_axum::redirect(&format!("/game/{}", game_id));
+    leptos_axum::redirect(&format!("/game/{game_id}"));
     Ok(())
 }
 
