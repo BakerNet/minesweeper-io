@@ -444,6 +444,7 @@ impl Player {
                   players.user = ?
                   AND games.rows = {} AND games.cols = {} AND games.num_mines = {} AND games.max_players = 1 
                   AND games.seconds IS NOT NULL
+                ORDER BY games.start_time desc
                 LIMIT 1000
                 "#,
                 mode.0,
