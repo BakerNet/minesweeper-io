@@ -10,10 +10,10 @@ macro_rules! button_class {
         "inline-flex items-center justify-center text-md font-medium border border-solid border-black cursor-pointer disabled:cursor-default disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-neutral-500 text-neutral-50 hover:bg-neutral-600/90"
     };
     ($extra:literal) => {
-        concat!("inline-flex items-center justify-center text-md font-medium border border-solid border-black disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-neutral-500 text-neutral-50 hover:bg-neutral-600/90 ", $extra)
+        concat!("inline-flex items-center justify-center text-md font-medium border border-solid border-black cursor-pointer disabled:cursor-default disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 bg-neutral-500 text-neutral-50 hover:bg-neutral-600/90 ", $extra)
     };
     ($extra:literal, $colors:literal) => {
-        concat!("inline-flex items-center justify-center text-md font-medium border border-solid border-black disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ", $extra, " ", $colors)
+        concat!("inline-flex items-center justify-center text-md font-medium border border-solid border-black cursor-pointer disabled:cursor-default disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2 ", $extra, " ", $colors)
     };
 }
 
