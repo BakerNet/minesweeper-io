@@ -152,9 +152,9 @@ pub fn CopyGameLink(game_url: String) -> impl IntoView {
     let copy_class = move || {
         let show_tooltip = show_tooltip.get();
         if show_tooltip {
-            "show-tooltip"
+            "show-tooltip cursor-default"
         } else {
-            ""
+            "cursor-pointer"
         }
     };
     view! {
