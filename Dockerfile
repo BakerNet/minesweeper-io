@@ -7,7 +7,7 @@ RUN apt-get update -y \
 
 # Install cargo-leptos
 #  Not using binstall because it causes release build to hang in Docker build
-RUN cargo install cargo-leptos
+RUN cargo install --locked cargo-leptos
 
 # Add the WASM target
 RUN rustup target add wasm32-unknown-unknown
