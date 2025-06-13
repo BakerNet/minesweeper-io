@@ -151,9 +151,6 @@ impl FrontendGame {
         } else {
             bail!("Tried to reveal adjacent for hidden cell")
         }
-        if !game.neighbors_flagged(&point) {
-            bail!("Tried to reveal adjacent with wrong number of flags")
-        }
         let play_message = ClientMessage::Play(Play {
             player,
             action: PlayAction::RevealAdjacent,
