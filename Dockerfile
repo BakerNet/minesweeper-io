@@ -43,6 +43,7 @@ WORKDIR /app
 
 # Set any required env variables and
 ENV RUST_LOG="info"
+ENV RUST_BACKTRACE=1
 ENV LEPTOS_SITE_ADDR="0.0.0.0:8080"
 ENV LEPTOS_SITE_ROOT="site"
 ENV LEPTOS_HASH_FILES="true"
