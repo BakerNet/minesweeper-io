@@ -30,6 +30,7 @@ RUN apt-get update -y \
 
 # Copy the server binary to the /app directory
 COPY --from=builder /app/target/release/minesweeper-web /app/
+COPY --from=builder /app/target/release/hash.txt /app/
 
 # /target/site contains our JS/WASM/CSS, etc.
 COPY --from=builder /app/target/site /app/site

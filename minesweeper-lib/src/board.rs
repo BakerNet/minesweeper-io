@@ -165,11 +165,11 @@ impl<T> Board<T> {
         self.board.is_empty()
     }
 
-    pub fn rows_iter(&self) -> Chunks<T> {
+    pub fn rows_iter(&self) -> Chunks<'_, T> {
         self.board.chunks(self.cols)
     }
 
-    pub fn rows_iter_mut(&mut self) -> ChunksMut<T> {
+    pub fn rows_iter_mut(&mut self) -> ChunksMut<'_, T> {
         self.board.chunks_mut(self.cols)
     }
 
