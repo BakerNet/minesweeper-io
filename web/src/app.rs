@@ -31,10 +31,10 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <AutoReload options=options.clone() />
-                <HydrationScripts options />
+                <HydrationScripts options=options.clone() />
+                <HashedStylesheet options />
                 <meta name="color-scheme" content="dark light" />
                 <link rel="shortcut icon" type="image/ico" href="/favicon.ico" />
-                <link rel="stylesheet" id="leptos" href="/pkg/minesweeper-web.css" />
                 <script>
                     r#"
                     // On page load or when changing themes, best to add inline in `head` to avoid FOUC
