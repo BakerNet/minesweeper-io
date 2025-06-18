@@ -3,10 +3,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::{
-    board::Board,
+    board::{Board, CompactBoard},
     cell::PlayerCell,
     client::ClientPlayer,
-    game::{Play, PlayOutcome},
+    game::{Play, PlayOutcome, CompactPlayOutcome},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,15 +22,32 @@ pub struct GameInfo {
     pub is_completed: bool,
     pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
-    pub final_board: Board<PlayerCell>,
+    pub final_board: CompactBoard,
     pub players: Vec<Option<ClientPlayer>>,
+}
+
+impl GameInfo {
+    /// Convert the compact board to full Board<PlayerCell> for UI use
+    pub fn board(&self) -> Board<PlayerCell> {
+        self.final_board.to_board()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInfoWithLog {
     pub game_info: GameInfo,
     pub player_num: Option<u8>,
-    pub log: Vec<(Play, PlayOutcome)>,
+    pub log: Vec<(Play, CompactPlayOutcome)>,
+}
+
+impl GameInfoWithLog {
+    /// Convert the compact log to full PlayOutcome format for use with CompletedMinesweeper
+    pub fn full_log(&self) -> Vec<(Play, PlayOutcome)> {
+        self.log
+            .iter()
+            .map(|(play, compact_outcome)| (*play, compact_outcome.to_full()))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

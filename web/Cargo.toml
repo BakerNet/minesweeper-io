@@ -76,6 +76,7 @@ ssr = [
     "leptos_meta/ssr",
     "leptos_router/ssr",
     "leptos-use/ssr",
+    "leptos-use/axum",
     "game-manager/ssr",
     "web-auth/ssr",
 ]

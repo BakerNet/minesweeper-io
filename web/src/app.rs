@@ -39,12 +39,14 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                     r#"
                     // On page load or when changing themes, best to add inline in `head` to avoid FOUC
                     if (
-                        localStorage.getItem("leptos-use-color-scheme") === 'dark' ||
+                        localStorage.getItem('leptos-use-color-scheme') === 'dark' ||
                         (!('leptos-use-color-scheme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
                     ) {
                         document.documentElement.classList.add('dark')
+                        localStorage.setItem('leptos-use-color-scheme', 'dark')
                     } else {
                         document.documentElement.classList.remove('dark')
+                        localStorage.setItem('leptos-use-color-scheme', 'light')
                     }
                     "#
                 </script>
