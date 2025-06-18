@@ -683,7 +683,9 @@ impl GameHandler {
         };
         match res {
             PlayOutcome::Flag(flag) => {
-                let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).into_json();
+                // Convert to compact format for WebSocket transmission
+                let compact_outcome = PlayOutcome::Flag(flag).to_compact();
+                let flag_msg = GameMessage::PlayOutcome(compact_outcome).into_json();
                 {
                     let mut player_sender = player.ws_sender.lock().await;
                     let _ = player_sender.send(Message::Text(flag_msg)).await;
@@ -692,7 +694,9 @@ impl GameHandler {
             }
             default => {
                 let victory_click = matches!(default, PlayOutcome::Victory(_));
-                let outcome_msg = GameMessage::PlayOutcome(default).into_json();
+                // Convert to compact format for WebSocket transmission
+                let compact_outcome = default.to_compact();
+                let outcome_msg = GameMessage::PlayOutcome(compact_outcome).into_json();
                 let score = self.minesweeper.player_score(player.player_id).unwrap();
                 let dead = self.minesweeper.player_dead(player.player_id).unwrap();
                 let top_score = self.minesweeper.player_top_score(player.player_id).unwrap();

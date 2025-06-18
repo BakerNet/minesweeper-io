@@ -167,7 +167,9 @@ impl FrontendGame {
                 self.set_player_id.set(Some(player_id));
                 Ok(())
             }
-            GameMessage::PlayOutcome(po) => {
+            GameMessage::PlayOutcome(compact_po) => {
+                // Convert compact format back to full format for processing
+                let po = compact_po.to_full();
                 let plays = game.update(po);
                 plays.iter().for_each(|(point, cell)| {
                     log::debug!("Play outcome: {point:?} {cell:?}");
