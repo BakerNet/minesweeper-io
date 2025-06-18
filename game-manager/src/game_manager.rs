@@ -4,7 +4,7 @@ use axum::extract::ws::{Message, WebSocket};
 use chrono::TimeDelta;
 use futures::{sink::SinkExt, stream::SplitSink};
 use minesweeper_lib::{
-    board::Board,
+    board::{Board, CompactBoard},
     cell::PlayerCell,
     client::ClientPlayer,
     game::{Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
@@ -619,7 +619,8 @@ impl GameHandler {
                 self.player_handles[player_id] = Some(player);
                 {
                     let mut player_sender = player_sender.lock().await;
-                    let player_msg = GameMessage::GameState(player_board).into_json();
+                    let compact_board = CompactBoard::from_board(&player_board);
+                    let player_msg = GameMessage::GameState(compact_board).into_json();
                     log::debug!("Sending player_msg {player_msg:?}");
                     let _ = player_sender.send(Message::Text(player_msg)).await;
                 }
@@ -633,7 +634,8 @@ impl GameHandler {
                 let viewer_board = self.minesweeper.viewer_board();
                 {
                     let mut viewer_sender = viewer.ws_sender.lock().await;
-                    let viewer_msg = GameMessage::GameState(viewer_board).into_json();
+                    let compact_board = CompactBoard::from_board(&viewer_board);
+                    let viewer_msg = GameMessage::GameState(compact_board).into_json();
                     log::debug!("Sending viewer_msg {viewer_msg:?}");
                     let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
                     let players = self.handles_to_client_players();
