@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "ssr")]
 mod auth;
 #[cfg(feature = "ssr")]
+pub mod auth_client;
+#[cfg(feature = "ssr")]
 mod users;
 
 #[cfg(feature = "ssr")]

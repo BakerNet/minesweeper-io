@@ -10,7 +10,6 @@ use axum_login::AuthManagerLayerBuilder;
 use http::Request;
 use leptos::prelude::*;
 use leptos_axum::*;
-use oauth2::basic::BasicClient;
 use sqlx::SqlitePool;
 use std::{env, net::SocketAddr};
 use time::Duration;
@@ -20,7 +19,10 @@ use tower_sessions::{
 use tower_sessions_sqlx_store::SqliteStore;
 
 use game_manager::{models::Game, websocket_handler, ExtractGameManager, GameManager};
-use web_auth::{oauth_callback, oauth_client, AuthSession, Backend, OAuthTarget, REDIRECT_URL};
+use web_auth::{
+    auth_client::SpecialClient, oauth_callback, oauth_client, AuthSession, Backend, OAuthTarget,
+    REDIRECT_URL,
+};
 
 use crate::app::{shell, App as FrontendApp};
 
@@ -52,9 +54,9 @@ pub fn services_router() -> Router<AppState> {
 
 pub struct App {
     pub db: SqlitePool,
-    pub google_client: BasicClient,
-    pub reddit_client: BasicClient,
-    pub github_client: BasicClient,
+    pub google_client: SpecialClient,
+    pub reddit_client: SpecialClient,
+    pub github_client: SpecialClient,
     pub session_store: SqliteStore,
 }
 

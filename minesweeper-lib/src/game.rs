@@ -7,7 +7,7 @@ use crate::client::ClientPlayer;
 use crate::replay::MinesweeperReplay;
 
 use anyhow::{bail, Ok, Result};
-use rand::{seq::SliceRandom, thread_rng};
+use rand::{rng, seq::SliceRandom};
 use serde::{Deserialize, Serialize};
 use tinyvec::ArrayVec;
 
@@ -72,7 +72,7 @@ impl MinesweeperBuilder {
         let mut available: Vec<_> = (0..board.size())
             .map(|x| board.point_from_index(x))
             .collect();
-        available.shuffle(&mut thread_rng());
+        available.shuffle(&mut rng());
         let points_to_plant = &available[0..self.opts.num_mines];
         points_to_plant.iter().for_each(|x| {
             board[x].0 = board[x].0.plant().unwrap();
@@ -444,7 +444,7 @@ impl Minesweeper {
             .filter(|&bp| bp != first_cell && !neighbors.contains(bp) && !has_revealed_neighbor(bp))
             .copied()
             .collect::<Vec<_>>();
-        let mut rng = thread_rng();
+        let mut rng = rng();
         take_available.shuffle(&mut rng);
         if unplanted_mines > take_available.len() {
             let mut unplanted_points = neighbors;
