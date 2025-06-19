@@ -20,7 +20,6 @@ pub use users::{AuthSession, Backend};
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OAuthTarget {
     Google,
-    Reddit,
     Github,
 }
 

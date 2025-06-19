@@ -64,14 +64,6 @@ pub fn LoginForm(login: ServerAction<Login>, target: OAuthTarget) -> impl IntoVi
                 "bg-blue-400 text-white hover:bg-blue-600"
             ),
         ),
-        OAuthTarget::Reddit => (
-            "Reddit",
-            "Log in with Reddit",
-            button_class!(
-                "w-full max-w-xs h-8",
-                "bg-orange-600 text-white hover:bg-orange-800"
-            ),
-        ),
         OAuthTarget::Github => (
             "Github",
             "Log in with Github",

@@ -29,11 +29,6 @@ struct GoogleUserInfo {
 }
 
 #[derive(Debug, Deserialize)]
-struct RedditUserInfo {
-    name: String,
-}
-
-#[derive(Debug, Deserialize)]
 struct GithubUserInfo {
     login: String,
 }
@@ -54,22 +49,15 @@ pub enum BackendError {
 pub struct Backend {
     db: SqlitePool,
     google_client: SpecialClient,
-    reddit_client: SpecialClient,
     github_client: SpecialClient,
     http_client: reqwest::Client,
 }
 
 impl Backend {
-    pub fn new(
-        db: SqlitePool,
-        google_client: SpecialClient,
-        reddit_client: SpecialClient,
-        github_client: SpecialClient,
-    ) -> Self {
+    pub fn new(db: SqlitePool, google_client: SpecialClient, github_client: SpecialClient) -> Self {
         Self {
             db,
             google_client,
-            reddit_client,
             github_client,
             http_client: ClientBuilder::new()
                 .redirect(reqwest::redirect::Policy::none())
@@ -81,7 +69,6 @@ impl Backend {
     pub fn get_client(&self, target: OAuthTarget) -> &SpecialClient {
         match target {
             OAuthTarget::Google => &self.google_client,
-            OAuthTarget::Reddit => &self.reddit_client,
             OAuthTarget::Github => &self.github_client,
         }
     }
@@ -97,12 +84,6 @@ impl Backend {
                 .add_scope(Scope::new(
                     "https://www.googleapis.com/auth/userinfo.email".to_string(),
                 ))
-                .url(),
-            OAuthTarget::Reddit => self
-                .reddit_client
-                .authorize_url(CsrfToken::new_random)
-                .add_extra_param("duration", "permanent")
-                .add_scope(Scope::new("identity".to_string()))
                 .url(),
             OAuthTarget::Github => self
                 .github_client
@@ -165,32 +146,6 @@ impl AuthnBackend for Backend {
                     .await
                     .map_err(Self::Error::Reqwest)?;
                 (token_res, format!("GOOGLE:{}", user_info.email))
-            }
-            OAuthTarget::Reddit => {
-                // Process authorization code, expecting a token response back.
-                let token_res = self
-                    .reddit_client
-                    .exchange_code(AuthorizationCode::new(creds.creds.code))
-                    .request_async(&self.http_client)
-                    .await
-                    .map_err(Self::Error::OAuth2)?;
-
-                // Use access token to request user info.
-                let user_info = self
-                    .http_client
-                    .get("https://oauth.reddit.com/api/v1/me")
-                    .header(USER_AGENT.as_str(), "minesweeper-io")
-                    .header(
-                        AUTHORIZATION.as_str(),
-                        format!("Bearer {}", token_res.access_token().secret()),
-                    )
-                    .send()
-                    .await
-                    .map_err(Self::Error::Reqwest)?
-                    .json::<RedditUserInfo>()
-                    .await
-                    .map_err(Self::Error::Reqwest)?;
-                (token_res, format!("REDDIT:{}", user_info.name))
             }
             OAuthTarget::Github => {
                 // Process authorization code, expecting a token response back.

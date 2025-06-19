@@ -55,7 +55,6 @@ pub fn services_router() -> Router<AppState> {
 pub struct App {
     pub db: SqlitePool,
     pub google_client: SpecialClient,
-    pub reddit_client: SpecialClient,
     pub github_client: SpecialClient,
     pub session_store: SqliteStore,
 }
@@ -103,7 +102,6 @@ impl App {
         dotenvy::dotenv()?;
 
         let google_client = oauth_client(OAuthTarget::Google)?;
-        let reddit_client = oauth_client(OAuthTarget::Reddit)?;
         let github_client = oauth_client(OAuthTarget::Github)?;
 
         let db_url = env::var("DATABASE_URL").expect("DATABASE_URL should be provided");
@@ -122,7 +120,6 @@ impl App {
         Ok(Self {
             db,
             google_client,
-            reddit_client,
             github_client,
             session_store,
         })
@@ -172,7 +169,6 @@ impl App {
         let backend = Backend::new(
             self.db.clone(),
             self.google_client,
-            self.reddit_client,
             self.github_client,
         );
         let auth_service = AuthManagerLayerBuilder::new(backend, session_layer).build();

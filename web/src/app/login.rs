@@ -14,7 +14,6 @@ pub fn LoginView(login: ServerAction<Login>) -> impl IntoView {
                 "Log in if you want to set your display name, keep game history, or see your game stats & trends"
             </div>
             <LoginForm login target=OAuthTarget::Google />
-            <LoginForm login target=OAuthTarget::Reddit />
             <LoginForm login target=OAuthTarget::Github />
             <div class="text-center pt-8 text-gray-900 dark:text-gray-100">
                 "Note: None of your personal info is checked or stored - only your username is used to identify your account"
