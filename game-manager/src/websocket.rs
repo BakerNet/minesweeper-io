@@ -63,7 +63,7 @@ pub async fn websocket(
             if sender_clone
                 .lock()
                 .await
-                .send(Message::Text(msg))
+                .send(Message::Text(msg.into()))
                 .await
                 .is_err()
             {
@@ -125,7 +125,7 @@ pub async fn websocket(
     // Spawn a task that takes messages from the websocket and sends them to the game handler
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(Message::Text(text))) = receiver.next().await {
-            if game_sender.send(text).await.is_err() {
+            if game_sender.send(text.to_string()).await.is_err() {
                 return;
             }
         }

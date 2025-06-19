@@ -450,7 +450,7 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
 
     view! {
         <ActivePlayers players=player_read_signals top_score>
-            {}
+           {move || {}}
         </ActivePlayers>
         <GameWidgets>
             <ActiveMines num_mines flag_count />

@@ -44,7 +44,7 @@ impl ExtractGameManager for AppState {
 pub fn services_router() -> Router<AppState> {
     Router::<AppState>::new()
         .route(
-            "/api/websocket/game/:id",
+            "/api/websocket/game/{id}",
             get(websocket_handler::<AppState>),
         )
         .route(REDIRECT_URL, get(oauth_callback))
@@ -178,7 +178,7 @@ impl App {
         // build our application with a route
         let app = Router::new()
             .route(
-                "/api/*fn_name",
+                "/api/{*fn_name}",
                 get(server_fn_handler).post(server_fn_handler),
             )
             .leptos_routes_with_handler(routes, get(leptos_routes_handler))
