@@ -48,7 +48,7 @@ impl FrontendGame {
         err_signal: WriteSignal<Option<String>>,
         send: Arc<dyn Fn(&ClientMessage) + Send + Sync>,
     ) -> Self {
-        let (read_signals, write_signals) = signals_from_board(&game_info.final_board);
+        let (read_signals, write_signals) = signals_from_board(&game_info.board());
         let mut players = Vec::with_capacity(game_info.players.len());
         let mut player_signals = Vec::with_capacity(game_info.players.len());
         game_info.players.iter().for_each(|p| {
@@ -167,7 +167,9 @@ impl FrontendGame {
                 self.set_player_id.set(Some(player_id));
                 Ok(())
             }
-            GameMessage::PlayOutcome(po) => {
+            GameMessage::PlayOutcome(compact_po) => {
+                // Convert compact format back to full format for processing
+                let po = compact_po.to_full();
                 let plays = game.update(po);
                 plays.iter().for_each(|(point, cell)| {
                     log::debug!("Play outcome: {point:?} {cell:?}");

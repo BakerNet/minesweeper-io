@@ -16,3 +16,10 @@ playwright/.cache/
 .env
 .minesweeper-up
 mines.db
+
+# development tools
+.claude
+.mcp.json
+CLAUDE.md
+.cursor
+scratch

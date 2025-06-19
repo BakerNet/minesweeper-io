@@ -4,7 +4,7 @@ use axum::extract::ws::{Message, WebSocket};
 use chrono::TimeDelta;
 use futures::{sink::SinkExt, stream::SplitSink};
 use minesweeper_lib::{
-    board::Board,
+    board::{Board, CompactBoard},
     cell::PlayerCell,
     client::ClientPlayer,
     game::{Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
@@ -232,7 +232,7 @@ impl GameManager {
             let start_time_msg =
                 GameMessage::SyncTimer(Utc::now().signed_duration_since(dt).num_seconds() as usize)
                     .into_json();
-            let _ = sender.send(Message::Text(start_time_msg)).await;
+            let _ = sender.send(Message::Text(start_time_msg.into())).await;
         };
         game_events
             .send(GameEvent::Viewer(ViewerHandle { ws_sender }))
@@ -299,7 +299,7 @@ impl GameManager {
         {
             let mut send = ws_sender.lock().await;
             let msg = GameMessage::PlayerId(player_id);
-            (send).send(Message::Text(msg.into_json())).await?;
+            (send).send(Message::Text(msg.into_json().into())).await?;
         }
         game_events
             .send(GameEvent::Player(PlayerHandle {
@@ -619,9 +619,10 @@ impl GameHandler {
                 self.player_handles[player_id] = Some(player);
                 {
                     let mut player_sender = player_sender.lock().await;
-                    let player_msg = GameMessage::GameState(player_board).into_json();
+                    let compact_board = CompactBoard::from_board(&player_board);
+                    let player_msg = GameMessage::GameState(compact_board).into_json();
                     log::debug!("Sending player_msg {player_msg:?}");
-                    let _ = player_sender.send(Message::Text(player_msg)).await;
+                    let _ = player_sender.send(Message::Text(player_msg.into())).await;
                 }
 
                 let players = self.handles_to_client_players();
@@ -633,12 +634,13 @@ impl GameHandler {
                 let viewer_board = self.minesweeper.viewer_board();
                 {
                     let mut viewer_sender = viewer.ws_sender.lock().await;
-                    let viewer_msg = GameMessage::GameState(viewer_board).into_json();
+                    let compact_board = CompactBoard::from_board(&viewer_board);
+                    let viewer_msg = GameMessage::GameState(compact_board).into_json();
                     log::debug!("Sending viewer_msg {viewer_msg:?}");
-                    let _ = viewer_sender.send(Message::Text(viewer_msg)).await;
+                    let _ = viewer_sender.send(Message::Text(viewer_msg.into())).await;
                     let players = self.handles_to_client_players();
                     let players_msg = GameMessage::PlayersState(players).into_json();
-                    let _ = viewer_sender.send(Message::Text(players_msg)).await;
+                    let _ = viewer_sender.send(Message::Text(players_msg.into())).await;
                 }
             }
             GameEvent::Start => {
@@ -674,23 +676,27 @@ impl GameHandler {
                 let err_msg = GameMessage::Error(format!("{e:?}")).into_json();
                 {
                     let mut player_sender = player.ws_sender.lock().await;
-                    let _ = player_sender.send(Message::Text(err_msg)).await;
+                    let _ = player_sender.send(Message::Text(err_msg.into())).await;
                 }
                 return None;
             }
         };
         match res {
             PlayOutcome::Flag(flag) => {
-                let flag_msg = GameMessage::PlayOutcome(PlayOutcome::Flag(flag)).into_json();
+                // Convert to compact format for WebSocket transmission
+                let compact_outcome = PlayOutcome::Flag(flag).to_compact();
+                let flag_msg = GameMessage::PlayOutcome(compact_outcome).into_json();
                 {
                     let mut player_sender = player.ws_sender.lock().await;
-                    let _ = player_sender.send(Message::Text(flag_msg)).await;
+                    let _ = player_sender.send(Message::Text(flag_msg.into())).await;
                 }
                 None
             }
             default => {
                 let victory_click = matches!(default, PlayOutcome::Victory(_));
-                let outcome_msg = GameMessage::PlayOutcome(default).into_json();
+                // Convert to compact format for WebSocket transmission
+                let compact_outcome = default.to_compact();
+                let outcome_msg = GameMessage::PlayOutcome(compact_outcome).into_json();
                 let score = self.minesweeper.player_score(player.player_id).unwrap();
                 let dead = self.minesweeper.player_dead(player.player_id).unwrap();
                 let top_score = self.minesweeper.player_top_score(player.player_id).unwrap();

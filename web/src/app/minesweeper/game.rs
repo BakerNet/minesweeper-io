@@ -21,7 +21,10 @@ use game_ui::*;
 use game_manager::GameManager;
 use game_manager::{ClientMessage, GameMessage};
 #[cfg(feature = "ssr")]
-use minesweeper_lib::{board::Board, client::ClientPlayer};
+use minesweeper_lib::{
+    board::{Board, CompactBoard},
+    client::ClientPlayer,
+};
 #[cfg(feature = "ssr")]
 use web_auth::AuthSession;
 
@@ -101,7 +104,7 @@ pub async fn get_game(game_id: String) -> Result<GameInfo, ServerFnError> {
         is_completed: game.is_completed,
         start_time: game.start_time,
         end_time: game.end_time,
-        final_board,
+        final_board: CompactBoard::from_board(&final_board),
         players: players_frontend,
     })
 }
@@ -157,7 +160,12 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
     } else {
         completed_minesweeper.viewer_board_final()
     };
-    let log = completed_minesweeper.recover_log().unwrap();
+    let log = completed_minesweeper
+        .recover_log()
+        .unwrap()
+        .into_iter()
+        .map(|(play, outcome)| (play, outcome.to_compact()))
+        .collect();
     let players_frontend =
         players
             .into_iter()
@@ -179,7 +187,7 @@ pub async fn get_replay(game_id: String) -> Result<GameInfoWithLog, ServerFnErro
             is_completed: game.is_completed,
             start_time: game.start_time,
             end_time: game.end_time,
-            final_board,
+            final_board: CompactBoard::from_board(&final_board),
             players: players_frontend,
         },
         player_num,
@@ -377,21 +385,23 @@ where
 fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
     let game_settings = GameSettings::from(&game_info);
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
-    let num_mines = game_info
-        .final_board
+    let board = game_info.board();
+    let num_mines = board
         .rows_iter()
         .flatten()
         .filter(|&c| matches!(c, PlayerCell::Hidden(HiddenCell::Mine)))
         .count();
+    let players = game_info.players;
+    let game_id = game_info.game_id;
 
     view! {
-        <InactivePlayers players=game_info.players />
+        <InactivePlayers players=players />
         <GameWidgets>
             <InactiveMines num_mines=num_mines />
-            <WrappedCopyGameLink game_id=game_info.game_id />
+            <WrappedCopyGameLink game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <InactiveGame board=game_info.final_board />
+        <InactiveGame board />
         <ReCreateGame game_settings />
         <OpenReplayButton />
     }
@@ -399,21 +409,26 @@ fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
 
 #[component]
 fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
+    let full_log = replay_data.full_log();
+    let player_num = replay_data.player_num;
     let game_info = replay_data.game_info;
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let (top_score, _) = signal(None);
     let (flag_count, set_flag_count) = signal(0);
     let (replay_started, set_replay_started) = signal(false);
 
-    let (player_read_signals, player_write_signals) = game_info
-        .players
+    let board = game_info.board();
+    let players = game_info.players;
+    let game_id = game_info.game_id;
+    let num_mines = game_info.num_mines;
+
+    let (player_read_signals, player_write_signals) = players
         .iter()
         .cloned()
         .map(|p| signal(p))
         .collect::<(Vec<_>, Vec<_>)>();
 
-    let (cell_read_signals, cell_write_signals) = game_info
-        .final_board
+    let (cell_read_signals, cell_write_signals) = board
         .rows_iter()
         .map(|col| {
             col.iter()
@@ -423,14 +438,11 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
         })
         .collect::<(Vec<Vec<_>>, Vec<Vec<_>>)>();
 
-    let completed_minesweeper = CompletedMinesweeper::from_log(
-        game_info.final_board,
-        replay_data.log,
-        game_info.players.into_iter().flatten().collect(),
-    );
-    let replay_data = StoredValue::new((
+    let completed_minesweeper =
+        CompletedMinesweeper::from_log(board, full_log, players.into_iter().flatten().collect());
+    let replay_data_stored = StoredValue::new((
         Arc::new(completed_minesweeper),
-        replay_data.player_num,
+        player_num,
         Arc::new(cell_read_signals.clone()),
         Arc::new(cell_write_signals),
         Arc::new(player_write_signals),
@@ -438,11 +450,11 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
 
     view! {
         <ActivePlayers players=player_read_signals top_score>
-            {}
+            {move || {}}
         </ActivePlayers>
         <GameWidgets>
-            <ActiveMines num_mines=game_info.num_mines flag_count />
-            <WrappedCopyGameLink game_id=game_info.game_id />
+            <ActiveMines num_mines flag_count />
+            <WrappedCopyGameLink game_id />
             <InactiveTimer game_time />
         </GameWidgets>
         <ReplayGame cell_read_signals />
@@ -466,7 +478,7 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             }
         >
             {move || {
-                replay_data
+                replay_data_stored
                     .with_value(|
                         (
                             completed_minesweeper,

@@ -2,15 +2,13 @@ use async_trait::async_trait;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
 use axum_login::{AuthnBackend, UserId};
 use oauth2::{
-    basic::{BasicClient, BasicRequestTokenError},
-    reqwest::{async_http_client, AsyncHttpClientError},
-    url::Url,
-    AuthorizationCode, CsrfToken, Scope, TokenResponse,
+    basic::BasicRequestTokenError, reqwest::ClientBuilder, url::Url, AuthorizationCode, CsrfToken,
+    HttpClientError, Scope, TokenResponse,
 };
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use crate::{models::User, OAuthTarget};
+use crate::{auth_client::SpecialClient, models::User, OAuthTarget};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Credentials {
@@ -49,33 +47,38 @@ pub enum BackendError {
     Reqwest(reqwest::Error),
 
     #[error(transparent)]
-    OAuth2(BasicRequestTokenError<AsyncHttpClientError>),
+    OAuth2(BasicRequestTokenError<HttpClientError<reqwest::Error>>),
 }
 
 #[derive(Debug, Clone)]
 pub struct Backend {
     db: SqlitePool,
-    google_client: BasicClient,
-    reddit_client: BasicClient,
-    github_client: BasicClient,
+    google_client: SpecialClient,
+    reddit_client: SpecialClient,
+    github_client: SpecialClient,
+    http_client: reqwest::Client,
 }
 
 impl Backend {
     pub fn new(
         db: SqlitePool,
-        google_client: BasicClient,
-        reddit_client: BasicClient,
-        github_client: BasicClient,
+        google_client: SpecialClient,
+        reddit_client: SpecialClient,
+        github_client: SpecialClient,
     ) -> Self {
         Self {
             db,
             google_client,
             reddit_client,
             github_client,
+            http_client: ClientBuilder::new()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .expect("Should build client"),
         }
     }
 
-    pub fn get_client(&self, target: OAuthTarget) -> &BasicClient {
+    pub fn get_client(&self, target: OAuthTarget) -> &SpecialClient {
         match target {
             OAuthTarget::Google => &self.google_client,
             OAuthTarget::Reddit => &self.reddit_client,
@@ -142,18 +145,15 @@ impl AuthnBackend for Backend {
                 let token_res = self
                     .google_client
                     .exchange_code(AuthorizationCode::new(creds.creds.code))
-                    .request_async(|mut req| async {
-                        req.headers
-                            .insert(USER_AGENT.as_str(), "minesweeper-io".parse().unwrap());
-                        async_http_client(req).await
-                    })
+                    .request_async(&self.http_client)
                     .await
                     .map_err(Self::Error::OAuth2)?;
 
                 // Use access token to request user info.
-                let user_info = reqwest::Client::new()
+                let user_info = self
+                    .http_client
                     .get("https://www.googleapis.com/oauth2/v1/userinfo")
-                    .header(USER_AGENT.as_str(), "minesweeper-io") // See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#user-agent-required
+                    .header(USER_AGENT.as_str(), "minesweeper-io")
                     .header(
                         AUTHORIZATION.as_str(),
                         format!("Bearer {}", token_res.access_token().secret()),
@@ -171,18 +171,15 @@ impl AuthnBackend for Backend {
                 let token_res = self
                     .reddit_client
                     .exchange_code(AuthorizationCode::new(creds.creds.code))
-                    .request_async(|mut req| async {
-                        req.headers
-                            .insert(USER_AGENT.as_str(), "minesweeper-io".parse().unwrap());
-                        async_http_client(req).await
-                    })
+                    .request_async(&self.http_client)
                     .await
                     .map_err(Self::Error::OAuth2)?;
 
                 // Use access token to request user info.
-                let user_info = reqwest::Client::new()
+                let user_info = self
+                    .http_client
                     .get("https://oauth.reddit.com/api/v1/me")
-                    .header(USER_AGENT.as_str(), "axum-login") // See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#user-agent-required
+                    .header(USER_AGENT.as_str(), "minesweeper-io")
                     .header(
                         AUTHORIZATION.as_str(),
                         format!("Bearer {}", token_res.access_token().secret()),
@@ -200,18 +197,15 @@ impl AuthnBackend for Backend {
                 let token_res = self
                     .github_client
                     .exchange_code(AuthorizationCode::new(creds.creds.code))
-                    .request_async(|mut req| async {
-                        req.headers
-                            .insert(USER_AGENT.as_str(), "minesweeper-io".parse().unwrap());
-                        async_http_client(req).await
-                    })
+                    .request_async(&self.http_client)
                     .await
                     .map_err(Self::Error::OAuth2)?;
 
                 // Use access token to request user info.
-                let user_info = reqwest::Client::new()
+                let user_info = self
+                    .http_client
                     .get("https://api.github.com/user")
-                    .header(USER_AGENT.as_str(), "axum-login") // See: https://docs.github.com/en/rest/overview/resources-in-the-rest-api?apiVersion=2022-11-28#user-agent-required
+                    .header(USER_AGENT.as_str(), "minesweeper-io")
                     .header(
                         AUTHORIZATION.as_str(),
                         format!("Bearer {}", token_res.access_token().secret()),

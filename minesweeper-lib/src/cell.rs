@@ -1,5 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
+use crate::board::CompactSerialize;
+
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
@@ -69,6 +71,52 @@ impl PlayerCell {
                 Self::Hidden(HiddenCell::Mine)
             }
             Self::Revealed(_) => Self::Hidden(HiddenCell::Empty),
+        }
+    }
+}
+
+impl CompactSerialize for PlayerCell {
+    fn to_compact_byte(&self) -> u8 {
+        match self {
+            PlayerCell::Hidden(HiddenCell::Empty) => 0,
+            PlayerCell::Hidden(HiddenCell::Mine) => 1,
+            PlayerCell::Hidden(HiddenCell::Flag) => 2,
+            PlayerCell::Hidden(HiddenCell::FlagMine) => 3,
+            PlayerCell::Revealed(RevealedCell { player, contents }) => {
+                // For revealed cells, use bit-based encoding
+                // Values 4-255 are reserved for revealed cells
+                // Format: Base(4) + PPPP CCCC (4 bits player, 4 bits contents)
+                let base = 4u8;
+                let player_bits = ((*player as u8) & 0x0F) << 4; // Upper 4 bits: player (0-15)
+                let contents_code = match contents {
+                    Cell::Empty(n) => (*n).min(8), // Lower 4 bits: empty count (0-8)
+                    Cell::Mine => 9,               // Lower 4 bits: mine (9)
+                };
+                base + player_bits + contents_code
+            }
+        }
+    }
+
+    fn from_compact_byte(byte: u8) -> Self {
+        match byte {
+            0 => PlayerCell::Hidden(HiddenCell::Empty),
+            1 => PlayerCell::Hidden(HiddenCell::Mine),
+            2 => PlayerCell::Hidden(HiddenCell::Flag),
+            3 => PlayerCell::Hidden(HiddenCell::FlagMine),
+            b if b >= 4 => {
+                // Revealed cell - extract using bit operations
+                // Format: Base(4) + PPPP CCCC (4 bits player, 4 bits contents)
+                let adjusted = b - 4;
+                let player = ((adjusted >> 4) & 0x0F) as usize; // Extract upper 4 bits: player
+                let contents_code = adjusted & 0x0F; // Extract lower 4 bits: contents
+                let contents = if contents_code == 9 {
+                    Cell::Mine
+                } else {
+                    Cell::Empty(contents_code)
+                };
+                PlayerCell::Revealed(RevealedCell { player, contents })
+            }
+            _ => PlayerCell::Hidden(HiddenCell::Empty), // Default fallback
         }
     }
 }

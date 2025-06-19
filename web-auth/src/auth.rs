@@ -12,6 +12,7 @@ use serde::Deserialize;
 use std::env;
 
 use crate::{
+    auth_client::SpecialClient,
     users::{AuthSession, Credentials, OAuthCreds},
     OAuthTarget,
 };
@@ -28,7 +29,7 @@ pub struct AuthzResp {
     state: CsrfToken,
 }
 
-pub fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
+pub fn oauth_client(target: OAuthTarget) -> Result<SpecialClient> {
     let (id_key, secret_key, auth_url, token_url) = match target {
         OAuthTarget::Google => (
             "GOOGLE_CLIENT_ID",
@@ -59,7 +60,10 @@ pub fn oauth_client(target: OAuthTarget) -> Result<BasicClient> {
 
     let auth_url = AuthUrl::new(auth_url.to_string())?;
     let token_url = TokenUrl::new(token_url.to_string())?;
-    let client = BasicClient::new(client_id, Some(client_secret), auth_url, Some(token_url))
+    let client = BasicClient::new(client_id)
+        .set_client_secret(client_secret)
+        .set_auth_uri(auth_url)
+        .set_token_uri(token_url)
         .set_redirect_uri(RedirectUrl::new(redirect_host + REDIRECT_URL)?);
 
     Ok(client)

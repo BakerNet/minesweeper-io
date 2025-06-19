@@ -13,8 +13,8 @@ game-ui = { path="../game-ui" }
 web-auth = { path="../web-auth" }
 anyhow = "1.0"
 async-trait = "0.1"
-axum = { version = "0.7", features = ["ws", "macros"], optional = true }
-axum-login = { version = "0.15", optional = true }
+axum = { version = "0.8", features = ["ws", "macros"], optional = true }
+axum-login = { version = "0.17", optional = true }
 chrono = { version = "0.4", features = ["serde"] }
 codee = { version = "0.3", features = ["json_serde_wasm"] }
 console_error_panic_hook = "0.1"
@@ -23,38 +23,38 @@ cfg-if = "1.0"
 dotenvy = { version = "0.15", optional = true }
 futures = { version = "0.3", optional = true }
 http = { version = "1.1" }
-leptos = { version = "0.7.0", features = ["nightly"] }
-leptos_axum = { version = "0.7.0", optional = true }
-leptos_meta = { version = "0.7.0" }
-leptos_router = { version = "0.7.0", features = ["nightly"] }
-leptos-use = { version = "0.15.0", features = ["storage", "use_document", "use_event_listener", "use_color_mode"] }
+leptos = { version = "0.8.0", features = ["nightly"] }
+leptos_axum = { version = "0.8.0", optional = true }
+leptos_meta = { version = "0.8.0" }
+leptos_router = { version = "0.8.0", features = ["nightly"] }
+leptos-use = { version = "0.16.0", features = ["storage", "use_document", "use_event_listener", "use_color_mode"] }
 log = "0.4"
 nanoid = { version = "0.4", optional = true }
-oauth2 = { version = "4.4", optional = true }
+oauth2 = { version = "5.0", optional = true }
 regex = "1.10"
 reqwest = { version = "0.12", features = ["json"], optional = true }
 serde = "1.0"
 serde_json = "1.0"
-server_fn = { version = "0.7.0" }
+server_fn = { version = "0.8.0" }
 simple_logger = "5"
-sqlx = { version = "0.7", features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
-thiserror = "1.0"
+sqlx = { version = "0.8", features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
+thiserror = "2.0"
 time = "0.3"
 tokio = { version = "1", features = ["full"], optional = true }
-tower = { version = "0.4", features = ["util"], optional = true }
-tower-http = { version = "0.5.2", features = ["fs"], optional = true }
-tower-sessions = { version = "0.12", optional = true }
-tower-sessions-sqlx-store = { version = "0.12", optional = true, features = ["sqlite"] }
+tower = { version = "0.5", features = ["util"], optional = true }
+tower-http = { version = "0.6", features = ["fs"], optional = true }
+tower-sessions = { version = "0.14", optional = true }
+tower-sessions-sqlx-store = { version = "0.15", optional = true, features = ["sqlite"] }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 wasm-bindgen = "=0.2.100"
 web-sys = { version = "0.3", features = ["WebSocket", "Performance"] }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3", features = ["wasm_js"] }
 plotters = "0.3.7"
 plotters-canvas = "0.3.0"
 
 [features]
-hydrate = ["leptos/hydrate", "leptos/nightly"]
+hydrate = ["leptos/hydrate", "leptos/nightly", "getrandom/wasm_js"]
 ssr = [
     "dep:axum",
     "dep:axum-login",
@@ -76,6 +76,7 @@ ssr = [
     "leptos_meta/ssr",
     "leptos_router/ssr",
     "leptos-use/ssr",
+    "leptos-use/axum",
     "game-manager/ssr",
     "web-auth/ssr",
 ]

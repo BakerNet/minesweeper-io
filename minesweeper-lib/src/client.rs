@@ -1,4 +1,4 @@
-use crate::board::{Board, BoardPoint};
+use crate::board::{Board, BoardPoint, CompactBoard};
 use crate::cell::{Cell, HiddenCell, PlayerCell};
 use crate::game::PlayOutcome;
 
@@ -23,8 +23,8 @@ impl MinesweeperClient {
         }
     }
 
-    pub fn set_state(&mut self, board: Board<PlayerCell>) {
-        self.board = board
+    pub fn set_state(&mut self, compact_board: CompactBoard) {
+        self.board = compact_board.to_board();
     }
 
     pub fn player_board(&self) -> &Board<PlayerCell> {
