@@ -112,7 +112,7 @@ impl CompactSerialize for PlayerCell {
                 let contents = if contents_code == 9 {
                     Cell::Mine
                 } else {
-                    Cell::Empty(contents_code as u8)
+                    Cell::Empty(contents_code)
                 };
                 PlayerCell::Revealed(RevealedCell { player, contents })
             }
