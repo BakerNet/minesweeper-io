@@ -37,12 +37,6 @@ pub fn oauth_client(target: OAuthTarget) -> Result<SpecialClient> {
             "https://accounts.google.com/o/oauth2/v2/auth",
             "https://oauth2.googleapis.com/token",
         ),
-        OAuthTarget::Reddit => (
-            "REDDIT_CLIENT_ID",
-            "REDDIT_CLIENT_SECRET",
-            "https://www.reddit.com/api/v1/authorize",
-            "https://www.reddit.com/api/v1/access_token",
-        ),
         OAuthTarget::Github => (
             "GITHUB_CLIENT_ID",
             "GITHUB_CLIENT_SECRET",
