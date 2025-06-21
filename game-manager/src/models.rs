@@ -106,7 +106,7 @@ impl Game {
             FROM games
             WHERE is_completed = 1 AND start_time >= Datetime('now', '{params}')
             ORDER BY start_time DESC
-            LIMIT 20
+            LIMIT 100
             "#
         );
 
