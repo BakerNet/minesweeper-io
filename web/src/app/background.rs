@@ -121,7 +121,7 @@ fn GradientBackground() -> impl IntoView {
 pub fn BackgroundToggle() -> impl IntoView {
     let storage_options =
         UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
-            .initial_value(BackgroundVariant::FloatingMines)
+            .initial_value(BackgroundVariant::None)
             .delay_during_hydration(true);
     let (background_variant, set_background_variant, _) =
         use_local_storage_with_options::<BackgroundVariant, JsonSerdeWasmCodec>(

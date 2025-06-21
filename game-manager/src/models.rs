@@ -106,7 +106,7 @@ impl Game {
             FROM games
             WHERE is_completed = 1 AND start_time >= Datetime('now', '{params}')
             ORDER BY start_time DESC
-            LIMIT 100
+            LIMIT 20
             "#
         );
 
@@ -296,6 +296,40 @@ pub struct TimelineStats {
     pub expert: Vec<(bool, i64)>,
 }
 
+pub enum GameStatusFilter {
+    All,
+    Won,
+    Lost,
+    InProgress,
+}
+
+pub enum GameModeFilter {
+    All,
+    Beginner,
+    Intermediate,
+    Expert,
+    Custom,
+}
+
+pub enum SortBy {
+    Date,
+    Duration,
+}
+
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+pub struct GameQueryParams {
+    pub page: i64,
+    pub limit: i64,
+    pub mode_filter: GameModeFilter,
+    pub status_filter: GameStatusFilter,
+    pub sort_by: SortBy,
+    pub sort_order: SortOrder,
+}
+
 impl Player {
     pub async fn get_players(
         db: &SqlitePool,
@@ -319,24 +353,75 @@ impl Player {
     pub async fn get_player_games_for_user(
         db: &SqlitePool,
         user: &User,
-        limit: i64,
+        params: &GameQueryParams,
     ) -> Result<Vec<PlayerGame>, sqlx::Error> {
-        sqlx::query_as(
+        let mut where_clauses = vec!["players.user = ?".to_string()];
+
+        // Add mode filter
+        match params.mode_filter {
+            GameModeFilter::Beginner => {
+                where_clauses
+                    .push("games.rows = 9 AND games.cols = 9 AND games.num_mines = 10".to_string());
+            }
+            GameModeFilter::Intermediate => {
+                where_clauses.push(
+                    "games.rows = 16 AND games.cols = 16 AND games.num_mines = 40".to_string(),
+                );
+            }
+            GameModeFilter::Expert => {
+                where_clauses.push(
+                    "games.rows = 16 AND games.cols = 30 AND games.num_mines = 99".to_string(),
+                );
+            }
+            GameModeFilter::Custom => {
+                where_clauses.push("NOT (games.rows = 9 AND games.cols = 9 AND games.num_mines = 10) AND NOT (games.rows = 16 AND games.cols = 16 AND games.num_mines = 40) AND NOT (games.rows = 16 AND games.cols = 30 AND games.num_mines = 99)".to_string());
+            }
+            GameModeFilter::All => {}
+        }
+
+        // Add status filter
+        match params.status_filter {
+            GameStatusFilter::Won => {
+                where_clauses.push("players.victory_click = 1".to_string());
+            }
+            GameStatusFilter::Lost => {
+                where_clauses.push("players.dead = 1".to_string());
+            }
+            GameStatusFilter::InProgress => {
+                where_clauses.push("games.is_completed = 0".to_string());
+            }
+            GameStatusFilter::All => {}
+        }
+
+        // Build ORDER BY clause
+        let order_by = match (&params.sort_by, &params.sort_order) {
+            (SortBy::Date, SortOrder::Desc) => "ORDER BY games.start_time DESC",
+            (SortBy::Date, SortOrder::Asc) => "ORDER BY games.start_time ASC",
+            (SortBy::Duration, SortOrder::Desc) => "ORDER BY games.seconds DESC",
+            (SortBy::Duration, SortOrder::Asc) => "ORDER BY games.seconds ASC",
+        };
+
+        let offset = (params.page - 1) * params.limit;
+        let where_clause = format!("WHERE {}", where_clauses.join(" AND "));
+
+        let query_str = format!(
             r#"
             SELECT
               players.game_id, players.player, players.dead, players.victory_click, players.top_score, players.score,
               games.start_time, games.end_time, games.rows, games.cols, games.num_mines, games.max_players
             FROM players
             LEFT JOIN games ON players.game_id = games.game_id
-            WHERE players.user = ?
-            ORDER BY games.start_time desc
-            LIMIT ?
+            {}
+            {}
+            LIMIT {} OFFSET {}
             "#,
-        )
-        .bind(user.id)
-        .bind(limit)
-        .fetch_all(db)
-        .await
+            where_clause,
+            order_by,
+            params.limit + 1,
+            offset
+        );
+
+        sqlx::query_as(&query_str).bind(user.id).fetch_all(db).await
     }
 
     pub async fn add_player(
