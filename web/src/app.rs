@@ -75,13 +75,15 @@ pub fn App() -> impl IntoView {
         move |_| async { get_frontend_user().await.ok().flatten() },
     );
 
-    let storage_options = UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
-        .initial_value(BackgroundVariant::FloatingMines)
-        .delay_during_hydration(true);
-    let (background_variant, _set_background_variant, _) = use_local_storage_with_options::<
-        BackgroundVariant,
-        JsonSerdeWasmCodec,
-    >("background_variant", storage_options);
+    let storage_options =
+        UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
+            .initial_value(BackgroundVariant::None)
+            .delay_during_hydration(true);
+    let (background_variant, _set_background_variant, _) =
+        use_local_storage_with_options::<BackgroundVariant, JsonSerdeWasmCodec>(
+            "background_variant",
+            storage_options,
+        );
 
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
