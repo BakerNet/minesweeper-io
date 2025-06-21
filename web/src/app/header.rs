@@ -5,11 +5,14 @@ use leptos_use::{use_color_mode, ColorMode, UseColorModeReturn};
 
 use web_auth::FrontendUser;
 
-use crate::app::background::BackgroundToggle;
+use crate::app::background::{BackgroundToggle, BackgroundVariant};
 use game_ui::logo;
 
 #[component]
-pub fn Header(user: Resource<Option<FrontendUser>>) -> impl IntoView {
+pub fn Header(
+    user: Resource<Option<FrontendUser>>,
+    set_background_variant: WriteSignal<BackgroundVariant>,
+) -> impl IntoView {
     let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
 
     let user_info = move |user: Option<FrontendUser>| match user {
@@ -56,7 +59,7 @@ pub fn Header(user: Resource<Option<FrontendUser>>) -> impl IntoView {
                     })}
 
                 </Transition>
-                <BackgroundToggle />
+                <BackgroundToggle set_background_variant />
                 <DarkModeToggle />
             </div>
         </header>

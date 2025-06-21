@@ -118,17 +118,7 @@ fn GradientBackground() -> impl IntoView {
 }
 
 #[component]
-pub fn BackgroundToggle() -> impl IntoView {
-    let storage_options =
-        UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
-            .initial_value(BackgroundVariant::None)
-            .delay_during_hydration(true);
-    let (background_variant, set_background_variant, _) =
-        use_local_storage_with_options::<BackgroundVariant, JsonSerdeWasmCodec>(
-            "background_variant",
-            storage_options,
-        );
-
+pub fn BackgroundToggle(set_background_variant: WriteSignal<BackgroundVariant>) -> impl IntoView {
     view! {
         <button
             id="background-toggle"
@@ -136,7 +126,7 @@ pub fn BackgroundToggle() -> impl IntoView {
             aria-label="background toggle"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
             on:click=move |_| {
-                set_background_variant(background_variant.get_untracked().next());
+                set_background_variant.update(|background_variant| *background_variant = background_variant.next());
             }
         >
             <svg

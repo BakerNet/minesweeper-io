@@ -79,7 +79,7 @@ pub fn App() -> impl IntoView {
         UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
             .initial_value(BackgroundVariant::None)
             .delay_during_hydration(true);
-    let (background_variant, _set_background_variant, _) =
+    let (background_variant, set_background_variant, _) =
         use_local_storage_with_options::<BackgroundVariant, JsonSerdeWasmCodec>(
             "background_variant",
             storage_options,
@@ -94,7 +94,7 @@ pub fn App() -> impl IntoView {
             <div class="relative min-h-screen bg-white dark:bg-gray-900">
                 <AnimatedBackground variant=background_variant />
                 <main class="flex flex-col min-h-screen relative">
-                    <Header user />
+                    <Header user set_background_variant />
                     <Routes fallback=|| {
                         let mut outside_errors = Errors::default();
                         outside_errors.insert_with_default_key(AppError::NotFound);
