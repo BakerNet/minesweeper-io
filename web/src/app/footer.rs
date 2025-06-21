@@ -3,7 +3,7 @@ use leptos::prelude::*;
 #[component]
 pub fn Footer() -> impl IntoView {
     view! {
-        <footer class="relative h-16 space-y-2 px-4 py-2 border-t border-gray-800">
+        <footer class="relative h-16 space-y-2 px-4 py-2 border-t border-gray-800 bg-neutral-200/50 dark:bg-gray-950/50">
             <div class="flex items-center justify-center mx-auto w-8/12 h-full text-gray-900 dark:text-gray-100">
                 <span>
                     "Developed by a "

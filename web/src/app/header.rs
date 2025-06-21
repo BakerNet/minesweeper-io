@@ -5,6 +5,7 @@ use leptos_use::{use_color_mode, ColorMode, UseColorModeReturn};
 
 use web_auth::FrontendUser;
 
+use crate::app::background::BackgroundToggle;
 use game_ui::logo;
 
 #[component]
@@ -31,7 +32,7 @@ pub fn Header(user: Resource<Option<FrontendUser>>) -> impl IntoView {
         }
     };
     view! {
-        <header class="flex flex-wrap space-y-2 space-x-4 items-center justify-between px-4 py-2 border-b border-gray-800">
+        <header class="flex flex-wrap space-y-2 space-x-4 items-center justify-between px-4 py-2 border-b border-gray-800 bg-neutral-200/50 dark:bg-gray-950/50">
             <A href="/" attr:class="flex items-center space-x-2">
                 <h1>{logo()}</h1>
             </A>
@@ -39,7 +40,7 @@ pub fn Header(user: Resource<Option<FrontendUser>>) -> impl IntoView {
                 <A href="/active" attr:class=format!("{} text-lg", aclass)>
                     "Active Games"
                 </A>
-                <span>"|"</span>
+                <span class="text-gray-950 dark:text-gray-100">"|"</span>
                 <A href="/recent" attr:class=format!("{} text-lg", aclass)>
                     "Recent Games"
                 </A>
@@ -55,6 +56,7 @@ pub fn Header(user: Resource<Option<FrontendUser>>) -> impl IntoView {
                     })}
 
                 </Transition>
+                <BackgroundToggle />
                 <DarkModeToggle />
             </div>
         </header>
@@ -66,6 +68,7 @@ pub fn DarkModeToggle() -> impl IntoView {
     let UseColorModeReturn { mode, set_mode, .. } = use_color_mode();
     view! {
         <button
+            id="dark-mode-toggle"
             type="button"
             aria-label="dark mode toggle"
             class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"

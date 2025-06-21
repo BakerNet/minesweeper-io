@@ -1,4 +1,5 @@
 mod auth;
+mod background;
 mod error_template;
 mod footer;
 mod header;
@@ -8,11 +9,15 @@ mod login;
 mod minesweeper;
 mod profile;
 
+use codee::string::JsonSerdeWasmCodec;
 use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
+use leptos_use::storage::{use_local_storage_with_options, UseStorageOptions};
+use wasm_bindgen::JsValue;
 
 use auth::{get_frontend_user, Login, Logout};
+use background::{AnimatedBackground, BackgroundVariant};
 use error_template::{AppError, ErrorTemplate};
 use footer::Footer;
 use header::Header;
@@ -70,37 +75,48 @@ pub fn App() -> impl IntoView {
         move |_| async { get_frontend_user().await.ok().flatten() },
     );
 
+    let storage_options = UseStorageOptions::<BackgroundVariant, serde_json::Error, JsValue>::default()
+        .initial_value(BackgroundVariant::FloatingMines)
+        .delay_during_hydration(true);
+    let (background_variant, _set_background_variant, _) = use_local_storage_with_options::<
+        BackgroundVariant,
+        JsonSerdeWasmCodec,
+    >("background_variant", storage_options);
+
     // Provides context that manages stylesheets, titles, meta tags, etc.
     provide_meta_context();
 
     view! {
         <Title formatter=|title| format!("Minesweeper - {title}") />
         <Router>
-            <main class="flex flex-col min-h-screen bg-white dark:bg-gray-900">
-                <Header user />
-                <Routes fallback=|| {
-                    let mut outside_errors = Errors::default();
-                    outside_errors.insert_with_default_key(AppError::NotFound);
-                    view! { <ErrorTemplate outside_errors /> }.into_view()
-                }>
-                    <Route path=path!("/") view=HomeView />
-                    <Route path=path!("/auth/login") view=move || view! { <LoginView login /> } />
-                    <Route
-                        path=path!("/profile")
-                        view=move || {
-                            view! { <ProfileView user logout user_updated /> }
-                        }
-                    />
-                    <ParentRoute path=path!("/game/:id") view=GameWrapper>
-                        <Route path=path!("/replay") view=ReplayView />
-                        <Route path=path!("/") view=GameView />
-                    </ParentRoute>
-                    <Route path=path!("/active") view=ActiveGames />
-                    <Route path=path!("/recent") view=RecentGames />
-                </Routes>
-                <Footer />
-                <ControlsInfo />
-            </main>
+            <div class="relative min-h-screen bg-white dark:bg-gray-900">
+                <AnimatedBackground variant=background_variant />
+                <main class="flex flex-col min-h-screen relative">
+                    <Header user />
+                    <Routes fallback=|| {
+                        let mut outside_errors = Errors::default();
+                        outside_errors.insert_with_default_key(AppError::NotFound);
+                        view! { <ErrorTemplate outside_errors /> }.into_view()
+                    }>
+                        <Route path=path!("/") view=HomeView />
+                        <Route path=path!("/auth/login") view=move || view! { <LoginView login /> } />
+                        <Route
+                            path=path!("/profile")
+                            view=move || {
+                                view! { <ProfileView user logout user_updated /> }
+                            }
+                        />
+                        <ParentRoute path=path!("/game/:id") view=GameWrapper>
+                            <Route path=path!("/replay") view=ReplayView />
+                            <Route path=path!("/") view=GameView />
+                        </ParentRoute>
+                        <Route path=path!("/active") view=ActiveGames />
+                        <Route path=path!("/recent") view=RecentGames />
+                    </Routes>
+                    <Footer />
+                    <ControlsInfo />
+                </main>
+            </div>
         </Router>
     }
 }
