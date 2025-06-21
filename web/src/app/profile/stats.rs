@@ -75,7 +75,7 @@ pub fn WebPlayerStatsTable() -> impl IntoView {
     let player_stats = Resource::new(|| (), move |_| async { get_player_stats().await });
     view! {
         <PlayerStatsTable>
-            <Suspense>
+            <Transition>
                 {move || Suspend::new(async move {
                     let stats = player_stats.await;
                     stats
@@ -98,7 +98,7 @@ pub fn WebPlayerStatsTable() -> impl IntoView {
                             }
                         })
                 })}
-            </Suspense>
+            </Transition>
         </PlayerStatsTable>
     }
 }
@@ -114,5 +114,5 @@ pub fn WebTimelineStatsGraphs() -> impl IntoView {
     );
     let timeline_stats = Signal::derive(move || timeline_stats.get().flatten());
 
-    view! { <TimelineStatsGraphs timeline_stats /> }
+    view! { <Transition>{move || view!{ <TimelineStatsGraphs timeline_stats /> }}</Transition> }
 }
