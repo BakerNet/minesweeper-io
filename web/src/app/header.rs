@@ -13,7 +13,7 @@ pub fn Header(
     user: Resource<Option<FrontendUser>>,
     set_background_variant: WriteSignal<BackgroundVariant>,
 ) -> impl IntoView {
-    let aclass = "text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500";
+    let aclass = "text-sky-700 dark:text-sky-500 hover:text-sky-900 dark:hover:text-sky-400 font-medium";
 
     let user_info = move |user: Option<FrontendUser>| match user {
         None => Either::Left(view! {
@@ -74,7 +74,7 @@ pub fn DarkModeToggle() -> impl IntoView {
             id="dark-mode-toggle"
             type="button"
             aria-label="dark mode toggle"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-slate-100 dark:bg-slate-800 hover:bg-sky-600 hover:text-white dark:hover:bg-sky-700 h-10 px-3 text-gray-900 dark:text-gray-200 cursor-pointer"
             on:click=move |_| {
                 match mode() {
                     ColorMode::Dark => set_mode(ColorMode::Light),

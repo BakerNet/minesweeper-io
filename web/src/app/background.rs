@@ -124,7 +124,7 @@ pub fn BackgroundToggle(set_background_variant: WriteSignal<BackgroundVariant>) 
             id="background-toggle"
             type="button"
             aria-label="background toggle"
-            class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-transparent hover:bg-gray-700 hover:text-gray-50 h-10 px-3 text-gray-900 dark:text-gray-200"
+            class="inline-flex items-center justify-center rounded-md text-sm font-medium disabled:pointer-events-none disabled:opacity-50 border border-input bg-slate-100 dark:bg-slate-800 hover:bg-sky-600 hover:text-white dark:hover:bg-sky-700 h-10 px-3 text-gray-900 dark:text-gray-200 cursor-pointer"
             on:click=move |_| {
                 set_background_variant.update(|background_variant| *background_variant = background_variant.next());
             }

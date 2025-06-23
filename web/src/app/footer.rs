@@ -8,7 +8,7 @@ pub fn Footer() -> impl IntoView {
                 <span>
                     "Developed by a "
                     <a
-                        class="text-gray-700 dark:text-gray-400 hover:text-sky-800 dark:hover:text-sky-500"
+                        class="text-sky-700 dark:text-sky-500 hover:text-sky-900 dark:hover:text-sky-400 font-medium"
                         href="https://hansbaker.com"
                     >
                         "minesweeper nerd"

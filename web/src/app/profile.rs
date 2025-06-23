@@ -51,6 +51,6 @@ pub fn ProfileView(
 
     view! {
         <Title text="Profile" />
-        <Transition fallback=move || ()>{move || { user.get().map(user_profile) }}</Transition>
+        <Suspense fallback=move || ()>{move || { user.get().map(user_profile) }}</Suspense>
     }
 }

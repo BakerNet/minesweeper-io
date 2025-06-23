@@ -213,7 +213,7 @@ pub fn GameHistory() -> impl IntoView {
             <tr class=player_class>
                 <td class=td_class>
                     <A
-                        attr:class="text-sky-800 hover:text-sky-500 font-medium"
+                        attr:class="text-sky-700 dark:text-sky-500 hover:text-sky-900 dark:hover:text-sky-400 font-medium"
                         href=format!("/game/{}", game.game_id)
                     >
                         {game.game_id}
