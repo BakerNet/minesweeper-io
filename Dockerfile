@@ -18,6 +18,7 @@ WORKDIR /app
 COPY . .
 
 # Build the app
+ENV LEPTOS_HASH_FILES="true"
 RUN cargo leptos build --release -vv
 
 FROM debian:bookworm-slim AS runtime
