@@ -114,5 +114,5 @@ pub fn WebTimelineStatsGraphs() -> impl IntoView {
     );
     let timeline_stats = Signal::derive(move || timeline_stats.get().flatten());
 
-    view! { <Transition>{move || view!{ <TimelineStatsGraphs timeline_stats /> }}</Transition> }
+    view! { <Transition>{move || view! { <TimelineStatsGraphs timeline_stats /> }}</Transition> }
 }

@@ -291,7 +291,9 @@ pub fn GameHistory() -> impl IntoView {
             <div class="flex flex-wrap gap-4 items-center">
                 // Mode Filter
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">"Mode:"</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        "Mode:"
+                    </label>
                     <select
                         class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         on:change=move |ev| {
@@ -307,17 +309,46 @@ pub fn GameHistory() -> impl IntoView {
                             set_page.set(1);
                         }
                     >
-                        <option value="All" selected=move || matches!(mode_filter.get(), GameModeFilter::All)>"All"</option>
-                        <option value="Beginner" selected=move || matches!(mode_filter.get(), GameModeFilter::Beginner)>"Beginner"</option>
-                        <option value="Intermediate" selected=move || matches!(mode_filter.get(), GameModeFilter::Intermediate)>"Intermediate"</option>
-                        <option value="Expert" selected=move || matches!(mode_filter.get(), GameModeFilter::Expert)>"Expert"</option>
-                        <option value="Custom" selected=move || matches!(mode_filter.get(), GameModeFilter::Custom)>"Custom"</option>
+                        <option
+                            value="All"
+                            selected=move || matches!(mode_filter.get(), GameModeFilter::All)
+                        >
+                            "All"
+                        </option>
+                        <option
+                            value="Beginner"
+                            selected=move || matches!(mode_filter.get(), GameModeFilter::Beginner)
+                        >
+                            "Beginner"
+                        </option>
+                        <option
+                            value="Intermediate"
+                            selected=move || {
+                                matches!(mode_filter.get(), GameModeFilter::Intermediate)
+                            }
+                        >
+                            "Intermediate"
+                        </option>
+                        <option
+                            value="Expert"
+                            selected=move || matches!(mode_filter.get(), GameModeFilter::Expert)
+                        >
+                            "Expert"
+                        </option>
+                        <option
+                            value="Custom"
+                            selected=move || matches!(mode_filter.get(), GameModeFilter::Custom)
+                        >
+                            "Custom"
+                        </option>
                     </select>
                 </div>
 
                 // Status Filter
                 <div class="flex items-center space-x-2">
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">"Status:"</label>
+                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        "Status:"
+                    </label>
                     <select
                         class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         on:change=move |ev| {
@@ -332,10 +363,32 @@ pub fn GameHistory() -> impl IntoView {
                             set_page.set(1);
                         }
                     >
-                        <option value="All" selected=move || matches!(status_filter.get(), GameStatusFilter::All)>"All"</option>
-                        <option value="Won" selected=move || matches!(status_filter.get(), GameStatusFilter::Won)>"Won"</option>
-                        <option value="Lost" selected=move || matches!(status_filter.get(), GameStatusFilter::Lost)>"Lost"</option>
-                        <option value="InProgress" selected=move || matches!(status_filter.get(), GameStatusFilter::InProgress)>"In Progress"</option>
+                        <option
+                            value="All"
+                            selected=move || matches!(status_filter.get(), GameStatusFilter::All)
+                        >
+                            "All"
+                        </option>
+                        <option
+                            value="Won"
+                            selected=move || matches!(status_filter.get(), GameStatusFilter::Won)
+                        >
+                            "Won"
+                        </option>
+                        <option
+                            value="Lost"
+                            selected=move || matches!(status_filter.get(), GameStatusFilter::Lost)
+                        >
+                            "Lost"
+                        </option>
+                        <option
+                            value="InProgress"
+                            selected=move || {
+                                matches!(status_filter.get(), GameStatusFilter::InProgress)
+                            }
+                        >
+                            "In Progress"
+                        </option>
                     </select>
                 </div>
             </div>
@@ -347,12 +400,15 @@ pub fn GameHistory() -> impl IntoView {
                         "Page " {move || page.get()}
                         <Suspense>
                             {move || {
-                                player_games.with(|games| {
-                                    match games {
-                                        Some(Ok(games)) => format!(" ({} games)", PER_PAGE.min(games.len())),
-                                        _ => String::new(),
-                                    }
-                                })
+                                player_games
+                                    .with(|games| {
+                                        match games {
+                                            Some(Ok(games)) => {
+                                                format!(" ({} games)", PER_PAGE.min(games.len()))
+                                            }
+                                            _ => String::new(),
+                                        }
+                                    })
                             }}
                         </Suspense>
                     </span>
@@ -365,24 +421,34 @@ pub fn GameHistory() -> impl IntoView {
                     >
                         "Previous"
                     </button>
-                    <Transition fallback=move || view!{
-                        <button class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>"Next"</button>
+                    <Transition fallback=move || {
+                        view! {
+                            <button
+                                class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                disabled
+                            >
+                                "Next"
+                            </button>
+                        }
                     }>
                         {move || {
-                            player_games.with(|games| {
-                                let disabled = if let Some(Ok(games)) = games {
-                                    games.len() < PER_PAGE
-                                } else {true};
-                                view! {
-                                    <button
-                                        class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                        disabled=disabled
-                                        on:click=move |_| set_page.update(|p| *p += 1)
-                                    >
-                                        "Next"
-                                    </button>
-                                }
-                            })
+                            player_games
+                                .with(|games| {
+                                    let disabled = if let Some(Ok(games)) = games {
+                                        games.len() < PER_PAGE
+                                    } else {
+                                        true
+                                    };
+                                    view! {
+                                        <button
+                                            class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                            disabled=disabled
+                                            on:click=move |_| set_page.update(|p| *p += 1)
+                                        >
+                                            "Next"
+                                        </button>
+                                    }
+                                })
                         }}
                     </Transition>
                 </div>
@@ -394,29 +460,37 @@ pub fn GameHistory() -> impl IntoView {
                 <thead>
                     <tr>
                         <th class=header_class>"Game"</th>
-                        <th class=format!("{} cursor-pointer hover:bg-neutral-400/50", header_class)
-                            on:click=move |_| toggle_sort(SortBy::Date)>
+                        <th
+                            class=format!("{} cursor-pointer hover:bg-neutral-400/50", header_class)
+                            on:click=move |_| toggle_sort(SortBy::Date)
+                        >
                             "Date "
-                            {move || if matches!(sort_by.get(), SortBy::Date) {
-                                match sort_order.get() {
-                                    SortOrder::Desc => "↓",
-                                    SortOrder::Asc => "↑",
+                            {move || {
+                                if matches!(sort_by.get(), SortBy::Date) {
+                                    match sort_order.get() {
+                                        SortOrder::Desc => "↓",
+                                        SortOrder::Asc => "↑",
+                                    }
+                                } else {
+                                    ""
                                 }
-                            } else {
-                                ""
                             }}
                         </th>
                         <th class=header_class>"Game Mode"</th>
-                        <th class=format!("{} cursor-pointer hover:bg-neutral-400/50", header_class)
-                            on:click=move |_| toggle_sort(SortBy::Duration)>
+                        <th
+                            class=format!("{} cursor-pointer hover:bg-neutral-400/50", header_class)
+                            on:click=move |_| toggle_sort(SortBy::Duration)
+                        >
                             "Duration "
-                            {move || if matches!(sort_by.get(), SortBy::Duration) {
-                                match sort_order.get() {
-                                    SortOrder::Desc => "↓",
-                                    SortOrder::Asc => "↑",
+                            {move || {
+                                if matches!(sort_by.get(), SortBy::Duration) {
+                                    match sort_order.get() {
+                                        SortOrder::Desc => "↓",
+                                        SortOrder::Asc => "↑",
+                                    }
+                                } else {
+                                    ""
                                 }
-                            } else {
-                                ""
                             }}
                         </th>
                         <th class=header_class>"Status"</th>
@@ -433,7 +507,11 @@ pub fn GameHistory() -> impl IntoView {
                                 player_games
                                     .await
                                     .map(|games| {
-                                        games.into_iter().take(PER_PAGE).map(game_view).collect_view()
+                                        games
+                                            .into_iter()
+                                            .take(PER_PAGE)
+                                            .map(game_view)
+                                            .collect_view()
                                     })
                             })
                         }}

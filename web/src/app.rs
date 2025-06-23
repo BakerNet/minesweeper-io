@@ -101,7 +101,10 @@ pub fn App() -> impl IntoView {
                         view! { <ErrorTemplate outside_errors /> }.into_view()
                     }>
                         <Route path=path!("/") view=HomeView />
-                        <Route path=path!("/auth/login") view=move || view! { <LoginView login /> } />
+                        <Route
+                            path=path!("/auth/login")
+                            view=move || view! { <LoginView login /> }
+                        />
                         <Route
                             path=path!("/profile")
                             view=move || {
