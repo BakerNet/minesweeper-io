@@ -21,3 +21,147 @@
 .show-tooltip .tooltip {
   @apply visible z-50
 }
+
+/* Background Animations */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  25% { transform: translateY(-10px) translateX(5px); }
+  50% { transform: translateY(-5px) translateX(-10px); }
+  75% { transform: translateY(-15px) translateX(8px); }
+}
+
+@keyframes float-medium {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  33% { transform: translateY(-8px) translateX(-6px); }
+  66% { transform: translateY(-12px) translateX(4px); }
+}
+
+@keyframes float-fast {
+  0%, 100% { transform: translateY(0px) translateX(0px); }
+  50% { transform: translateY(-6px) translateX(-8px); }
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 6s ease-in-out infinite;
+}
+
+.animate-float-fast {
+  animation: float-fast 4s ease-in-out infinite;
+}
+
+/* Grid Pattern Backgrounds */
+.bg-grid-pattern {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.30) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.30) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.dark {
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.30) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.30) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+}
+
+/* Radial Gradient */
+.bg-gradient-radial {
+  background: radial-gradient(circle at center, var(--tw-gradient-stops));
+}
+
+/* Enhanced Multi-Layer Gradient Animations */
+@keyframes gradient-shift-1 {
+  0%, 100% { 
+    background: radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.25) 0%, rgba(147, 197, 253, 0.15) 50%, transparent 70%);
+  }
+  50% { 
+    background: radial-gradient(ellipse at top left, rgba(37, 99, 235, 0.30) 0%, rgba(125, 211, 252, 0.18) 50%, transparent 70%);
+  }
+}
+
+@keyframes gradient-shift-2 {
+  0%, 100% { 
+    background: radial-gradient(ellipse at bottom right, rgba(34, 197, 94, 0.20) 0%, rgba(74, 222, 128, 0.12) 50%, transparent 70%);
+  }
+  50% { 
+    background: radial-gradient(ellipse at bottom right, rgba(22, 163, 74, 0.25) 0%, rgba(52, 211, 153, 0.15) 50%, transparent 70%);
+  }
+}
+
+@keyframes gradient-shift-3 {
+  0%, 100% { 
+    background: radial-gradient(circle at center, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.08) 40%, transparent 60%);
+  }
+  50% { 
+    background: radial-gradient(circle at center, rgba(147, 51, 234, 0.18) 0%, rgba(167, 139, 250, 0.12) 40%, transparent 60%);
+  }
+}
+
+/* Dark Mode Gradient Animations */
+@keyframes gradient-shift-dark-1 {
+  0%, 100% { 
+    background: radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.12) 0%, rgba(147, 51, 234, 0.07) 50%, transparent 70%);
+  }
+  50% { 
+    background: radial-gradient(ellipse at top left, rgba(37, 99, 235, 0.15) 0%, rgba(124, 58, 237, 0.09) 50%, transparent 70%);
+  }
+}
+
+@keyframes gradient-shift-dark-2 {
+  0%, 100% { 
+    background: radial-gradient(ellipse at bottom right, rgba(6, 182, 212, 0.10) 0%, rgba(34, 197, 94, 0.06) 50%, transparent 70%);
+  }
+  50% { 
+    background: radial-gradient(ellipse at bottom right, rgba(8, 145, 178, 0.12) 0%, rgba(22, 163, 74, 0.07) 50%, transparent 70%);
+  }
+}
+
+@keyframes gradient-shift-dark-3 {
+  0%, 100% { 
+    background: radial-gradient(circle at center, rgba(168, 85, 247, 0.07) 0%, rgba(6, 182, 212, 0.04) 40%, transparent 60%);
+  }
+  50% { 
+    background: radial-gradient(circle at center, rgba(147, 51, 234, 0.09) 0%, rgba(8, 145, 178, 0.05) 40%, transparent 60%);
+  }
+}
+
+.gradient-layer-1 {
+  animation: gradient-shift-1 12s ease-in-out infinite;
+}
+
+.gradient-layer-2 {
+  animation: gradient-shift-2 15s ease-in-out infinite reverse;
+}
+
+.gradient-layer-3 {
+  animation: gradient-shift-3 18s ease-in-out infinite;
+}
+
+.dark .gradient-layer-1 {
+  animation: gradient-shift-dark-1 12s ease-in-out infinite;
+}
+
+.dark .gradient-layer-2 {
+  animation: gradient-shift-dark-2 15s ease-in-out infinite reverse;
+}
+
+.dark .gradient-layer-3 {
+  animation: gradient-shift-dark-3 18s ease-in-out infinite;
+}
+
+/* Floating Mine Glow Effects */
+.floating-mine {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+  transition: filter 0.3s ease;
+}
+
+.dark .floating-mine {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.41)) 
+          drop-shadow(0 0 8px rgba(255, 255, 255, 0.20));
+}

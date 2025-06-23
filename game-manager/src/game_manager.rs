@@ -20,7 +20,7 @@ use web_auth::{models::User, FrontendUser};
 use crate::{
     messages::{ClientMessage, GameMessage},
     models::{
-        AggregateStats, Game, GameLog, GameParameters, Player, PlayerGame, PlayerUser,
+        AggregateStats, Game, GameLog, GameParameters, GameQueryParams, Player, PlayerGame, PlayerUser,
         SimpleGameWithPlayers, TimelineStats,
     },
 };
@@ -178,8 +178,8 @@ impl GameManager {
         })
     }
 
-    pub async fn get_player_games_for_user(&self, user: &User) -> Result<Vec<PlayerGame>> {
-        Player::get_player_games_for_user(&self.db, user, 100)
+    pub async fn get_player_games_for_user(&self, user: &User, params: &GameQueryParams) -> Result<Vec<PlayerGame>> {
+        Player::get_player_games_for_user(&self.db, user, params)
             .await
             .map_err(|e| {
                 log::debug!("Error fetching player games: {e}");
