@@ -7,7 +7,7 @@ use leptos_use::{
 };
 
 use crate::{
-    icons::{Copy, IconTooltip, Mine, PlayArrow, QuestionMark, Star, StopWatch},
+    icons::{Circle, Copy, IconTooltip, Mine, PlayArrow, Star, StopWatch},
     widget_icon_holder, widget_icon_standalone,
 };
 
@@ -15,7 +15,9 @@ use crate::{
 pub fn GameWidgets(children: Children) -> impl IntoView {
     view! {
         <div class="flex flex-col items-center">
-            <div class="flex justify-between w-full max-w-xs mb-2">{children()}</div>
+            <div class="grid grid-cols-3 w-full max-w-xs mb-2 items-center [&>*:nth-child(1)]:justify-self-start [&>*:nth-child(2)]:justify-self-center [&>*:nth-child(3)]:justify-self-end">
+                {children()}
+            </div>
         </div>
     }
 }
@@ -187,26 +189,24 @@ pub enum GameState {
 }
 
 #[component]
-pub fn GameStateWidget(
-    completed: ReadSignal<bool>,
+pub fn GameStateWidget<F>(
     victory: ReadSignal<bool>,
     dead: ReadSignal<bool>,
     sync_time: ReadSignal<Option<usize>>,
-) -> impl IntoView {
+    on_click: F,
+) -> impl IntoView
+where
+    F: Fn() + Copy + 'static,
+{
     let game_state = move || {
-        let is_completed = completed.get();
         let is_victory = victory.get();
         let is_dead = dead.get();
         let has_started = sync_time.get().is_some();
 
-        if is_completed {
-            if is_victory {
-                GameState::Victory
-            } else if is_dead {
-                GameState::Dead
-            } else {
-                GameState::Active // fallback
-            }
+        if is_victory {
+            GameState::Victory
+        } else if is_dead {
+            GameState::Dead
         } else if has_started {
             GameState::Active
         } else {
@@ -216,12 +216,15 @@ pub fn GameStateWidget(
 
     view! {
         <div class="flex items-center">
-            <div class="flex justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold">
+            <button
+                class= "flex justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold cursor-pointer"
+                on:click=move |_| on_click()
+            >
                 {move || {
                     match game_state() {
                         GameState::NotStarted => EitherOf4::A(view! {
-                            <span class=widget_icon_standalone!("bg-gray-400")>
-                                <QuestionMark />
+                            <span class=widget_icon_standalone!("bg-neutral-200")>
+                                <Circle />
                             </span>
                         }),
                         GameState::Active => EitherOf4::B(view! {
@@ -243,7 +246,7 @@ pub fn GameStateWidget(
                         }),
                     }
                 }}
-            </div>
+            </button>
         </div>
     }
 }

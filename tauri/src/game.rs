@@ -97,7 +97,12 @@ impl FrontendGame {
             action: PlayAction::RevealAdjacent,
             point,
         };
-        self.try_play(play)
+        let res = self.try_play(play);
+        match &res {
+            Ok(_) => self.err_signal.set(None),
+            Err(e) => self.err_signal.set(Some(format!("{e:?}"))),
+        };
+        res
     }
 
     fn try_play(&self, play: Play) -> Result<()> {
@@ -116,7 +121,7 @@ impl FrontendGame {
         });
         let is_victory = game_client.victory;
         let is_dead = matches!(game.player_dead(0), Ok(true));
-        
+
         if is_victory {
             self.set_victory.set(true);
             self.set_completed.set(true);

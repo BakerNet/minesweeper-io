@@ -1,4 +1,6 @@
+pub mod background;
 pub mod components;
+pub mod dark_mode;
 pub mod icons;
 pub mod info;
 
@@ -10,6 +12,8 @@ mod replay;
 mod stats;
 mod widgets;
 
+pub use background::{AnimatedBackground, BackgroundToggle, BackgroundVariant};
+pub use dark_mode::DarkModeToggle;
 pub use game::{ActiveGame, InactiveGame, ReplayGame};
 pub use minesweeper::{GameInfo, GameInfoWithLog, GameSettings};
 pub use mode::{GameMode, PresetButtons, SettingsInputs};

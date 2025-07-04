@@ -14,8 +14,8 @@
     "windows": [
       {
         "title": "Minesweeper",
-        "width": 1000,
-        "height": 700,
+        "width": 1200,
+        "height": 900,
         "resizable": true,
         "minimizable": true,
         "maximizable": true
