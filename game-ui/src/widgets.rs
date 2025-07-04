@@ -1,4 +1,5 @@
 use chrono::DateTime;
+use leptos::either::EitherOf4;
 use leptos::prelude::*;
 use leptos_use::{
     use_clipboard, use_interval_fn_with_options, use_timeout_fn, utils::Pausable,
@@ -6,8 +7,8 @@ use leptos_use::{
 };
 
 use crate::{
-    icons::{Copy, IconTooltip, Mine, StopWatch},
-    widget_icon_holder,
+    icons::{Copy, IconTooltip, Mine, PlayArrow, QuestionMark, Star, StopWatch},
+    widget_icon_holder, widget_icon_standalone,
 };
 
 #[component]
@@ -173,6 +174,76 @@ pub fn CopyGameLink(game_url: String) -> impl IntoView {
                     <IconTooltip>Copied</IconTooltip>
                 </span>
             </button>
+        </div>
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum GameState {
+    NotStarted,
+    Active,
+    Victory,
+    Dead,
+}
+
+#[component]
+pub fn GameStateWidget(
+    completed: ReadSignal<bool>,
+    victory: ReadSignal<bool>,
+    dead: ReadSignal<bool>,
+    sync_time: ReadSignal<Option<usize>>,
+) -> impl IntoView {
+    let game_state = move || {
+        let is_completed = completed.get();
+        let is_victory = victory.get();
+        let is_dead = dead.get();
+        let has_started = sync_time.get().is_some();
+
+        if is_completed {
+            if is_victory {
+                GameState::Victory
+            } else if is_dead {
+                GameState::Dead
+            } else {
+                GameState::Active // fallback
+            }
+        } else if has_started {
+            GameState::Active
+        } else {
+            GameState::NotStarted
+        }
+    };
+
+    view! {
+        <div class="flex items-center">
+            <div class="flex justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold">
+                {move || {
+                    match game_state() {
+                        GameState::NotStarted => EitherOf4::A(view! {
+                            <span class=widget_icon_standalone!("bg-gray-400")>
+                                <QuestionMark />
+                            </span>
+                        }),
+                        GameState::Active => EitherOf4::B(view! {
+                            <span class=widget_icon_standalone!("bg-blue-500")>
+                                <PlayArrow />
+                            </span>
+                        }),
+                        GameState::Victory => EitherOf4::C(view! {
+                            <span class=widget_icon_standalone!("bg-black", true)>
+                                <Star />
+                                <IconTooltip>"Victory"</IconTooltip>
+                            </span>
+                        }),
+                        GameState::Dead => EitherOf4::D(view! {
+                            <span class=widget_icon_standalone!("bg-red-600", true)>
+                                <Mine />
+                                <IconTooltip>"Dead"</IconTooltip>
+                            </span>
+                        }),
+                    }
+                }}
+            </div>
         </div>
     }
 }

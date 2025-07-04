@@ -32,6 +32,16 @@ macro_rules! widget_icon_holder {
     };
 }
 
+#[macro_export]
+macro_rules! widget_icon_standalone {
+    ($bg:literal) => {
+        concat!("inline-block align-text-top h-6 w-6 p-0.5 ", $bg)
+    };
+    ($bg:literal, true) => {
+        concat!("inline-block align-text-top h-6 w-6 p-0.5 relative ", $bg)
+    };
+}
+
 #[component]
 pub fn IconTooltip(children: Children) -> impl IntoView {
     view! {
@@ -431,6 +441,50 @@ pub fn StopWatch() -> impl IntoView {
                     class="st0"
                     points="154.016,392.531 165.213,403.728 191.328,377.606 180.131,366.416 	"
                 ></polygon>
+            </g>
+        </svg>
+    }
+}
+
+#[component]
+pub fn QuestionMark() -> impl IntoView {
+    view! {
+        <svg
+            viewBox="0 0 11.90625 11.90625"
+            version="1.1"
+            xmlns="http://www.w3.org/2000/svg"
+            class="object-cover h-full w-full"
+        >
+            <g>
+                <path
+                    fill="#000000"
+                    d="M 5.953125,2.381 C 4.936,2.381 4.127,3.191 4.127,4.207 L 5.159,4.207 C 5.159,3.756 5.502,3.413 5.953,3.413 C 6.404,3.413 6.747,3.756 6.747,4.207 C 6.747,4.658 6.404,5.001 5.953,5.001 C 5.684,5.001 5.469,5.216 5.469,5.485 L 5.469,6.969 L 6.437,6.969 L 6.437,5.889 C 7.158,5.684 7.715,5.015 7.715,4.207 C 7.715,3.191 6.906,2.381 5.953125,2.381 Z"
+                ></path>
+                <circle
+                    fill="#000000"
+                    cx="5.953125"
+                    cy="8.731"
+                    r="0.595"
+                ></circle>
+            </g>
+        </svg>
+    }
+}
+
+#[component]
+pub fn PlayArrow() -> impl IntoView {
+    view! {
+        <svg
+            viewBox="0 0 11.90625 11.90625"
+            version="1.1"
+            xmlns="http://www.w3.org/2000/svg"
+            class="object-cover h-full w-full"
+        >
+            <g>
+                <path
+                    fill="#FFFFFF"
+                    d="M 4.166,2.976 L 4.166,8.930 L 8.731,5.953 Z"
+                ></path>
             </g>
         </svg>
     }

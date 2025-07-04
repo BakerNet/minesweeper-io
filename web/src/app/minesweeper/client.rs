@@ -175,7 +175,7 @@ impl FrontendGame {
                     log::debug!("Play outcome: {point:?} {cell:?}");
                     self.update_cell(*point, *cell);
                 });
-                if game.game_over {
+                if game.victory {
                     self.set_completed.set(true);
                 }
                 Ok(())

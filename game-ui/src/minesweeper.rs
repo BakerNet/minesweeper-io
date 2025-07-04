@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use minesweeper_lib::{
     board::{Board, CompactBoard},
-    cell::PlayerCell,
+    cell::{HiddenCell, PlayerCell},
     client::ClientPlayer,
-    game::{Play, PlayOutcome, CompactPlayOutcome},
+    game::{CompactPlayOutcome, Play, PlayOutcome},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +27,28 @@ pub struct GameInfo {
 }
 
 impl GameInfo {
+    pub fn new_singleplayer(game_id: String, rows: usize, cols: usize, num_mines: usize) -> Self {
+        Self {
+            game_id,
+            has_owner: false,
+            is_owner: false,
+            rows,
+            cols,
+            num_mines,
+            max_players: 1,
+            is_started: true,
+            is_completed: false,
+            start_time: Some(Utc::now()),
+            end_time: None,
+            final_board: CompactBoard::from_board(&Board::new(
+                rows,
+                cols,
+                PlayerCell::Hidden(HiddenCell::Empty),
+            )),
+            players: vec![None],
+        }
+    }
+
     /// Convert the compact board to full Board<PlayerCell> for UI use
     pub fn board(&self) -> Board<PlayerCell> {
         self.final_board.to_board()

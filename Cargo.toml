@@ -5,6 +5,8 @@ members = [
   "web",
 
   # integrations
+  "tauri",
+  "tauri/src-tauri",
 
   # libraries
   "minesweeper-lib",
