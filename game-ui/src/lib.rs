@@ -24,8 +24,8 @@ pub use stats::{
     TimelineGameModeStats, TimelineStats, TimelineStatsGraphs,
 };
 pub use widgets::{
-    game_time_from_start_end, ActiveMines, ActiveTimer, CopyGameLink, GameStateWidget, GameWidgets, InactiveMines,
-    InactiveTimer,
+    game_time_from_start_end, ActiveMines, ActiveTimer, CopyGameLink, GameState, GameStateWidget,
+    GameWidgets, InactiveGameStateWidget, InactiveMines, InactiveTimer,
 };
 
 use leptos::prelude::*;

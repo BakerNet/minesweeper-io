@@ -196,7 +196,7 @@ pub fn GameStateWidget<F>(
     on_click: F,
 ) -> impl IntoView
 where
-    F: Fn() + Copy + 'static,
+    F: Fn() + 'static,
 {
     let game_state = move || {
         let is_victory = victory.get();
@@ -222,6 +222,48 @@ where
             >
                 {move || {
                     match game_state() {
+                        GameState::NotStarted => EitherOf4::A(view! {
+                            <span class=widget_icon_standalone!("bg-neutral-200")>
+                                <Circle />
+                            </span>
+                        }),
+                        GameState::Active => EitherOf4::B(view! {
+                            <span class=widget_icon_standalone!("bg-blue-500")>
+                                <PlayArrow />
+                            </span>
+                        }),
+                        GameState::Victory => EitherOf4::C(view! {
+                            <span class=widget_icon_standalone!("bg-black", true)>
+                                <Star />
+                                <IconTooltip>"Victory"</IconTooltip>
+                            </span>
+                        }),
+                        GameState::Dead => EitherOf4::D(view! {
+                            <span class=widget_icon_standalone!("bg-red-600", true)>
+                                <Mine />
+                                <IconTooltip>"Dead"</IconTooltip>
+                            </span>
+                        }),
+                    }
+                }}
+            </button>
+        </div>
+    }
+}
+
+#[component]
+pub fn InactiveGameStateWidget<F>(game_state: GameState, on_click: F) -> impl IntoView
+where
+    F: Fn() + 'static,
+{
+    view! {
+        <div class="flex items-center">
+            <button
+                class= "flex justify-center border-4 border-slate-400 bg-neutral-200 text-neutral-800 text-lg font-bold cursor-pointer"
+                on:click=move |_| on_click()
+            >
+                {move || {
+                    match game_state {
                         GameState::NotStarted => EitherOf4::A(view! {
                             <span class=widget_icon_standalone!("bg-neutral-200")>
                                 <Circle />

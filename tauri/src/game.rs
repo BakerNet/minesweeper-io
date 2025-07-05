@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use leptos::prelude::*;
 use std::sync::{Arc, RwLock};
 
@@ -6,7 +7,10 @@ use minesweeper_lib::{
     board::{Board, BoardPoint},
     cell::{HiddenCell, PlayerCell},
     client::MinesweeperClient,
-    game::{Action as PlayAction, Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play},
+    game::{
+        Action as PlayAction, CompletedMinesweeper, Minesweeper, MinesweeperBuilder,
+        MinesweeperOpts, Play,
+    },
 };
 
 use game_ui::GameInfo;
@@ -20,12 +24,14 @@ pub struct FrontendGame {
     pub flag_count: ReadSignal<usize>,
     pub sync_time: ReadSignal<Option<usize>>,
     pub cells: Arc<Vec<Vec<ReadSignal<PlayerCell>>>>,
+    pub start_time: ReadSignal<Option<DateTime<Utc>>>,
     cell_signals: Arc<Vec<Vec<WriteSignal<PlayerCell>>>>,
     set_completed: WriteSignal<bool>,
     set_victory: WriteSignal<bool>,
     set_dead: WriteSignal<bool>,
     set_flag_count: WriteSignal<usize>,
     set_sync_time: WriteSignal<Option<usize>>,
+    set_start_time: WriteSignal<Option<DateTime<Utc>>>,
     game: Arc<RwLock<Minesweeper>>,
     game_client: Arc<RwLock<MinesweeperClient>>,
 }
@@ -38,6 +44,7 @@ impl FrontendGame {
         let (dead, set_dead) = signal(false);
         let (flag_count, set_flag_count) = signal(0);
         let (sync_time, set_sync_time) = signal::<Option<usize>>(None);
+        let (start_time, set_start_time) = signal(game_info.start_time.clone());
         let rows = game_info.rows;
         let cols = game_info.cols;
         let num_mines = game_info.num_mines;
@@ -55,6 +62,8 @@ impl FrontendGame {
             set_flag_count,
             sync_time,
             set_sync_time,
+            start_time,
+            set_start_time,
             game: Arc::new(RwLock::new(
                 MinesweeperBuilder::new(MinesweeperOpts {
                     rows,
@@ -114,6 +123,7 @@ impl FrontendGame {
         game_client.add_or_update_player(0, game.player_score(0).ok(), game.player_dead(0).ok());
         if !is_started {
             self.set_sync_time.set(Some(0));
+            self.set_start_time.set(Some(Utc::now()));
         }
         plays.iter().for_each(|(point, cell)| {
             log::debug!("Play outcome: {point:?} {cell:?}");
@@ -156,6 +166,39 @@ impl FrontendGame {
             _ => {}
         }
         self.cell_signals[point.row][point.col].set(cell);
+    }
+
+    pub fn extract_completed_game(&self) -> Option<CompletedMinesweeper> {
+        // Check if game is over before attempting to consume it
+        log::debug!("Checking if game is over before extracting completed game");
+        {
+            let game = self.game.read().ok()?;
+            if !game.is_over() {
+                log::debug!("Game is not over, cannot extract completed game");
+                return None;
+            }
+        }
+
+        log::debug!("Game is over, extracting completed game");
+        // Take ownership of the game by replacing it with a dummy game
+        // This is a bit of a hack, but necessary since complete() requires ownership
+        let dummy_game = MinesweeperBuilder::new(MinesweeperOpts {
+            rows: 1,
+            cols: 2,
+            num_mines: 1,
+        })
+        .ok()?
+        .with_log()
+        .init();
+
+        log::debug!("Replacing game with dummy game to extract completed game");
+
+        let mut game_lock = self.game.write().ok()?;
+        log::debug!("Acquired write lock on game");
+        let owned_game = std::mem::replace(&mut *game_lock, dummy_game);
+        drop(game_lock);
+
+        Some(owned_game.complete())
     }
 }
 
