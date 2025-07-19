@@ -72,13 +72,13 @@ async fn save_game(state: State<'_, DatabaseState>, game: SavedGame) -> Result<(
     .bind(game.num_mines as i64)
     .bind(game.is_completed as i32)
     .bind(game.victory as i32)
-    .bind(&game.start_time.unwrap_or_default())
-    .bind(&game.end_time.unwrap_or_default())
-    .bind(&game.final_board.unwrap_or_default())
+    .bind(game.start_time.unwrap_or_default())
+    .bind(game.end_time.unwrap_or_default())
+    .bind(game.final_board.unwrap_or_default())
     .bind(&game.game_log)
     .execute(&*pool)
     .await
-    .map_err(|e| format!("Failed to save game: {}", e))?;
+    .map_err(|e| format!("Failed to save game: {e}"))?;
 
     Ok(())
 }
@@ -109,7 +109,7 @@ async fn get_game_mode_stats(
     .bind(num_mines as i64)
     .fetch_one(pool)
     .await
-    .map_err(|e| format!("Failed to get game mode stats: {}", e))?;
+    .map_err(|e| format!("Failed to get game mode stats: {e}"))?;
 
     let played: i64 = row.try_get("played").unwrap_or(0);
     let victories: i64 = row.try_get("victories").unwrap_or(0);
@@ -161,7 +161,7 @@ async fn get_game_mode_timeline(
     .bind(num_mines as i64)
     .fetch_all(pool)
     .await
-    .map_err(|e| format!("Failed to get timeline stats: {}", e))?;
+    .map_err(|e| format!("Failed to get timeline stats: {e}"))?;
 
     let mut timeline_data = Vec::new();
     for row in timeline_rows {
@@ -205,7 +205,7 @@ async fn get_game_stats(state: State<'_, DatabaseState>) -> Result<GameStats, St
     )
     .fetch_one(&*pool)
     .await
-    .map_err(|e| format!("Failed to get stats: {}", e))?;
+    .map_err(|e| format!("Failed to get stats: {e}"))?;
 
     let total_games: i64 = row.try_get("total_games").unwrap_or(0);
     let wins: i64 = row.try_get("wins").unwrap_or(0);
@@ -234,14 +234,11 @@ async fn get_saved_games(state: State<'_, DatabaseState>) -> Result<Vec<SavedGam
     )
     .fetch_all(&*pool)
     .await
-    .map_err(|e| format!("Failed to get saved games: {}", e))?;
+    .map_err(|e| format!("Failed to get saved games: {e}"))?;
 
     let mut games = Vec::new();
     for row in rows {
-        let game_log: Option<Vec<u8>> = match row.try_get("game_log") {
-            Ok(blob) => blob,
-            Err(_) => None,
-        };
+        let game_log: Option<Vec<u8>> = row.try_get("game_log").unwrap_or_default();
 
         games.push(SavedGame {
             game_id: row.try_get("game_id").unwrap_or_default(),
@@ -279,7 +276,7 @@ async fn load_game_replay(
         .bind(&game_id)
         .fetch_optional(&*pool)
         .await
-        .map_err(|e| format!("Failed to get game replay: {}", e))?;
+        .map_err(|e| format!("Failed to get game replay: {e}"))?;
 
     if let Some(row) = row {
         let game_log: Option<Vec<u8>> = row.try_get("game_log").ok();
@@ -298,7 +295,7 @@ async fn establish_connection(app_handle: AppHandle) -> SqlitePool {
 
     // Create the directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&app_data_dir) {
-        eprintln!("Failed to create app data directory: {}", e);
+        eprintln!("Failed to create app data directory: {e}");
     }
 
     // Create the full path to the database file

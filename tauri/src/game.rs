@@ -1,6 +1,5 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use js_sys;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -273,14 +272,10 @@ impl FrontendGame {
             let board = completed.viewer_board_final();
             let compact_board = CompactBoard::from_board(&board);
             let serialized_board = serde_json::to_string(&compact_board)
-                .map_err(|e| format!("Failed to serialize board: {}", e))?;
+                .map_err(|e| format!("Failed to serialize board: {e}"))?;
 
             let log = completed.get_log();
-            let compressed_log = if let Some(log) = log {
-                Some(minesweeper_lib::game::compress_game_log(&log))
-            } else {
-                None
-            };
+            let compressed_log = log.map(|log| minesweeper_lib::game::compress_game_log(&log));
 
             (Some(serialized_board), compressed_log)
         } else {
@@ -306,7 +301,7 @@ impl FrontendGame {
             &args,
             &JsValue::from_str("game"),
             &serde_wasm_bindgen::to_value(&saved_game)
-                .map_err(|e| format!("Failed to serialize game: {}", e))?,
+                .map_err(|e| format!("Failed to serialize game: {e}"))?,
         )
         .map_err(|_| "Failed to create args object")?;
 
@@ -327,7 +322,7 @@ impl FrontendGame {
         let result = invoke("get_saved_games", JsValue::null()).await;
 
         // Log the raw result for debugging
-        log::info!("Raw result from get_saved_games: {:?}", result);
+        log::info!("Raw result from get_saved_games: {result:?}");
 
         match serde_wasm_bindgen::from_value::<Vec<SavedGame>>(result) {
             Ok(games) => {
@@ -335,8 +330,8 @@ impl FrontendGame {
                 Ok(games)
             }
             Err(e) => {
-                log::error!("Failed to deserialize games: {}", e);
-                Err(format!("Failed to deserialize games: {}", e))
+                log::error!("Failed to deserialize games: {e}");
+                Err(format!("Failed to deserialize games: {e}"))
             }
         }
     }
@@ -353,7 +348,7 @@ impl FrontendGame {
 
         // Deserialize the final board
         let compact_board: CompactBoard = serde_json::from_str(final_board_json)
-            .map_err(|e| format!("Failed to deserialize final board: {}", e))?;
+            .map_err(|e| format!("Failed to deserialize final board: {e}"))?;
         let final_board = compact_board.to_board();
 
         // Decompress the game log
@@ -384,8 +379,8 @@ impl FrontendGame {
                 Ok(stats)
             }
             Err(e) => {
-                log::error!("Failed to fetch aggregate stats: {}", e);
-                Err(format!("Failed to fetch aggregate stats: {}", e))
+                log::error!("Failed to fetch aggregate stats: {e}");
+                Err(format!("Failed to fetch aggregate stats: {e}"))
             }
         }
     }
@@ -399,8 +394,8 @@ impl FrontendGame {
                 Ok(stats)
             }
             Err(e) => {
-                log::error!("Failed to fetch timeline stats: {}", e);
-                Err(format!("Failed to fetch timeline stats: {}", e))
+                log::error!("Failed to fetch timeline stats: {e}");
+                Err(format!("Failed to fetch timeline stats: {e}"))
             }
         }
     }

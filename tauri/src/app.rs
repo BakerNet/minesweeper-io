@@ -62,7 +62,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <div class="relative min-h-screen bg-white dark:bg-gray-900">
-            <AnimatedBackground variant=background_variant.into() />
+            <AnimatedBackground variant=background_variant />
             <main class="relative min-h-screen py-8">
                 <div>
                     <div class="grid grid-cols-1 md:grid-cols-3 items-center mb-8 gap-4 mx-4">

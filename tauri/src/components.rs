@@ -266,7 +266,7 @@ pub fn TauriActiveGame(
                         )
                         .await
                         {
-                            log::error!("Failed to auto-save game: {}", e);
+                            log::error!("Failed to auto-save game: {e}");
                         } else {
                             log::info!("Game automatically saved");
                         }
@@ -465,7 +465,7 @@ fn convert_timeline_data(timeline_data: &[crate::game::TimelineGameData]) -> Vec
         .map(|data| (data.victory, data.seconds as i64))
         .collect();
 
-    log::info!("Timeline data converted: {:?}", result);
+    log::info!("Timeline data converted: {result:?}");
     result
 }
 
@@ -611,7 +611,7 @@ pub fn SavedGamesList(
                 }
                 Err(e) => {
                     // Could use a toast or notification here
-                    log::error!("Failed to load replay: {}", e);
+                    log::error!("Failed to load replay: {e}");
                 }
             }
         });
@@ -735,7 +735,7 @@ fn SavedGameRow(game: SavedGame, load_replay: Callback<SavedGame>) -> impl IntoV
                     {result_icon}
                     <div class="flex flex-col items-center justify-center border-2 border-slate-400 bg-neutral-200 text-neutral-800 text-sm font-bold px-1 py-0.5 ml-4 h-5 w-auto min-w-[2rem]">
                         {game_duration
-                            .map(|d| format!("{}s", d))
+                            .map(|d| format!("{d}s"))
                             .unwrap_or_else(|| "?".to_string())}
                     </div>
                 </div>
@@ -759,7 +759,7 @@ fn SavedGameRow(game: SavedGame, load_replay: Callback<SavedGame>) -> impl IntoV
             </div>
             <div class="text-sm text-gray-600 dark:text-gray-400">
                 {formatted_start_time
-                    .map(|t| format!("Played: {}", t))
+                    .map(|t| format!("Played: {t}"))
                     .unwrap_or_else(|| "Date: Unknown".to_string())}
             </div>
         </div>
