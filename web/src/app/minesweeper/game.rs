@@ -13,7 +13,8 @@ use minesweeper_lib::{
 };
 
 use super::{
-    client::FrontendGame, entry::ReCreateGame, players::PlayerButtons, replay::OpenReplayButton,
+    client::FrontendGame, entry::ReCreateGameButton, players::PlayerButtons,
+    replay::OpenReplayButton,
 };
 use game_ui::*;
 
@@ -402,8 +403,10 @@ fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
             <InactiveTimer game_time />
         </GameWidgets>
         <InactiveGame board />
-        <ReCreateGame game_settings />
-        <OpenReplayButton />
+        <div class="flex justify-center space-x-4 mb-6">
+            <ReCreateGameButton game_settings />
+            <OpenReplayButton />
+        </div>
     }
 }
 

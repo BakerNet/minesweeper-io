@@ -1,10 +1,13 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use js_sys;
 use leptos::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
+use wasm_bindgen::prelude::*;
 
 use minesweeper_lib::{
-    board::{Board, BoardPoint},
+    board::{Board, BoardPoint, CompactBoard},
     cell::{HiddenCell, PlayerCell},
     client::MinesweeperClient,
     game::{
@@ -14,6 +17,54 @@ use minesweeper_lib::{
 };
 
 use game_ui::GameInfo;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SavedGame {
+    pub game_id: String,
+    pub rows: u32,
+    pub cols: u32,
+    pub num_mines: u32,
+    pub is_completed: bool,
+    pub victory: bool,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+    pub final_board: Option<String>,
+    pub game_log: Option<Vec<u8>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GameModeStats {
+    pub played: u32,
+    pub victories: u32,
+    pub best_time: Option<u32>,
+    pub average_time: Option<f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AggregateStats {
+    pub beginner: GameModeStats,
+    pub intermediate: GameModeStats,
+    pub expert: GameModeStats,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimelineGameData {
+    pub victory: bool,
+    pub seconds: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TimelineStats {
+    pub beginner: Vec<TimelineGameData>,
+    pub intermediate: Vec<TimelineGameData>,
+    pub expert: Vec<TimelineGameData>,
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
+    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+}
 
 #[derive(Clone)]
 pub struct FrontendGame {
@@ -44,7 +95,7 @@ impl FrontendGame {
         let (dead, set_dead) = signal(false);
         let (flag_count, set_flag_count) = signal(0);
         let (sync_time, set_sync_time) = signal::<Option<usize>>(None);
-        let (start_time, set_start_time) = signal(game_info.start_time.clone());
+        let (start_time, set_start_time) = signal(game_info.start_time);
         let rows = game_info.rows;
         let cols = game_info.cols;
         let num_mines = game_info.num_mines;
@@ -199,6 +250,159 @@ impl FrontendGame {
         drop(game_lock);
 
         Some(owned_game.complete())
+    }
+
+    pub async fn save_game_with_completed(
+        game_info: &GameInfo,
+        is_completed: bool,
+        victory: bool,
+        start_time: Option<DateTime<Utc>>,
+        completed_game: Option<Arc<CompletedMinesweeper>>,
+    ) -> Result<(), String> {
+        if !is_completed {
+            return Err("Cannot save game that is not completed".to_string());
+        }
+
+        let game_id = format!("game_{}", chrono::Utc::now().timestamp());
+        let rows = game_info.rows as u32;
+        let cols = game_info.cols as u32;
+        let num_mines = game_info.num_mines as u32;
+
+        // Serialize the final board and game log if we have the completed game
+        let (final_board, game_log) = if let Some(completed) = completed_game {
+            let board = completed.viewer_board_final();
+            let compact_board = CompactBoard::from_board(&board);
+            let serialized_board = serde_json::to_string(&compact_board)
+                .map_err(|e| format!("Failed to serialize board: {}", e))?;
+
+            let log = completed.get_log();
+            let compressed_log = if let Some(log) = log {
+                Some(minesweeper_lib::game::compress_game_log(&log))
+            } else {
+                None
+            };
+
+            (Some(serialized_board), compressed_log)
+        } else {
+            (None, None)
+        };
+
+        let saved_game = SavedGame {
+            game_id,
+            rows,
+            cols,
+            num_mines,
+            is_completed,
+            victory,
+            start_time: start_time.map(|t| t.to_rfc3339()),
+            end_time: Some(chrono::Utc::now().to_rfc3339()),
+            final_board,
+            game_log,
+        };
+
+        // Wrap the saved_game in an object with "game" key as expected by the Tauri command
+        let args = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &args,
+            &JsValue::from_str("game"),
+            &serde_wasm_bindgen::to_value(&saved_game)
+                .map_err(|e| format!("Failed to serialize game: {}", e))?,
+        )
+        .map_err(|_| "Failed to create args object")?;
+
+        let result = invoke("save_game", args.into()).await;
+
+        // The result from Tauri is already unwrapped, so we just need to check if it's null (success) or a string (error)
+        if result.is_null() || result.is_undefined() {
+            Ok(())
+        } else if let Ok(error_msg) = serde_wasm_bindgen::from_value::<String>(result) {
+            Err(error_msg)
+        } else {
+            // If we can't parse as string, assume success
+            Ok(())
+        }
+    }
+
+    pub async fn get_saved_games() -> Result<Vec<SavedGame>, String> {
+        let result = invoke("get_saved_games", JsValue::null()).await;
+
+        // Log the raw result for debugging
+        log::info!("Raw result from get_saved_games: {:?}", result);
+
+        match serde_wasm_bindgen::from_value::<Vec<SavedGame>>(result) {
+            Ok(games) => {
+                log::info!("Successfully deserialized {} games", games.len());
+                Ok(games)
+            }
+            Err(e) => {
+                log::error!("Failed to deserialize games: {}", e);
+                Err(format!("Failed to deserialize games: {}", e))
+            }
+        }
+    }
+
+    pub fn reconstruct_completed_game(
+        saved_game: &SavedGame,
+    ) -> Result<Option<CompletedMinesweeper>, String> {
+        // Check if we have both the final board and game log
+        let final_board_json = saved_game
+            .final_board
+            .as_ref()
+            .ok_or("No final board data")?;
+        let game_log_compressed = saved_game.game_log.as_ref().ok_or("No game log data")?;
+
+        // Deserialize the final board
+        let compact_board: CompactBoard = serde_json::from_str(final_board_json)
+            .map_err(|e| format!("Failed to deserialize final board: {}", e))?;
+        let final_board = compact_board.to_board();
+
+        // Decompress the game log
+        let game_log = minesweeper_lib::game::decompress_game_log(game_log_compressed);
+
+        // Create a mock player for single-player games
+        let player = minesweeper_lib::client::ClientPlayer {
+            player_id: 0,
+            username: String::new(),
+            dead: !saved_game.victory,
+            victory_click: saved_game.victory,
+            top_score: false,
+            score: 0,
+        };
+
+        // Reconstruct the CompletedMinesweeper
+        let completed_game = CompletedMinesweeper::from_log(final_board, game_log, vec![player]);
+
+        Ok(Some(completed_game))
+    }
+
+    pub async fn get_aggregate_stats() -> Result<AggregateStats, String> {
+        let result = invoke("get_aggregate_stats", JsValue::null()).await;
+
+        match serde_wasm_bindgen::from_value::<AggregateStats>(result) {
+            Ok(stats) => {
+                log::info!("Successfully fetched aggregate stats");
+                Ok(stats)
+            }
+            Err(e) => {
+                log::error!("Failed to fetch aggregate stats: {}", e);
+                Err(format!("Failed to fetch aggregate stats: {}", e))
+            }
+        }
+    }
+
+    pub async fn get_timeline_stats() -> Result<TimelineStats, String> {
+        let result = invoke("get_timeline_stats", JsValue::null()).await;
+
+        match serde_wasm_bindgen::from_value::<TimelineStats>(result) {
+            Ok(stats) => {
+                log::info!("Successfully fetched timeline stats");
+                Ok(stats)
+            }
+            Err(e) => {
+                log::error!("Failed to fetch timeline stats: {}", e);
+                Err(format!("Failed to fetch timeline stats: {}", e))
+            }
+        }
     }
 }
 

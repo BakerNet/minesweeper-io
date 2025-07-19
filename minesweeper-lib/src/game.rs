@@ -139,7 +139,7 @@ impl Board<(Cell, CellState)> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Play {
     #[serde(rename = "p", alias = "player")]
     pub player: usize,
@@ -697,6 +697,186 @@ fn bool_to_u8(b: bool) -> u8 {
     }
 }
 
+pub fn compress_game_log(log: &[(Play, PlayOutcome)]) -> Vec<u8> {
+    let mut compressed = Vec::new();
+    
+    for (play, outcome) in log {
+        // Compress Play
+        compressed.push(play.player as u8);
+        compressed.push(play.action.to_compact_byte());
+        compressed.push(play.point.row as u8);
+        compressed.push(play.point.col as u8);
+        
+        // Compress PlayOutcome
+        match outcome {
+            PlayOutcome::Success(cells) => {
+                compressed.push(0); // Success marker
+                compressed.push(cells.len() as u8);
+                for (point, revealed) in cells {
+                    compressed.push(point.row as u8);
+                    compressed.push(point.col as u8);
+                    compressed.push(revealed.player as u8);
+                    compressed.push(match revealed.contents {
+                        Cell::Empty(n) => n,
+                        Cell::Mine => 9,
+                    });
+                }
+            }
+            PlayOutcome::Failure((point, revealed)) => {
+                compressed.push(1); // Failure marker
+                compressed.push(point.row as u8);
+                compressed.push(point.col as u8);
+                compressed.push(revealed.player as u8);
+                compressed.push(match revealed.contents {
+                    Cell::Empty(n) => n,
+                    Cell::Mine => 9,
+                });
+            }
+            PlayOutcome::Victory(cells) => {
+                compressed.push(2); // Victory marker
+                compressed.push(cells.len() as u8);
+                for (point, revealed) in cells {
+                    compressed.push(point.row as u8);
+                    compressed.push(point.col as u8);
+                    compressed.push(revealed.player as u8);
+                    compressed.push(match revealed.contents {
+                        Cell::Empty(n) => n,
+                        Cell::Mine => 9,
+                    });
+                }
+            }
+            PlayOutcome::Flag((point, player_cell)) => {
+                compressed.push(3); // Flag marker
+                compressed.push(point.row as u8);
+                compressed.push(point.col as u8);
+                compressed.push(player_cell.to_compact_byte());
+            }
+        }
+    }
+    
+    compressed
+}
+
+pub fn decompress_game_log(compressed: &[u8]) -> Vec<(Play, PlayOutcome)> {
+    let mut log = Vec::new();
+    let mut i = 0;
+    
+    while i < compressed.len() {
+        if i + 4 > compressed.len() {
+            break;
+        }
+        
+        // Decompress Play
+        let player = compressed[i] as usize;
+        let action = Action::from_compact_byte(compressed[i + 1]);
+        let point = BoardPoint {
+            row: compressed[i + 2] as usize,
+            col: compressed[i + 3] as usize,
+        };
+        let play = Play { player, action, point };
+        i += 4;
+        
+        if i >= compressed.len() {
+            break;
+        }
+        
+        // Decompress PlayOutcome
+        let outcome_type = compressed[i];
+        i += 1;
+        
+        let outcome = match outcome_type {
+            0 => { // Success
+                if i >= compressed.len() {
+                    break;
+                }
+                let cell_count = compressed[i] as usize;
+                i += 1;
+                let mut cells = Vec::new();
+                
+                for _ in 0..cell_count {
+                    if i + 4 > compressed.len() {
+                        break;
+                    }
+                    let point = BoardPoint {
+                        row: compressed[i] as usize,
+                        col: compressed[i + 1] as usize,
+                    };
+                    let player = compressed[i + 2] as usize;
+                    let contents = if compressed[i + 3] == 9 {
+                        Cell::Mine
+                    } else {
+                        Cell::Empty(compressed[i + 3])
+                    };
+                    cells.push((point, RevealedCell { player, contents }));
+                    i += 4;
+                }
+                PlayOutcome::Success(cells)
+            }
+            1 => { // Failure
+                if i + 4 > compressed.len() {
+                    break;
+                }
+                let point = BoardPoint {
+                    row: compressed[i] as usize,
+                    col: compressed[i + 1] as usize,
+                };
+                let player = compressed[i + 2] as usize;
+                let contents = if compressed[i + 3] == 9 {
+                    Cell::Mine
+                } else {
+                    Cell::Empty(compressed[i + 3])
+                };
+                i += 4;
+                PlayOutcome::Failure((point, RevealedCell { player, contents }))
+            }
+            2 => { // Victory
+                if i >= compressed.len() {
+                    break;
+                }
+                let cell_count = compressed[i] as usize;
+                i += 1;
+                let mut cells = Vec::new();
+                
+                for _ in 0..cell_count {
+                    if i + 4 > compressed.len() {
+                        break;
+                    }
+                    let point = BoardPoint {
+                        row: compressed[i] as usize,
+                        col: compressed[i + 1] as usize,
+                    };
+                    let player = compressed[i + 2] as usize;
+                    let contents = if compressed[i + 3] == 9 {
+                        Cell::Mine
+                    } else {
+                        Cell::Empty(compressed[i + 3])
+                    };
+                    cells.push((point, RevealedCell { player, contents }));
+                    i += 4;
+                }
+                PlayOutcome::Victory(cells)
+            }
+            3 => { // Flag
+                if i + 3 > compressed.len() {
+                    break;
+                }
+                let point = BoardPoint {
+                    row: compressed[i] as usize,
+                    col: compressed[i + 1] as usize,
+                };
+                let player_cell = PlayerCell::from_compact_byte(compressed[i + 2]);
+                i += 3;
+                PlayOutcome::Flag((point, player_cell))
+            }
+            _ => break, // Invalid outcome type
+        };
+        
+        log.push((play, outcome));
+    }
+    
+    log
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Player {
     played: bool,
@@ -726,7 +906,26 @@ impl Action {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+impl CompactSerialize for Action {
+    fn to_compact_byte(&self) -> u8 {
+        match self {
+            Action::Flag => 0,
+            Action::Reveal => 1,
+            Action::RevealAdjacent => 2,
+        }
+    }
+
+    fn from_compact_byte(byte: u8) -> Self {
+        match byte {
+            0 => Action::Flag,
+            1 => Action::Reveal,
+            2 => Action::RevealAdjacent,
+            _ => Action::Reveal, // Default fallback
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PlayOutcome {
     #[serde(rename = "s", alias = "Success")]
     Success(Vec<(BoardPoint, RevealedCell)>),
@@ -1614,5 +1813,257 @@ mod test {
         assert_ne!(game.board[POINT_3_3].0, Cell::Mine);
         assert_ne!(game.board[POINT_2_3].0, Cell::Mine);
         assert_eq!(game.board[POINT_0_0].0, Cell::Mine);
+    }
+
+    #[test]
+    fn test_game_log_compression_round_trip() {
+        use crate::cell::{Cell, RevealedCell};
+        
+        // Create a sample game log with various play outcomes
+        let test_log = vec![
+            (
+                Play {
+                    player: 0,
+                    action: Action::Reveal,
+                    point: BoardPoint { row: 1, col: 1 },
+                },
+                PlayOutcome::Success(vec![
+                    (
+                        BoardPoint { row: 1, col: 1 },
+                        RevealedCell {
+                            player: 0,
+                            contents: Cell::Empty(2),
+                        },
+                    ),
+                    (
+                        BoardPoint { row: 1, col: 2 },
+                        RevealedCell {
+                            player: 0,
+                            contents: Cell::Empty(1),
+                        },
+                    ),
+                ]),
+            ),
+            (
+                Play {
+                    player: 0,
+                    action: Action::Flag,
+                    point: BoardPoint { row: 2, col: 2 },
+                },
+                PlayOutcome::Flag((
+                    BoardPoint { row: 2, col: 2 },
+                    PlayerCell::Hidden(HiddenCell::Flag),
+                )),
+            ),
+            (
+                Play {
+                    player: 0,
+                    action: Action::Reveal,
+                    point: BoardPoint { row: 3, col: 3 },
+                },
+                PlayOutcome::Failure((
+                    BoardPoint { row: 3, col: 3 },
+                    RevealedCell {
+                        player: 0,
+                        contents: Cell::Mine,
+                    },
+                )),
+            ),
+            (
+                Play {
+                    player: 0,
+                    action: Action::RevealAdjacent,
+                    point: BoardPoint { row: 0, col: 0 },
+                },
+                PlayOutcome::Victory(vec![
+                    (
+                        BoardPoint { row: 0, col: 0 },
+                        RevealedCell {
+                            player: 0,
+                            contents: Cell::Empty(0),
+                        },
+                    ),
+                ]),
+            ),
+        ];
+
+        // Test compression and decompression
+        let compressed = compress_game_log(&test_log);
+        let decompressed = decompress_game_log(&compressed);
+
+        assert_eq!(test_log.len(), decompressed.len());
+        
+        for (original, restored) in test_log.iter().zip(decompressed.iter()) {
+            assert_eq!(original.0.player, restored.0.player);
+            assert_eq!(original.0.action, restored.0.action);
+            assert_eq!(original.0.point, restored.0.point);
+            assert_eq!(original.1, restored.1);
+        }
+    }
+
+    #[test]
+    fn test_game_log_compression_empty_log() {
+        let empty_log: Vec<(Play, PlayOutcome)> = Vec::new();
+        let compressed = compress_game_log(&empty_log);
+        let decompressed = decompress_game_log(&compressed);
+        
+        assert_eq!(empty_log, decompressed);
+    }
+
+    #[test]
+    fn test_game_log_compression_single_play() {
+        let single_play = vec![
+            (
+                Play {
+                    player: 5,
+                    action: Action::Flag,
+                    point: BoardPoint { row: 10, col: 15 },
+                },
+                PlayOutcome::Flag((
+                    BoardPoint { row: 10, col: 15 },
+                    PlayerCell::Hidden(HiddenCell::Flag),
+                )),
+            ),
+        ];
+
+        let compressed = compress_game_log(&single_play);
+        let decompressed = decompress_game_log(&compressed);
+
+        assert_eq!(single_play, decompressed);
+    }
+
+    #[test]
+    fn test_game_log_compression_all_actions() {
+        use crate::cell::{Cell, RevealedCell};
+        
+        let test_log = vec![
+            (
+                Play {
+                    player: 0,
+                    action: Action::Flag,
+                    point: BoardPoint { row: 0, col: 0 },
+                },
+                PlayOutcome::Flag((
+                    BoardPoint { row: 0, col: 0 },
+                    PlayerCell::Hidden(HiddenCell::Flag),
+                )),
+            ),
+            (
+                Play {
+                    player: 1,
+                    action: Action::Reveal,
+                    point: BoardPoint { row: 1, col: 1 },
+                },
+                PlayOutcome::Success(vec![
+                    (
+                        BoardPoint { row: 1, col: 1 },
+                        RevealedCell {
+                            player: 1,
+                            contents: Cell::Empty(5),
+                        },
+                    ),
+                ]),
+            ),
+            (
+                Play {
+                    player: 2,
+                    action: Action::RevealAdjacent,
+                    point: BoardPoint { row: 2, col: 2 },
+                },
+                PlayOutcome::Failure((
+                    BoardPoint { row: 2, col: 2 },
+                    RevealedCell {
+                        player: 2,
+                        contents: Cell::Mine,
+                    },
+                )),
+            ),
+        ];
+
+        let compressed = compress_game_log(&test_log);
+        let decompressed = decompress_game_log(&compressed);
+
+        assert_eq!(test_log, decompressed);
+    }
+
+    #[test]
+    fn test_game_log_compression_large_numbers() {
+        use crate::cell::{Cell, RevealedCell};
+        
+        let test_log = vec![
+            (
+                Play {
+                    player: 255,
+                    action: Action::Reveal,
+                    point: BoardPoint { row: 255, col: 255 },
+                },
+                PlayOutcome::Success(vec![
+                    (
+                        BoardPoint { row: 255, col: 255 },
+                        RevealedCell {
+                            player: 255,
+                            contents: Cell::Empty(8),
+                        },
+                    ),
+                ]),
+            ),
+        ];
+
+        let compressed = compress_game_log(&test_log);
+        let decompressed = decompress_game_log(&compressed);
+
+        // Note: Player numbers > 255 will be truncated to u8
+        assert_eq!(decompressed[0].0.player, 255);
+        assert_eq!(decompressed[0].0.point.row, 255);
+        assert_eq!(decompressed[0].0.point.col, 255);
+        
+        match &decompressed[0].1 {
+            PlayOutcome::Success(cells) => {
+                assert_eq!(cells[0].1.player, 255);
+                assert_eq!(cells[0].1.contents, Cell::Empty(8));
+            }
+            _ => panic!("Expected Success outcome"),
+        }
+    }
+
+    #[test]
+    fn test_game_log_compression_efficiency() {
+        use crate::cell::{Cell, RevealedCell};
+        
+        // Create a longer game log to test compression efficiency
+        let mut test_log = Vec::new();
+        for i in 0..100 {
+            test_log.push((
+                Play {
+                    player: i % 4,
+                    action: Action::Reveal,
+                    point: BoardPoint { row: i / 10, col: i % 10 },
+                },
+                PlayOutcome::Success(vec![
+                    (
+                        BoardPoint { row: i / 10, col: i % 10 },
+                        RevealedCell {
+                            player: i % 4,
+                            contents: Cell::Empty((i % 9) as u8),
+                        },
+                    ),
+                ]),
+            ));
+        }
+
+        let compressed = compress_game_log(&test_log);
+        let decompressed = decompress_game_log(&compressed);
+
+        assert_eq!(test_log.len(), decompressed.len());
+        
+        // Check that compression is reasonably efficient
+        // Each play should take roughly 8 bytes (4 for play + 4 for outcome)
+        // Plus some overhead, so let's say max 12 bytes per play
+        assert!(compressed.len() < test_log.len() * 12);
+        
+        // Verify correctness
+        for (original, restored) in test_log.iter().zip(decompressed.iter()) {
+            assert_eq!(original, restored);
+        }
     }
 }
