@@ -60,7 +60,7 @@ jobs:
         cd tauri
         cargo tauri build
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test
     - name: Run clippy
       run: |
         cargo clippy
