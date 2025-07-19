@@ -549,7 +549,9 @@ pub fn GameStatsModal(set_show_stats: WriteSignal<bool>) -> impl IntoView {
                                             "Performance Over Time"
                                         </h2>
                                         <div class="flex justify-center w-full">
-                                            <TimelineStatsGraphs timeline_stats=Signal::derive(move || timeline_stats.get().flatten()) />
+                                            <TimelineStatsGraphs timeline_stats=Signal::derive(move || {
+                                                timeline_stats.get().flatten()
+                                            }) />
                                         </div>
                                     </div>
                                 },
@@ -659,15 +661,22 @@ pub fn SavedGamesList(
                         .map(|games| {
                             view! {
                                 <div class="grid gap-6">
-                                    {games.iter().map(move |game| view!{ <SavedGameRow game=game.to_owned() load_replay /> }).collect_view()}
+                                    {games
+                                        .iter()
+                                        .map(move |game| {
+                                            view! { <SavedGameRow game=game.to_owned() load_replay /> }
+                                        })
+                                        .collect_view()}
+                                </div>
+                                <Show when=move || games.is_empty()>
+                                    <div class="text-center py-8">
+                                        <p class="text-gray-600 dark:text-gray-400">
+                                            "No saved games found. Complete some games to see them here!"
+                                        </p>
                                     </div>
-                                    <Show when=move || games.is_empty()>
-                                        <div class="text-center py-8">
-                                            <p class="text-gray-600 dark:text-gray-400"> "No saved games found. Complete some games to see them here!" </p>
-                                        </div>
-                                    </Show>
-                                }
-                            })
+                                </Show>
+                            }
+                        })
                 }}
             </Suspense>
         </div>
@@ -734,9 +743,7 @@ fn SavedGameRow(game: SavedGame, load_replay: Callback<SavedGame>) -> impl IntoV
                     </h3>
                     {result_icon}
                     <div class="flex flex-col items-center justify-center border-2 border-slate-400 bg-neutral-200 text-neutral-800 text-sm font-bold px-1 py-0.5 ml-4 h-5 w-auto min-w-[2rem]">
-                        {game_duration
-                            .map(|d| format!("{d}s"))
-                            .unwrap_or_else(|| "?".to_string())}
+                        {game_duration.map(|d| format!("{d}s")).unwrap_or_else(|| "?".to_string())}
                     </div>
                 </div>
                 <div class="flex-shrink-0">

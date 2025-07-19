@@ -51,12 +51,12 @@ jobs:
           libfontconfig1-dev
     - name: Run build
       run: cargo leptos build --release
-    - name: Run tests
-      run: cargo test --verbose
     - name: Build Tauri app
       run: |
         cd tauri
         cargo tauri build
+    - name: Run tests
+      run: cargo test --verbose
     - name: Run clippy
       run: |
         cargo clippy
