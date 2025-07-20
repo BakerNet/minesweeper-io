@@ -13,7 +13,8 @@ use minesweeper_lib::{
 };
 
 use super::{
-    client::FrontendGame, entry::ReCreateGame, players::PlayerButtons, replay::OpenReplayButton,
+    client::FrontendGame, entry::ReCreateGameButton, players::PlayerButtons,
+    replay::OpenReplayButton,
 };
 use game_ui::*;
 
@@ -402,8 +403,10 @@ fn WebInactiveGame(game_info: GameInfo) -> impl IntoView {
             <InactiveTimer game_time />
         </GameWidgets>
         <InactiveGame board />
-        <ReCreateGame game_settings />
-        <OpenReplayButton />
+        <div class="flex justify-center space-x-4 mb-6">
+            <ReCreateGameButton game_settings />
+            <OpenReplayButton />
+        </div>
     }
 }
 
@@ -415,7 +418,6 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
     let game_time = game_time_from_start_end(game_info.start_time, game_info.end_time);
     let (top_score, _) = signal(None);
     let (flag_count, set_flag_count) = signal(0);
-    let (replay_started, set_replay_started) = signal(false);
 
     let board = game_info.board();
     let players = game_info.players;
@@ -440,13 +442,10 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
 
     let completed_minesweeper =
         CompletedMinesweeper::from_log(board, full_log, players.into_iter().flatten().collect());
-    let replay_data_stored = StoredValue::new((
-        Arc::new(completed_minesweeper),
-        player_num,
-        Arc::new(cell_read_signals.clone()),
-        Arc::new(cell_write_signals),
-        Arc::new(player_write_signals),
-    ));
+    let replay = completed_minesweeper
+        .replay(player_num.map(|p| p.into()))
+        .expect("We are guaranteed log is not None")
+        .with_analysis();
 
     view! {
         <ActivePlayers players=player_read_signals top_score>
@@ -457,53 +456,14 @@ fn WebReplayGame(replay_data: GameInfoWithLog) -> impl IntoView {
             <WrappedCopyGameLink game_id />
             <InactiveTimer game_time />
         </GameWidgets>
-        <ReplayGame cell_read_signals />
-        <Show
-            when=replay_started
-            fallback=move || {
-                view! {
-                    <button
-                        type="button"
-                        class=button_class!(
-                            "max-w-xs h-10 rounded-lg text-lg",
-                        "bg-green-700 hover:bg-green-800/90 text-white"
-                        )
-                        on:click=move |_| {
-                            set_replay_started(true);
-                        }
-                    >
-                        "Start Replay"
-                    </button>
-                }
-            }
-        >
-            {move || {
-                replay_data_stored
-                    .with_value(|
-                        (
-                            completed_minesweeper,
-                            player_num,
-                            cell_read_signals,
-                            cell_write_signals,
-                            player_write_signals,
-                        )|
-                    {
-                        let replay = completed_minesweeper
-                            .replay(player_num.map(|p| p.into()))
-                            .expect("We are guaranteed log is not None")
-                            .with_analysis();
-                        view! {
-                            <ReplayControls
-                                replay
-                                cell_read_signals=cell_read_signals.clone()
-                                cell_write_signals=cell_write_signals.clone()
-                                flag_count_setter=Some(set_flag_count)
-                                player_write_signals=Some(player_write_signals.clone())
-                            />
-                        }
-                    })
-            }}
-        </Show>
+        <ReplayGame cell_read_signals=cell_read_signals.clone() />
+        <ReplayControls
+            replay
+            cell_read_signals=Arc::new(cell_read_signals)
+            cell_write_signals=Arc::new(cell_write_signals)
+            flag_count_setter=Some(set_flag_count)
+            player_write_signals=Some(Arc::new(player_write_signals.clone()))
+        />
     }
 }
 

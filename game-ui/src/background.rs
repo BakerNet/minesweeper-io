@@ -1,4 +1,4 @@
-use game_ui::icons::Mine;
+use crate::icons::Mine;
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -41,100 +41,100 @@ fn FloatingMinesBackground() -> impl IntoView {
             // Large mines - slow movement
             <div
                 class="absolute animate-float-slow opacity-40 w-16 h-16 floating-mine"
-                style="top: 20%; left: 15%; animation-delay: 0s;"
+                style="top: 20%; left: 15%; animation-delay: 0s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-slow opacity-35 w-15 h-15 floating-mine"
-                style="top: 75%; left: 85%; animation-delay: 4s;"
+                style="top: 75%; left: 85%; animation-delay: 4s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             // Medium mines - medium movement
             <div
                 class="absolute animate-float-medium opacity-35 w-14 h-14 floating-mine"
-                style="top: 60%; left: 80%; animation-delay: 2s;"
+                style="top: 60%; left: 80%; animation-delay: 2s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-medium opacity-30 w-13 h-13 floating-mine"
-                style="top: 10%; left: 70%; animation-delay: 1.5s;"
+                style="top: 10%; left: 70%; animation-delay: 1.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-medium opacity-32 w-12 h-12 floating-mine"
-                style="top: 45%; left: 5%; animation-delay: 3.5s;"
+                style="top: 45%; left: 5%; animation-delay: 3.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-medium opacity-28 w-14 h-14 floating-mine"
-                style="top: 85%; left: 60%; animation-delay: 5s;"
+                style="top: 85%; left: 60%; animation-delay: 5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             // Small mines - fast movement
             <div
                 class="absolute animate-float-fast opacity-30 w-12 h-12 floating-mine"
-                style="top: 40%; left: 60%; animation-delay: 1s;"
+                style="top: 40%; left: 60%; animation-delay: 1s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-fast opacity-25 w-8 h-8 floating-mine"
-                style="top: 35%; left: 10%; animation-delay: 2.5s;"
+                style="top: 35%; left: 10%; animation-delay: 2.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-fast opacity-27 w-9 h-9 floating-mine"
-                style="top: 15%; left: 45%; animation-delay: 0.5s;"
+                style="top: 15%; left: 45%; animation-delay: 0.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-fast opacity-22 w-10 h-10 floating-mine"
-                style="top: 70%; left: 25%; animation-delay: 4.5s;"
+                style="top: 70%; left: 25%; animation-delay: 4.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-fast opacity-25 w-8 h-8 floating-mine"
-                style="top: 55%; left: 90%; animation-delay: 6s;"
+                style="top: 55%; left: 90%; animation-delay: 6s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             // Additional depth mines - mixed speeds
             <div
                 class="absolute animate-float-slow opacity-25 w-10 h-10 floating-mine"
-                style="top: 80%; left: 30%; animation-delay: 3s;"
+                style="top: 80%; left: 30%; animation-delay: 3s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-medium opacity-26 w-11 h-11 floating-mine"
-                style="top: 25%; left: 88%; animation-delay: 2.8s;"
+                style="top: 25%; left: 88%; animation-delay: 2.8s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-slow opacity-20 w-9 h-9 floating-mine"
-                style="top: 5%; left: 20%; animation-delay: 1.2s;"
+                style="top: 5%; left: 20%; animation-delay: 1.2s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-fast opacity-24 w-7 h-7 floating-mine"
-                style="top: 90%; left: 8%; animation-delay: 3.8s;"
+                style="top: 90%; left: 8%; animation-delay: 3.8s; transform: translateZ(0);"
             >
                 <Mine />
             </div>
             <div
                 class="absolute animate-float-medium opacity-29 w-13 h-13 floating-mine"
-                style="top: 30%; left: 75%; animation-delay: 5.5s;"
+                style="top: 30%; left: 75%; animation-delay: 5.5s; transform: translateZ(0);"
             >
                 <Mine />
             </div>

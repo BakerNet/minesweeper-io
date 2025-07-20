@@ -255,27 +255,25 @@ pub fn JoinOrCreateGame() -> impl IntoView {
 }
 
 #[component]
-pub fn ReCreateGame(game_settings: GameSettings) -> impl IntoView {
+pub fn ReCreateGameButton(game_settings: GameSettings) -> impl IntoView {
     let new_game = ServerAction::<NewGame>::new();
 
     view! {
-        <div class="flex flex-col items-center space-y-4 mb-8">
-            <ActionForm action=new_game attr:class="w-full max-w-xs space-y-2">
-                <input type="hidden" name="rows" prop:value=game_settings.rows />
-                <input type="hidden" name="cols" prop:value=game_settings.cols />
-                <input type="hidden" name="num_mines" prop:value=game_settings.num_mines />
-                <input type="hidden" name="max_players" prop:value=game_settings.max_players />
-                <button
-                    type="submit"
-                    class=button_class!(
-                        "w-full max-w-xs h-8",
-                        "bg-green-700 hover:bg-green-800/90 text-white"
-                    )
-                    disabled=new_game.pending()
-                >
-                    "Play Again"
-                </button>
-            </ActionForm>
-        </div>
+        <ActionForm action=new_game>
+            <input type="hidden" name="rows" prop:value=game_settings.rows />
+            <input type="hidden" name="cols" prop:value=game_settings.cols />
+            <input type="hidden" name="num_mines" prop:value=game_settings.num_mines />
+            <input type="hidden" name="max_players" prop:value=game_settings.max_players />
+            <button
+                type="submit"
+                class=button_class!(
+                    "rounded",
+                    "bg-green-700 hover:bg-green-800/90 text-white"
+                )
+                disabled=new_game.pending()
+            >
+                "Play Again"
+            </button>
+        </ActionForm>
     }
 }

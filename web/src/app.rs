@@ -1,5 +1,4 @@
 mod auth;
-mod background;
 mod error_template;
 mod footer;
 mod header;
@@ -17,9 +16,9 @@ use leptos_use::storage::{use_local_storage_with_options, UseStorageOptions};
 use wasm_bindgen::JsValue;
 
 use auth::{get_frontend_user, Login, Logout};
-use background::{AnimatedBackground, BackgroundVariant};
 use error_template::{AppError, ErrorTemplate};
 use footer::Footer;
+use game_ui::background::{AnimatedBackground, BackgroundVariant};
 use header::Header;
 use home::HomeView;
 use info::ControlsInfo;

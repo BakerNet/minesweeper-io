@@ -372,15 +372,17 @@ pub fn TimelineStatsGraphs(timeline_stats: Signal<Option<TimelineStats>>) -> imp
     );
 
     view! {
-        <div class="flex flex-col w-full max-w-xs space-y-2">
-            <StatSelectButtons selected=selected_mode set_selected=set_selected_mode />
+        <div class="flex flex-col items-center w-full space-y-4">
+            <div class="flex w-full max-w-xs space-x-2">
+                <StatSelectButtons selected=selected_mode set_selected=set_selected_mode />
+            </div>
+            <canvas
+                node_ref=canvas_ref
+                id="stats_canvas"
+                class="max-w-full"
+                width="800px"
+                height="500px"
+            />
         </div>
-        <canvas
-            node_ref=canvas_ref
-            id="stats_canvas"
-            class="max-w-full"
-            width="800px"
-            height="500px"
-        />
     }
 }

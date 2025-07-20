@@ -32,6 +32,16 @@ macro_rules! widget_icon_holder {
     };
 }
 
+#[macro_export]
+macro_rules! widget_icon_standalone {
+    ($bg:literal) => {
+        concat!("inline-block align-text-top h-6 w-6 p-0.5 ", $bg)
+    };
+    ($bg:literal, true) => {
+        concat!("inline-block align-text-top h-6 w-6 p-0.5 relative ", $bg)
+    };
+}
+
 #[component]
 pub fn IconTooltip(children: Children) -> impl IntoView {
     view! {
@@ -431,6 +441,36 @@ pub fn StopWatch() -> impl IntoView {
                     class="st0"
                     points="154.016,392.531 165.213,403.728 191.328,377.606 180.131,366.416 	"
                 ></polygon>
+            </g>
+        </svg>
+    }
+}
+
+#[component]
+pub fn Circle() -> impl IntoView {
+    view! {
+        <svg
+            viewBox="0 0 11.90625 11.90625"
+            version="1.1"
+            xmlns="http://www.w3.org/2000/svg"
+            class="object-cover h-full w-full"
+        >
+            <circle fill="#000000" cx="5.953125" cy="5.953125" r="2.976"></circle>
+        </svg>
+    }
+}
+
+#[component]
+pub fn PlayArrow() -> impl IntoView {
+    view! {
+        <svg
+            viewBox="0 0 11.90625 11.90625"
+            version="1.1"
+            xmlns="http://www.w3.org/2000/svg"
+            class="object-cover h-full w-full"
+        >
+            <g>
+                <path fill="#FFFFFF" d="M 4.166,2.976 L 4.166,8.930 L 8.731,5.953 Z"></path>
             </g>
         </svg>
     }

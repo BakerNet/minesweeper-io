@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct MinesweeperClient {
     pub player: Option<usize>,
     pub players: Vec<Option<ClientPlayer>>,
-    pub game_over: bool,
+    pub victory: bool,
     pub board: Board<PlayerCell>,
 }
 
@@ -18,7 +18,7 @@ impl MinesweeperClient {
         MinesweeperClient {
             player: None,
             players,
-            game_over: false,
+            victory: false,
             board,
         }
     }
@@ -76,7 +76,7 @@ impl MinesweeperClient {
                     self.board[point] = player_cell;
                     updated.push((point, player_cell));
                 });
-                self.game_over = true;
+                self.victory = true;
             }
             PlayOutcome::Failure(cell) => {
                 let point = cell.0;
