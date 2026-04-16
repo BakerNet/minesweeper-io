@@ -40,6 +40,7 @@ pub struct FrontendGame {
     set_flag_count: WriteSignal<usize>,
     game: Arc<RwLock<MinesweeperClient>>,
     send: Arc<dyn Fn(&ClientMessage) + Send + Sync>,
+    close: Arc<dyn Fn() + Send + Sync>,
 }
 
 impl FrontendGame {
@@ -47,6 +48,7 @@ impl FrontendGame {
         game_info: &GameInfo,
         err_signal: WriteSignal<Option<String>>,
         send: Arc<dyn Fn(&ClientMessage) + Send + Sync>,
+        close: Arc<dyn Fn() + Send + Sync>,
     ) -> Self {
         let (read_signals, write_signals) = signals_from_board(&game_info.board());
         let mut players = Vec::with_capacity(game_info.players.len());
@@ -92,6 +94,7 @@ impl FrontendGame {
             set_flag_count,
             game: Arc::new(RwLock::new(MinesweeperClient::new(rows, cols))),
             send,
+            close,
         }
     }
 
@@ -232,6 +235,10 @@ impl FrontendGame {
                 self.set_sync_time.set(Some(secs));
                 Ok(())
             }
+            GameMessage::GameEnded => {
+                self.close();
+                Ok(())
+            }
         }
     }
 
@@ -264,6 +271,11 @@ impl FrontendGame {
     pub fn send(&self, m: ClientMessage) {
         log::debug!("before send {m:?}");
         (self.send)(&m)
+    }
+
+    pub fn close(&self) {
+        log::debug!("before close");
+        (self.close)()
     }
 }
 

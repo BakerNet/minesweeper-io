@@ -7,26 +7,26 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1"
-axum = { version = "0.8", features = ["ws", "macros"], optional = true }
-axum-login = { version = "0.17", optional = true }
-chrono = { version = "0.4", features = ["serde"] }
-cfg-if = "1.0"
-futures = { version = "0.3", optional = true }
-http = { version = "1.1" }
-log = "0.4"
-oauth2 = { version = "5.0", optional = true }
-reqwest = { version = "0.12", features = ["json"], optional = true }
-serde = "1.0"
-serde_json = "1.0"
-sqlx = { version = "0.8", features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
-thiserror = "2.0"
-time = "0.3"
-tokio = { version = "1", features = ["full"], optional = true }
-tower-sessions = { version = "0.14", optional = true }
-tracing = { version = "0.1", optional = true }
-getrandom = { version = "0.3", features = ["wasm_js"] }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true, optional = true }
+axum-login = { workspace = true, optional = true }
+chrono = { workspace = true }
+cfg-if = { workspace = true }
+futures = { workspace = true, optional = true }
+http = { workspace = true }
+log = { workspace = true }
+oauth2 = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["sqlite", "time", "chrono", "runtime-tokio"], optional = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, optional = true }
+tower-sessions = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+getrandom = { workspace = true }
 
 [features]
 ssr = [

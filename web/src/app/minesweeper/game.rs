@@ -280,7 +280,7 @@ pub fn ReplayView() -> impl IntoView {
 #[component]
 fn WebActiveGame<F>(game_info: GameInfo, refetch: F) -> impl IntoView
 where
-    F: Fn() + Clone + 'static,
+    F: Fn() + Clone + Send + Sync + 'static,
 {
     let (error, set_error) = signal::<Option<String>>(None);
 
@@ -288,13 +288,20 @@ where
         ready_state,
         message,
         send,
+        close,
         ..
     } = use_websocket::<ClientMessage, GameMessage, JsonSerdeWasmCodec>(&format!(
         "/api/websocket/game/{}",
         &game_info.game_id
     ));
 
-    let game = FrontendGame::new(&game_info, set_error, Arc::new(send));
+    let refetch_clone = refetch.clone();
+    let end_game = move || {
+        close();
+        refetch_clone();
+    };
+
+    let game = FrontendGame::new(&game_info, set_error, Arc::new(send), Arc::new(end_game));
     let flag_count = game.flag_count;
     let completed = game.completed;
     let top_score = game.top_score;

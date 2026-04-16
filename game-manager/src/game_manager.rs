@@ -10,7 +10,7 @@ use minesweeper_lib::{
     game::{Minesweeper, MinesweeperBuilder, MinesweeperOpts, Play, PlayOutcome},
 };
 use sqlx::SqlitePool;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, thread::sleep};
 use tokio::{
     sync::{broadcast, mpsc, Mutex, RwLock},
     time::{interval, Duration},
@@ -20,8 +20,8 @@ use web_auth::{models::User, FrontendUser};
 use crate::{
     messages::{ClientMessage, GameMessage},
     models::{
-        AggregateStats, Game, GameLog, GameParameters, GameQueryParams, Player, PlayerGame, PlayerUser,
-        SimpleGameWithPlayers, TimelineStats,
+        AggregateStats, Game, GameLog, GameParameters, GameQueryParams, Player, PlayerGame,
+        PlayerUser, SimpleGameWithPlayers, TimelineStats,
     },
 };
 
@@ -178,7 +178,11 @@ impl GameManager {
         })
     }
 
-    pub async fn get_player_games_for_user(&self, user: &User, params: &GameQueryParams) -> Result<Vec<PlayerGame>> {
+    pub async fn get_player_games_for_user(
+        &self,
+        user: &User,
+        params: &GameQueryParams,
+    ) -> Result<Vec<PlayerGame>> {
         Player::get_player_games_for_user(&self.db, user, params)
             .await
             .map_err(|e| {
@@ -538,6 +542,11 @@ impl GameHandler {
                 .await
                 .map_err(|e| log::error!("Error saving game log: {e}"));
         }
+
+        let close_msg = GameMessage::GameEnded.into_json();
+        log::debug!("Sending game_ended {close_msg:?}");
+        let _ = self.broadcaster.send(close_msg);
+        sleep(Duration::from_secs(4));
     }
 
     fn handles_to_client_players(&self) -> Vec<Option<ClientPlayer>> {

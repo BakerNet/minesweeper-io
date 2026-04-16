@@ -6,7 +6,7 @@ use serde_json::Error as SerdeJsonError;
 use minesweeper_lib::{
     board::CompactBoard,
     client::ClientPlayer,
-    game::{Play, CompactPlayOutcome},
+    game::{CompactPlayOutcome, Play},
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +18,7 @@ pub enum GameMessage {
     GameState(CompactBoard),
     PlayersState(Vec<Option<ClientPlayer>>),
     GameStarted,
+    GameEnded,
     TopScore(usize),
     SyncTimer(usize),
     Error(String),
