@@ -1,3 +1,6 @@
+[tools]
+wasm_bindgen = "0.2.117"
+
 [build]
 target = "./index.html"
 

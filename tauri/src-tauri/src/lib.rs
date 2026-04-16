@@ -153,7 +153,7 @@ async fn get_game_mode_timeline(
          WHERE is_completed = 1 
            AND rows = ? AND cols = ? AND num_mines = ?
            AND start_time IS NOT NULL AND end_time IS NOT NULL
-         ORDER BY start_time ASC
+         ORDER BY start_time DESC
          LIMIT 1000",
     )
     .bind(rows as i64)
@@ -164,7 +164,7 @@ async fn get_game_mode_timeline(
     .map_err(|e| format!("Failed to get timeline stats: {e}"))?;
 
     let mut timeline_data = Vec::new();
-    for row in timeline_rows {
+    for row in timeline_rows.iter().rev() {
         let victory: i32 = row.try_get("victory").unwrap_or(0);
         let seconds: f64 = row.try_get("seconds").unwrap_or(0.0);
 

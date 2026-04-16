@@ -542,15 +542,27 @@ impl Player {
             beginner: sqlx::query_as(&queries[0])
                 .bind(user.id)
                 .fetch_all(db)
-                .await?,
+                .await
+                .map(|mut v: Vec<(bool, i64)>| {
+                    v.reverse();
+                    v
+                })?,
             intermediate: sqlx::query_as(&queries[1])
                 .bind(user.id)
                 .fetch_all(db)
-                .await?,
+                .await
+                .map(|mut v: Vec<(bool, i64)>| {
+                    v.reverse();
+                    v
+                })?,
             expert: sqlx::query_as(&queries[2])
                 .bind(user.id)
                 .fetch_all(db)
-                .await?,
+                .await
+                .map(|mut v: Vec<(bool, i64)>| {
+                    v.reverse();
+                    v
+                })?,
         })
     }
 }
